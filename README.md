@@ -1,4 +1,4 @@
-# Erlang
+# ADCC 2023-2024
 • Per ogni progetto bisogna consegnare una relazione scritta (pdf) e un link ad un repository git con il codice
 • Nella relazione documentate tutte le vostre scelte implementative (design choices)
 • La consegna avviene una settimana prima della data dell’esame
