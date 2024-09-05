@@ -40,5 +40,19 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
 % restanti controlli sui parametri di new/4
 new(_, _, _, _) ->
     {error, invalid_parameters}.
+% Funzione per creare un tab (una matrice NxM di celle)
+create_tab(N, M) ->
+    lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
+
+% Loop principale del processo, dove si gestiscono i messaggi
+loop(Spreadsheet) ->
+    receive
+        % Gestire messaggi per operazioni sul foglio di calcolo
+        stop -> 
+            ok; % Fermare il processo
+        _Other ->
+            loop(Spreadsheet)
+    end.
+
 
 
