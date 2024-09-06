@@ -12,6 +12,7 @@ whereis(my_spreadsheet).
 % Avvio con due shell
 $shell1
 erl -sname node1 -setcookie mycookie
+c(spreadsheet).
 spreadsheet:new(my_spreadsheet).
         
 $shell2
@@ -23,3 +24,6 @@ net_adm:ping(node1@DESKTOPQ2A2FL7).
 %shell1
 % Verificare che il processo sia terminato
 whereis(my_spreadsheet).
+
+$shell1
+share(my_spreadsheet,[{my_spreadsheet,write},{node2,read}]).

@@ -6,7 +6,7 @@
 -record(spreadsheet, {
     name,
     tabs = [],              % Lista di fogli (ogni foglio è una matrice NxM)
-    owner = undefined       % memorizza il proprietario del foglio
+    owner = undefined,       % memorizza il proprietario del foglio
     access_policies = []    % Lista di tuple  {Proc, AP} con Proc uguale al Pid/reg_name per gestire le policy di accesso
                             % (read o write)
 }).
@@ -30,8 +30,9 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
             Owner = self(),
             % Creazione dei tab (K fogli, ciascuno una matrice NxM)
             Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+            %io:format("Tabs: ~p~n", [Tabs]),
             % Creazione del record spreadsheet
-            Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner},
+            Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies=[]},
             % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio 
             register(Name, self()),
             % Memorizzazione dello stato
@@ -58,7 +59,7 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
             end
     end.
 % Loop principale del processo, dove si gestiscono i messaggi
-loop(State = #spreadsheet{owner = Owner, access_policies = Policies}) ->
+loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     receive
      {share, From, AccessPolicies} ->
             if
@@ -71,6 +72,7 @@ loop(State = #spreadsheet{owner = Owner, access_policies = Policies}) ->
                     % Se non è il proprietario, ritorna un errore
                     From ! {share_result, {error, not_owner}},
                     loop(State)
+            end;
         % Gestire messaggi per operazioni sul foglio di calcolo
         stop -> 
 
