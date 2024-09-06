@@ -49,7 +49,8 @@ loop(Spreadsheet) ->
     receive
         % Gestire messaggi per operazioni sul foglio di calcolo
         stop -> 
-            ok; % Fermare il processo
+
+            ok; % esce dal loop, ma attgenzione non arresta Spreadsheet !!!
         _Other ->
             loop(Spreadsheet)
     end.
