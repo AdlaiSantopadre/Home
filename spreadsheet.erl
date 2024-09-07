@@ -10,8 +10,8 @@
     access_policies = []    % Lista di tuple  {Proc, AP} con Proc uguale al Pid/reg_name per gestire le policy di accesso
                             % (read o write)
 }).
-
-% Funzione per creare un nuovo foglio di nome Name di dimensione 100 x 10
+%% il foglio di calcolo verrà creato con un processo separato da quello del proprietario 
+% Funzione per creare un nuovo foglio di nome Name di dimensione 100 x 10 e 1 tab
 new(Name) ->
     N = 100,  % Default N (numero di righe)
     M = 10,  % Default M (numero di colonne)
@@ -22,21 +22,17 @@ new(Name) ->
 new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 0, K > 0 ->    % guardie sui valori passati
     
     % Controllo se il nome del foglio esiste già!
-    % La funzione whereis/1 in Erlang cerca il processo associato a un nome registrato. Se il nome è registrato, ritorna il pid (Process Identifier) del processo. 
-    % Se il nome non è registrato, ritorna undefined.
+    % (La funzione whereis/1 in Erlang cerca il processo associato a un nome registrato. Se il nome è registrato, ritorna il pid (Process Identifier) del processo. 
+    % Se il nome non è registrato, ritorna undefined.)
     case whereis(Name) of
         undefined ->
-            % Creazione del processo proprietario
-            Owner = self(),
-            % Creazione dei tab (K fogli, ciascuno una matrice NxM)
-            Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-            %io:format("Tabs: ~p~n", [Tabs]),
-            % Creazione del record spreadsheet
-            Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies=[]},
-            % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio 
-            register(Name, self()),
-            % Memorizzazione dello stato
-            loop(Spreadsheet);
+            
+            Owner = self(),   %Il Pid del processo chiamante viene salvato in Owner e salvato nel campo omonimo del record #spreadsheet
+            Pid = spawn(spreadsheet, loop, [Name, Owner, N, M, K]),  % Avvio di un distinto processo  che esegue loop/1
+            register(Name, Pid),  % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio  per facilitarne l'accesso
+            {ok, Pid};  % Restituisce il Pid del processo creato, per inviargli messaggi
+            
+            
         _ ->
             {error, already_exists}
     end;
@@ -53,7 +49,7 @@ new(_, _, _, _) ->
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
 
-% Funzione che condivide il foglio e recepisce le policy di accesso con un messaggio spedito al Loop
+% Funzione che condivide il foglio e recepisce le policy di accesso con un messaggio spedito al Loop/1
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     case whereis(SpreadsheetName) of
         undefined ->
@@ -76,19 +72,27 @@ remove_policy(SpreadsheetName, Proc) ->
                 {remove_policy_result, Result} -> Result
             end
     end.
-% Loop principale del processo, dove si gestiscono i messaggi
+% Loop che gestisce il processo del foglio di calcolo
+loop(Name, Owner, N, M, K) ->
+    Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner},
+    loop(Spreadsheet).
+
+% loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
+    
     receive
-        {share, From, AccessPolicies} ->
+
+        {share, From, NewPolicies} ->
             if
                 From =:= Owner ->
                     % Aggiornare le politiche di accesso
-                    NewState = State#spreadsheet{access_policies = AccessPolicies},
-                    From ! {share_result, true},
+                    NewState = State#spreadsheet{access_policies = NewPolicies},
+                    From ! {share_result, ok},
                     loop(NewState);
                 true ->
                     % Se non è il proprietario, ritorna un errore
-                    From ! {share_result, {error, not_owner}},
+                    From ! {share_result,{error, not_owner}},
                     loop(State)
             end;
         {remove_policy, From, Proc} ->
@@ -103,7 +107,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
                     From ! {remove_policy_result, ok},
                     loop(NewState);
                 true ->
-                    From ! {remove_policy_result, {error, not_owner}},
+                    From ! {error, not_owner},
                     loop(State)
             end;
         % Gestire messaggi per operazioni sul foglio di calcolo
