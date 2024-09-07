@@ -45,9 +45,15 @@ new(_, _, _, _) ->
     {error, invalid_parameters}.
 
 % Funzione per creare una scheda come matrice NxM di celle
+% lists:map(Function, List) applica la funzione specificata a ciascun elemento della lista fornita
+% e restituisce una nuova lista con i risultati. 
+%la lista su cui viene applicata la mappatura è quella generata da lists:seq(1, N)
+% lists:duplicate(M, undef) crea una nuova lista lunga M di elementi il cui valore è undef per cui
+%tale funzione chiamata su lists:seq(1,N) produce attraverso lists:map una matrice come lista di liste.
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
-% Funzione che permette avvia l'aggiornamento delle policy di accesso con un messaggio spedito al Loop
+
+% Funzione che condivide il foglio e recepisce le policy di accesso con un messaggio spedito al Loop
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     case whereis(SpreadsheetName) of
         undefined ->
@@ -58,10 +64,22 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
                 {share_result, Result} -> Result
             end
     end.
+
+% Funzione per rimuovere una policy di accesso per un processo specifico
+remove_policy(SpreadsheetName, Proc) ->
+    case whereis(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};
+        Pid ->
+            Pid ! {remove_policy, self(), Proc},
+            receive
+                {remove_policy_result, Result} -> Result
+            end
+    end.
 % Loop principale del processo, dove si gestiscono i messaggi
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     receive
-     {share, From, AccessPolicies} ->
+        {share, From, AccessPolicies} ->
             if
                 From =:= Owner ->
                     % Aggiornare le politiche di accesso
@@ -71,6 +89,21 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
                 true ->
                     % Se non è il proprietario, ritorna un errore
                     From ! {share_result, {error, not_owner}},
+                    loop(State)
+            end;
+        {remove_policy, From, Proc} ->
+            if
+                From =:= Owner ->
+                    %lists:filter/2 è una funzione  prende una funzione (in questo caso un funtore) e una lista come argomenti.
+                    %restituendo es una nuova lista composta solo dagli elementi che soddisfano 
+                    %la condizione specificata nella funzione.Nel caso mantiene tutte le tuple {P,AP} della lista togliendo 
+                    %solo quella che  corrisponde a P == Proc
+                    NewPolicies = lists:filter(fun({P, _}) -> P =/= Proc end, Policies),
+                    NewState = State#spreadsheet{access_policies = NewPolicies},
+                    From ! {remove_policy_result, ok},
+                    loop(NewState);
+                true ->
+                    From ! {remove_policy_result, {error, not_owner}},
                     loop(State)
             end;
         % Gestire messaggi per operazioni sul foglio di calcolo
