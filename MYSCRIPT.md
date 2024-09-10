@@ -1,15 +1,22 @@
 # Sequenza comandi da shell
 
-compilare spreadsheet
-c(spreadsheet).  
-% Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite
-spreadsheet:new(my_spreadsheet).
-% Controllare il processo registrato
-whereis(my_spreadsheet).
-% Fermare il processo
-my_spreadsheet ! stop.
-% Verificare che il processo sia terminato
-whereis(my_spreadsheet).
+c(spreadsheet).  %compilare spreadsheet
+
+spreadsheet:new(my_spreadsheet).  % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite
+
+whereis(my_spreadsheet).   % Controllare il processo registrato
+
+my_spreadsheet ! stop.% Fermare il processo
+
+whereis(my_spreadsheet).  % Verificare che il processo sia terminato
+
+spreadsheet:share(my_spreadsheet,[{node1,read},{node2,write}]).
+
+spreadsheet:remove_policy(my_spreadsheet,From,Proc).
+
+
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

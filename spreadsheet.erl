@@ -2,7 +2,7 @@
 % cioè la possibilita' di creare uno spreadsheet con K fogli di dimenione N x M prefissate, oppure di specificare i valori di N , M e K voluti:
 
 -module(spreadsheet). %ver.2.0
--export([new/1, new/4, share/2]).
+-export([new/1, new/4, share/2, loop/5]).
 
 -record(spreadsheet, {
     name,
@@ -21,10 +21,7 @@ new(Name) ->
 
 % Funzione per creare un nuovo foglio con dimensioni passate per valori
 new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 0, K > 0 ->    % guardie sui valori passati
-    
     % Controllo se il nome del foglio esiste già!
-    % (La funzione whereis/1 in Erlang cerca il processo associato a un nome registrato. Se il nome è registrato, ritorna il pid (Process Identifier) del processo. 
-    % Se il nome non è registrato, ritorna undefined.)
     case whereis(Name) of
         undefined ->
             
