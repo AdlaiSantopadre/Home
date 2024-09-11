@@ -80,8 +80,16 @@ loop(Name, Owner, N, M, K) ->
 
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
-    
+    io:format("Spreadsheet process started. Waiting for messages.~n"),
     receive
+        {get_spreadsheetPid, From} ->
+            
+                io:format("Received request for spreadsheet state from: ~p~n", [From]),
+                io:format("State to be returned: ~p~n", [State]),  % Stampa il valore di `State`
+                % Invia il record #spreadsheet{} indietro
+                From ! {spreadsheet_state, State},
+                io:format("Sent spreadsheet state to: ~p~n", [From]),
+                loop(State);  % Continua ad ascoltare messaggi
 
         {share, From, NewPolicies} ->
             if
@@ -106,6 +114,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
                     NewState = State#spreadsheet{access_policies = NewPolicies},
                     From ! {remove_policy_result, ok},
                     loop(NewState);
+          
                 true ->
                     From ! {error, not_owner},
                     loop(State)
@@ -117,51 +126,80 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
         _Other ->
             loop(State)
     end.
-% Funzione per salvare il foglio di calcolo in un file CSV
-to_csv(Filename, #spreadsheet{name = Name, tabs = Tabs}) ->
-    case file:open(Filename, [write]) of
-        {ok, File} ->
-            % Scrivi il nome del foglio nella prima riga
-            io:format(File, "Spreadsheet Name: ~s~n", [Name]),
-            % Salva ogni tab come riga CSV
-            lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
-            file:close(File), %file handling
-            ok;
-        {error, Reason} ->
-            {error, Reason}
+% Funzione per salvare il foglio di calcolo in un file CSV, attraverso il registered name
+% Funzione per salvare il foglio di calcolo in un file CSV, accetta il registered name
+to_csv(Filename, SpreadsheetName) ->
+    io:format("Starting to_csv with Filename: ~p and SpreadsheetName: ~p~n", [Filename, SpreadsheetName]),
+    
+    % Recupera il PID associato al nome registrato
+    case whereis(SpreadsheetName) of
+        undefined ->
+            io:format("Error: Spreadsheet process not found for name: ~p~n", [SpreadsheetName]),
+            {error, spreadsheet_not_found};  % Se il processo non è trovato
+        Pid ->
+            io:format("Found PID: ~p for SpreadsheetName: ~p~n", [Pid, SpreadsheetName]),
+
+            % Invia un messaggio al processo per ottenere lo stato del foglio di calcolo
+            Pid ! {get_spreadsheet, self()},
+            receive
+                {spreadsheet_state, #spreadsheet{name = Name, tabs = Tabs}} ->
+                    io:format("Received spreadsheet state for Name: ~p~n", [Name]),
+                    % Apri il file per la scrittura
+                    case file:open(Filename, [write]) of
+                        {ok, File} ->
+                            io:format("Opened file: ~p~n", [Filename]),
+                            % Scrivi il nome del foglio
+                            io:format(File, "Spreadsheet Name: ~s~n", [atom_to_list(Name)]),
+                            % Salva ogni tab come riga CSV
+                            lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
+                            file:close(File),
+                            io:format("Finished writing to CSV: ~p~n", [Filename]),
+                            ok;
+                        {error, Reason} ->
+                            io:format("Error opening file: ~p, Reason: ~p~n", [Filename, Reason]),
+                            {error, Reason}
+                    end
+            after 5000 ->
+                io:format("Timeout while waiting for response from PID: ~p~n", [Pid]),
+                {error, timeout}  % Timeout se il processo non risponde
+            end
     end.
 
 % Funzione per salvare ogni tab come riga CSV
 save_tab_to_csv(File, Tab) ->
     lists:foreach(fun(Row) ->
-        % Serializza ogni cella e crea una riga CSV
         Line = lists:map(fun(Cell) -> format_cell(Cell) end, Row),
         io:format(File, "~s~n", [string:join(Line, ",")])
     end, Tab).
 
-% Formattazione di ogni cella (gestisce undef e vari tipi generici convertendoli in String)
+% Formattazione delle celle per CSV
 format_cell(undef) -> "undef";
-format_cell(Cell) ->
-    case io_lib:format("~p", [Cell]) of
-        [Str] -> Str; % Converte il valore in stringa
-        _ -> "undefined" % Valore di fallback
-    end.
+format_cell(Cell) -> io_lib:format("~p", [Cell]).
+
+
 % Funzione per caricare il foglio di calcolo da un file CSV
 from_csv(Filename) ->
     case file:open(Filename, [read]) of
         {ok, File} ->
             % Leggi il nome del foglio (prima riga)
-            {ok, [SpreadsheetNameLine]} = io:read(File, ''),
+            {ok, [SpreadsheetNameLine]} = io:get_line(File, ''),
             SpreadsheetName = string:strip(SpreadsheetNameLine, both, $\n),
             % Carica i tab da CSV
             Tabs = load_tabs_from_csv(File),
             file:close(File),
-            #spreadsheet{name = SpreadsheetName, tabs = Tabs, owner = self(), access_policies = []};
+            % Costruisci il record Spreadsheet = #spreadsheet{} con i dati letti
+            Spreadsheet = #spreadsheet{
+                    name = list_to_atom(SpreadsheetName),  % Converte il nome in un atomo
+                    tabs = Tabs,
+                    owner = self(),  % Imposta il processo corrente come proprietario
+                    access_policies = []  % Politiche di accesso vuote
+                    },
+            {ok, Spreadsheet};
         {error, Reason} ->
             {error, Reason}
     end.
 
-% Funzione per caricare i tab da un file CSV
+% Funzione per caricare i tab dal file CSV
 load_tabs_from_csv(File) ->
     case io:get_line(File, '') of
         eof -> [];  % Se abbiamo raggiunto la fine del file
