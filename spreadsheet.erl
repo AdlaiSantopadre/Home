@@ -117,7 +117,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
         _Other ->
             loop(State)
     end.
-% Funzione per salvare il foglio di calcolo in un file CSV
+%% Funzione per salvare il foglio di calcolo in un file CSV
 to_csv(Filename, #spreadsheet{name = Name, tabs = Tabs}) ->
     case file:open(Filename, [write]) of
         {ok, File} ->
