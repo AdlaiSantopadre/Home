@@ -9,23 +9,31 @@
 • qualsiasi tipo di dato primitivo
 • Il valore undef
 
-Intefaccia 1/4 
-Il modulo spreadsheet deve contenere almeno le seguenti funzioni: 
+# Intefaccia 
+Il modulo spreadsheet deve contenere almeno le seguenti funzioni:
+
 new(name) -> spreadsheet | {error,reason} 
+
 • Crea un nuovo foglio di nome “name” di dimensioni NxM di K tab (schede) 
 • assegna il processo creatore come proprietario del foglio 
 • I parametri N, M, K  sono default nel modulo 
 
 
 
-new(name, N, M, K) -> spreadsheet | {error,reason} • Crea un nuovo foglio di nome “name” di K tab 
+new(name, N, M, K) -> spreadsheet | {error,reason} 
+
+• Crea un nuovo foglio di nome “name” di K tab 
 • Ogni tab ha dimensioni NxM 
 • assegna il processo creatore come proprietario del foglio
 
 share(spreadsheet, AccessPolicies) -> bool 
-Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
+
+•Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
+ 
  AccessPolicies è una lista di {Proc,AP} dove 
- • Proc è un Pid/reg_name • AP = read | write 
+ • Proc è un Pid/reg_name 
+ • AP = read | write 
+ 
  Le policy di accesso ad un foglio possono cambiare in qualsiasi momento
 
 get(spreadsheet, tab, i, j, val) -> Value | undef 
@@ -72,3 +80,11 @@ Formule
 • Le formule possono usare dei range di celle 
 • Per semplicità usiamo range regolari del tipo a1:c6 • a1:c6 indica tutte le seguenti celle 
 • tab!a1:c6 indica tutte le celle comprese nel range a1:c6 del tab1
+# Project report 
+• You should report on 
+• Design decisions: why you took such a decision? / Motivate every design choice 
+• Implementation details: how you implemented a decision? / Add some code snippet 
+• Measurements: 
+  • average time of lookup 
+  • average time of lookup in presence of node failure (up to k-1 nodes per key) 
+  • average time for joining the network • Stress the implementation with several (~1000) nodes in the net
