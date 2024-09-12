@@ -1,15 +1,12 @@
-% modulo Erlang che implementa il foglio di calcolo come record rispettando le prime due specifiche 
-% cioè la possibilita' di creare uno spreadsheet con K fogli di dimenione N x M prefissate, oppure di specificare i valori di N , M e K voluti:
 
 -module(spreadsheet). %ver..3.0
 -export([new/1, new/4, share/2, loop/5, remove_policy/2,to_csv/2, from_csv/1]).
 
 -record(spreadsheet, {
-    name,
-    tabs = [],              % Lista di fogli (ogni foglio è una matrice NxM)
-    owner = self(),       % memorizza il proprietario del foglio
-    access_policies = []    % Lista di tuple  {Proc, AP} con Proc uguale al Pid/reg_name per gestire le policy di accesso
-                            % (read o write)
+    name,                % Nome del foglio di calcolo
+    tabs = [],           % Dati (una lista di liste, rappresentando una matrice)
+    owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
+    access_policies = [] % Politiche di accesso (lista di tuple)
 }).
 
 %% il foglio di calcolo verrà creato con un processo separato da quello del proprietario 
@@ -26,13 +23,13 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
     case whereis(Name) of
         undefined ->
             
-            Owner =self(), %Il Pid del processo chiamante viene salvato in Owner e salvato nel campo omonimo del record #spreadsheet
-            Spreadsheet = #spreadsheet{name = Name, tabs =[], owner = Owner, access_policies = []},
+            Owner =self(), %Il Pid del processo chiamante viene salvato in Owner 
+            %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+        
             Pid = spawn(spreadsheet, loop, [Name, Owner, N, M, K]),  % Avvio di un distinto processo  che esegue loop/5
             register(Name, Pid),  % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio  per facilitarne l'accesso
             {ok, Pid};  % Restituisce il Pid del processo creato, per inviargli messaggi
-            
-            
+                       
         _ ->
             {error, already_exists}
     end;
@@ -40,14 +37,7 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
 new(_, _, _, _) ->
     {error, invalid_parameters}.
 
-% Funzione per creare una scheda come matrice NxM di celle
-% lists:map(Function, List) applica la funzione specificata a ciascun elemento della lista fornita
-% e restituisce una nuova lista con i risultati. 
-%la lista su cui viene applicata la mappatura è quella generata da lists:seq(1, N)
-% lists:duplicate(M, undef) crea una nuova lista lunga M di elementi il cui valore è undef per cui
-%tale funzione chiamata su lists:seq(1,N) produce attraverso lists:map una matrice come lista di liste.
-create_tab(N, M) ->
-    lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
+
 
 % Funzione che condivide il foglio e recepisce le policy di accesso con un messaggio spedito al Loop/1
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
@@ -74,13 +64,18 @@ remove_policy(SpreadsheetName, Proc) ->
     end.
 % Loop che gestisce il processo del foglio di calcolo
 loop(Name, Owner, N, M, K) ->
+    io:format("spreadsheet process started.~p~n",[Name]),
     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner},
+    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
     loop(Spreadsheet).
 
+% Funzione per creare una scheda come matrice NxM di celle
+
+create_tab(N, M) ->
+    lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
-    io:format("Spreadsheet process started. Waiting for messages.~n"),
+    io:format("Spreadsheet State loop started. Waiting for messages.~n"),
     receive
         {get_spreadsheetPid, From} ->
             
@@ -106,10 +101,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
         {remove_policy, From, Proc} ->
             if
                 From =:= Owner ->
-                    %lists:filter/2 è una funzione  prende una funzione (in questo caso un funtore) e una lista come argomenti.
-                    %restituendo es una nuova lista composta solo dagli elementi che soddisfano 
-                    %la condizione specificata nella funzione.Nel caso mantiene tutte le tuple {P,AP} della lista togliendo 
-                    %solo quella che  corrisponde a P == Proc
+                    
                     NewPolicies = lists:filter(fun({P, _}) -> P =/= Proc end, Policies),
                     NewState = State#spreadsheet{access_policies = NewPolicies},
                     From ! {remove_policy_result, ok},
@@ -127,7 +119,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
             loop(State)
     end.
 % Funzione per salvare il foglio di calcolo in un file CSV, attraverso il registered name
-% Funzione per salvare il foglio di calcolo in un file CSV, accetta il registered name
+
 to_csv(Filename, SpreadsheetName) ->
     io:format("Starting to_csv with Filename: ~p and SpreadsheetName: ~p~n", [Filename, SpreadsheetName]),
     
@@ -140,7 +132,7 @@ to_csv(Filename, SpreadsheetName) ->
             io:format("Found PID: ~p for SpreadsheetName: ~p~n", [Pid, SpreadsheetName]),
 
             % Invia un messaggio al processo per ottenere lo stato del foglio di calcolo
-            Pid ! {get_spreadsheet, self()},
+            Pid ! {get_spreadsheetPid, self()},
             receive
                 {spreadsheet_state, #spreadsheet{name = Name, tabs = Tabs}} ->
                     io:format("Received spreadsheet state for Name: ~p~n", [Name]),
