@@ -21,8 +21,7 @@ spreadsheet:remove_policy(my_spreadsheet,ProcA).
 
 Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
 spreadsheet:to_csv("my_spreadsheet.csv",my_spreadsheet).
-
-Spreadsheet = spreadsheet:from_csv("my_spreadsheet.csv").
+spreadsheet:from_csv("my_spreadsheet.csv").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Avvio con due shell

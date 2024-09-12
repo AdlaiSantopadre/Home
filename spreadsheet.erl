@@ -1,4 +1,3 @@
-%test 
 -module(spreadsheet). %ver..3.0
 -export([new/1, new/4, share/2, loop/5, remove_policy/2,to_csv/2, from_csv/1]).
 
@@ -119,7 +118,6 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
             loop(State)
     end.
 % Funzione per salvare il foglio di calcolo in un file CSV, attraverso il registered name
-
 to_csv(Filename, SpreadsheetName) ->
     io:format("Starting to_csv with Filename: ~p and SpreadsheetName: ~p~n", [Filename, SpreadsheetName]),
     
@@ -156,40 +154,62 @@ to_csv(Filename, SpreadsheetName) ->
                 {error, timeout}  % Timeout se il processo non risponde
             end
     end.
-
-% Funzione per salvare ogni tab come riga CSV
+%% Funzioni iausiliarie  to_csv/1
+    % Funzione per salvare ogni tab come riga CSV
 save_tab_to_csv(File, Tab) ->
     lists:foreach(fun(Row) ->
         Line = lists:map(fun(Cell) -> format_cell(Cell) end, Row),
         io:format(File, "~s~n", [string:join(Line, ",")])
     end, Tab).
 
-% Formattazione delle celle per CSV
+    % Formattazione delle celle per CSV
 format_cell(undef) -> "undef";
 format_cell(Cell) -> io_lib:format("~p", [Cell]).
 
 
-% Funzione per caricare il foglio di calcolo da un file CSV
+    % Funzione per caricare il foglio di calcolo da un file CSVhe function opens the file and reads the first line.
+%If the first line starts with "Spreadsheet Name: ", we extract the actual name (SpreadsheetName) and proceed to load the rest of the data.
+%If the format of the first line doesn’t match, we handle it gracefully by closing the file and returning an error.
 from_csv(Filename) ->
     case file:open(Filename, [read]) of
         {ok, File} ->
-            % Leggi il nome del foglio (prima riga)
-            {ok, [SpreadsheetNameLine]} = io:get_line(File, ''),
-            SpreadsheetName = string:strip(SpreadsheetNameLine, both, $\n),
-            % Carica i tab da CSV
-            Tabs = load_tabs_from_csv(File),
-            file:close(File),
-            % Costruisci il record Spreadsheet = #spreadsheet{} con i dati letti
-            Spreadsheet = #spreadsheet{
-                    name = list_to_atom(SpreadsheetName),  % Converte il nome in un atomo
-                    tabs = Tabs,
-                    owner = self(),  % Imposta il processo corrente come proprietario
-                    access_policies = []  % Politiche di accesso vuote
+            % Read the first line (Spreadsheet Name)
+            SpreadsheetNameLine = io:get_line(File, ''),
+            io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),  % Debug
+
+            % Pattern match to extract the spreadsheet name
+%The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
+% case expression, but then try to use it outside of the case block. Variables bound 
+%in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
+                "Spreadsheet Name: " ++ SpreadsheetName ->  
+                    io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
+                    
+                    % Load the tabs from the remaining lines in the CSV
+                    Tabs = load_tabs_from_csv(File),
+                    io:format("Read Tabs: ~p~n", [Tabs]),  % Debug
+
+                    file:close(File),
+
+                    % Construct the spreadsheet record
+                    Spreadsheet = #spreadsheet{
+                        name = list_to_atom(SpreadsheetName),  % Convert the name to an atom
+                        tabs = Tabs,
+                        owner = self(),  % Set the current process as the owner
+                        access_policies = []  % Empty access policies for now
                     },
-            {ok, Spreadsheet};
+                    {ok, Spreadsheet};
+
+                _ ->
+                    io:format("Error: Invalid format for Spreadsheet Name line~n"),
+                    file:close(File),
+                    {error, invalid_format}
+            end;
+
         {error, Reason} ->
+            io:format("Error opening file: ~p~n", [Reason]),
             {error, Reason}
     end.
+
 
 % Funzione per caricare i tab dal file CSV
 load_tabs_from_csv(File) ->
