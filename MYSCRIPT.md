@@ -20,7 +20,7 @@ spreadsheet:remove_policy(my_spreadsheet,ProcA).
 ## gestione persistenza
 
 Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
-spreadsheet:to_csv("my_spreadsheet.csv", spreadsheet).
+spreadsheet:to_csv("my_spreadsheet.csv",my_spreadsheet).
 
 Spreadsheet = spreadsheet:from_csv("my_spreadsheet.csv").
 
