@@ -1,6 +1,4 @@
-% modulo Erlang che implementa il foglio di calcolo come record rispettando le prime due specifiche 
-% cioè la possibilita' di creare uno spreadsheet con K fogli di dimenione N x M prefissate, oppure di specificare i valori di N , M e K voluti:
-
+%test 
 -module(spreadsheet). %ver..3.0
 -export([new/1, new/4, share/2, loop/5, remove_policy/2,to_csv/2, from_csv/1]).
 
