@@ -75,7 +75,7 @@ remove_policy(SpreadsheetName, Proc) ->
 % Loop che gestisce il processo del foglio di calcolo
 loop(Name, Owner, N, M, K) ->
     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner},
+    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
     loop(Spreadsheet).
 
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
