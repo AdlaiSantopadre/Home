@@ -14,12 +14,8 @@ spreadsheet:share(my_spreadsheet,[{node1,read},{node2,write}]).
 
 spreadsheet:remove_policy(my_spreadsheet,From,Proc).
 
-
-
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Avvio con due shell
 $shell1
 erl -sname node1 -setcookie mycookie
