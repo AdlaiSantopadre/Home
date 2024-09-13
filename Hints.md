@@ -42,6 +42,35 @@ la lista su cui viene applicata la mappatura è quella generata da **lists:seq(1
 
 crea una nuova lista lunga M di elementi il cui valore è undef per cui tale funzione chiamata su lists:seq(1,N) produce attraverso lists:map una matrice come lista di liste.
 
-## loop
+## Meccanismo di passaggio dei messaggi
 
-Il ciclo di vita di un processo in Erlang è gestito dalla funzione loop/1. La funzione loop/1 è progettata per ricevere e gestire messaggi in modo continuo, mantenendo lo stato aggiornato del processo. Se il processo termina lo stato non sarà più mantenuto e non sarà possibile inviare ulteriori richieste al processo.
+Ogni processo in Erlang ha un identificatore unico chiamato PID (Process Identifier). Per inviare un messaggio a un processo, è necessario conoscere il suo PID o avere un nome registrato a cui il PID è associato.
+Un processo invia un messaggio a un altro processo usando l'operatore **!** (noto come "send operator"). La sintassi è:
+PidOrName ! Message
+Quando un messaggio è inviato a un processo, viene inserito nella coda di messaggi di quel processo. Erlang gestisce queste code internamente, e ogni processo ha la propria coda di messaggi isolata.
+Il processo destinatario riceve messaggi estratti dalla sua coda di messaggi usando il costrutto **receive**. Il processo può specificare pattern per filtrare i messaggi che desidera trattare, come mostrato di seguito:
+receive
+    Pattern1 ->
+        % Azioni per Pattern1
+    Pattern2 when Guard ->
+        % Azioni per Pattern2 con guardia
+    ...
+    after Timeout ->
+        % Azioni dopo scaduto il timeout (in millisecondi)
+end
+*Non-blocking vs Blocking*: La ricezione è di norma un'operazione bloccante, il che significa che il processo resta in attesa di messaggi se la coda è vuota. Tuttavia, è possibile specificare un timeout dopo il quale il processo può eseguire altre azioni se nessun messaggio appropriato è stato ricevuto.
+
+Il ciclo di vita di un processo in Erlang puo essere gestito d una funzione progettata per ricevere e gestire messaggi in modo continuo, mantenendo lo stato aggiornato del processo. Se il processo termina lo stato non sarà più mantenuto e non sarà possibile inviare ulteriori richieste al processo.
+Esempio di funzione (loop/0)
+loop() ->
+    receive
+        {msg, From, Message} ->
+            io:format("Received ~p from ~p~n", [Message, From]),
+            loop();
+        {command, stop} ->
+            io:format("Stopping process~n")
+    after 5000 ->  % Timeout di 5000 millisecondi (5 secondi)
+        io:format("No messages received in 5 seconds, looping~n"),
+        loop()
+    end.
+
