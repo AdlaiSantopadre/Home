@@ -112,9 +112,9 @@ loop(Name, Owner, N, M, K) ->
     loop(Spreadsheet).
 
 % Funzione per creare una scheda come matrice NxM di celle
-
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
+    
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     io:format("Spreadsheet State loop started. Waiting for messages.~n"),
