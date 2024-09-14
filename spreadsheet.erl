@@ -1,4 +1,4 @@
--module(spreadsheet). %ver..3.0
+-module(spreadsheet). %ver..4.0
 -export([new/1, new/4, share/2, loop/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
@@ -114,7 +114,7 @@ loop(Name, Owner, N, M, K) ->
 % Funzione per creare una scheda come matrice NxM di celle
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
-    
+
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     io:format("Spreadsheet State loop started. Waiting for messages.~n"),
