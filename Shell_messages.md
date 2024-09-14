@@ -1,12 +1,21 @@
-# Sequenza comandi da shell
+# Test
 
-c(spreadsheet).  %compilare spreadsheet
+## Sequenza iniziale comandi da shell
 
-spreadsheet:new(my_spreadsheet).  % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite   % Controllare il processo registrato
+c(spreadsheet).                    %compilare spreadsheet
+spreadsheet:new(my_spreadsheet).  % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite  
+whereis(my_spreadsheet).  % Verificare che il processo sia terminato
+
+## Test scrittura / lettura (senza policy)
 
 my_spreadsheet ! stop.% Fermare il processo
+spreadsheet:set(my_spreadsheet,2,2,2,"prova").
+spreadsheet:set(my_spreadsheet,2,2,2,"prova",2000).
 
-whereis(my_spreadsheet).  % Verificare che il processo sia terminato
+spreadsheet:get(my_spreadsheet,1,1,2).
+spreadsheet:get(my_spreadsheet,1,1,2,2000).
+spreadsheet:get(my_spreadsheet,2,2,2).
+
 % crea due processi
 ProcA = spawn(fun() -> receive stop -> ok end end).
 ProcB = spawn(fun() -> receive stop -> ok end end).
@@ -18,9 +27,8 @@ spreadsheet:remove_policy(my_spreadsheet,ProcA).
 ## gestione persistenza
 
 Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
-spreadsheet:to_csv("my_spreadsheet.csv", spreadsheet).
-
-Spreadsheet = spreadsheet:from_csv("my_spreadsheet.csv").
+spreadsheet:to_csv("my_spreadsheet.csv",my_spreadsheet).
+spreadsheet:from_csv("my_spreadsheet.csv").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Avvio con due shell
