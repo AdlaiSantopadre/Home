@@ -1,10 +1,10 @@
 
--module(spreadsheet). %ver..3.2  new/1 e new/4 to_csv e from_csv
--export([new/1, new/4, share/2, loop/5, remove_policy/2,to_csv/2, from_csv/1]).
+-module(spreadsheet). %ver..4.0
+-export([new/1, new/4, share/2, loop/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
-    tabs = [],           % Dati (una lista di liste, rappresentando una matrice)
+    tabs = [],           % Dati (una lista di tab, una tab è una matrice)
     owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
     access_policies = [] % Politiche di accesso (lista di tuple)
 }).
@@ -12,9 +12,9 @@
 %% il foglio di calcolo verrà creato con un processo separato da quello del proprietario 
 % Funzione per creare un nuovo foglio di nome Name di dimensione 100 x 10 e 1 tab
 new(Name) ->
-    N = 100,  % Default N (numero di righe)
-    M = 10,  % Default M (numero di colonne)
-    K = 1,   % Default K (numero di tab)
+    N = 5,  % Default N (numero di righe)
+    M = 5,  % Default M (numero di colonne)
+    K = 2,   % Default K (numero di tab)
     new(Name, N, M, K).
 
 % Funzione per creare un nuovo foglio con dimensioni passate per valori
@@ -37,7 +37,49 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
 new(_, _, _, _) ->
     {error, invalid_parameters}.
 
+% La funzione get/4 spedisce un messaggio al processo spreadsheet richiedendo il valore di una specifica cella del foglio di calcolo
+get(Name, Tab, I, J) ->
+    Pid = whereis(Name),  % Get the PID of the spreadsheet process
+    Pid ! {get, self(), Tab, I, J},
+    receive
+        {cell_value, Value} -> Value
+    after 5000 -> % Default timeout of 5 seconds
+        timeout
+    end.
+% La funzione get/5 esegue lo stesso codice impostando un valore specifico per il timeout
+get(Name, Tab, I, J, Timeout) ->
+    Pid = whereis(Name),  % Get the PID of the spreadsheet process
+    Pid ! {get, self(), Tab, I, J},
+    receive
+        {cell_value, Value} -> Value
+    after Timeout -> 
+        timeout
+    end.
 
+
+%La funzione set/5 spedisce un messaggio al processo spreadsheet per aggiornare una cella specifica con un nuovo valore
+set(Name, Tab, I, J, Val) ->
+    Pid = whereis(Name),  % Get the PID of the spreadsheet process
+    Pid ! {set, self(), Tab, I, J, Val},
+    receive
+        {set_result, Result} -> Result
+    after 5000 -> % Default timeout of 5 seconds
+        timeout
+    end.
+
+% set/6 specifica ulteriormente un valore di timeout desiderato
+set(Name, Tab, I, J, Val, Timeout) ->
+    Pid = whereis(Name),  % Get the PID of the spreadsheet process
+    Pid ! {set, self(), Tab, I, J, Val},
+    receive
+        {set_result, Result} -> Result
+    after Timeout -> 
+        timeout
+    end.
+%Funzione ausiliaria per rimpiazzare un elemento in una lista al valore di indice dato
+replace_nth(Index, NewVal, List) ->
+    {Left, [_|Right]} = lists:split(Index-1, List),
+    Left ++ [NewVal] ++ Right.
 
 % Funzione che condivide il foglio e recepisce le policy di accesso con un messaggio spedito al Loop/1
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
@@ -51,7 +93,7 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
             end
     end.
 
-% Funzione per rimuovere una policy di accesso per un processo specifico
+% Funzione per rimuovere una policy di accesso (per un processo specifico)
 remove_policy(SpreadsheetName, Proc) ->
     case whereis(SpreadsheetName) of
         undefined ->
@@ -62,7 +104,8 @@ remove_policy(SpreadsheetName, Proc) ->
                 {remove_policy_result, Result} -> Result
             end
     end.
-% Loop che gestisce il processo del foglio di calcolo
+
+% Loop che avvia il processo del foglio di calcolo
 loop(Name, Owner, N, M, K) ->
     io:format("spreadsheet process started.~p~n",[Name]),
     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
@@ -77,6 +120,71 @@ create_tab(N, M) ->
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     io:format("Spreadsheet State loop started. Waiting for messages.~n"),
     receive
+ 
+        % Handle get request 
+        %la Tab(la matrice) restituita da lists:nth(Tab, Tabs) è assegnata a TabMatrix
+        {get, From, Tab, I, J} ->
+            io:format("Received get request for Tab: ~p, Row: ~p, Col: ~p~n", [Tab, I, J]),
+            if
+                Tab > length(Tabs) orelse Tab < 1 ->
+                    io:format("Tab index ~p is out of bounds~n", [Tab]),
+                    From ! {cell_value, undef};
+                true ->
+                    TabMatrix = lists:nth(Tab, Tabs),
+                    if
+                        I > length(TabMatrix) orelse I < 1 ->
+                            io:format("Row index ~p is out of bounds in Tab ~p~n", [I, Tab]),
+                            From ! {cell_value, undef}; %If the indices are out of bounds, we return undef instead of trying to access an invalid position.
+                        true ->
+                            Row = lists:nth(I, TabMatrix),
+                            if
+                                J > length(Row) orelse J < 1 ->
+                                    io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, Tab]),
+                                    From ! {cell_value, undef};
+                                true ->
+                                    Value = lists:nth(J, Row),
+                                    
+                                    From ! {cell_value, Value}
+                            end
+                    end
+            end,
+            loop(State);
+
+% Handle set request
+        {set, From, Tab, I, J, Val} ->
+            io:format("Received set request for Tab: ~p, Row: ~p, Col: ~p, Val: ~p~n", [Tab, I, J, Val]),
+            if
+                Tab > length(Tabs) orelse Tab < 1 ->
+                    io:format("Tab index ~p is out of bounds~n", [Tab]),
+                    From ! {set_result, false};
+                true ->
+                    TabMatrix = lists:nth(Tab, Tabs),
+                    if
+                        I > length(TabMatrix) orelse I < 1 ->
+                            io:format("Row index ~p is out of bounds in Tab ~p~n", [I, Tab]),
+                            From ! {set_result, false};
+                        true ->
+                            Row = lists:nth(I, TabMatrix),
+                            if
+                                J > length(Row) orelse J < 1 ->
+                                    io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, Tab]),
+                                    From ! {set_result, false};
+                                true ->
+                                    io:format("Setting value ~p at Tab: ~p, Row: ~p, Col: ~p~n", [Val, Tab, I, J]),
+                                    NewRow = replace_nth(J, Val, Row),
+                                    NewTabMatrix = replace_nth(I, NewRow, TabMatrix),
+                                    NewTabs = replace_nth(Tab, NewTabMatrix, Tabs),
+                                    NewState = State#spreadsheet{tabs = NewTabs},
+                                    From ! {set_result, true},
+                                    loop(NewState)
+                            end
+                    end
+            end;
+
+       
+
+
+
         {get_spreadsheetPid, From} ->
             
                 io:format("Received request for spreadsheet state from: ~p~n", [From]),
@@ -116,6 +224,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
 
             ok; % esce dal loop , ma attenzione non arresta Spreadsheet !!!
         _Other ->
+            io:format("Unknown message received: ~p~n", [_Other]),
             loop(State)
     end.
 % Funzione per salvare il foglio di calcolo in un file CSV, attraverso il registered name
@@ -177,13 +286,15 @@ from_csv(Filename) ->
             % Read the first line (Spreadsheet Name)
             SpreadsheetNameLine = io:get_line(File, ''),
             io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),  % Debug
+
+            
             %The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
             % case expression, but then try to use it outside of the case block. Variables bound 
             %in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
-            % Pattern match to extract the spreadsheet name
             
+            % Pattern match to extract the spreadsheet name
             case string:strip(SpreadsheetNameLine, both, $\n) of
-                     "Spreadsheet Name: " ++ SpreadsheetName ->  
+                "Spreadsheet Name: " ++ SpreadsheetName ->  
                     io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
                     
                     % Load the tabs from the remaining lines in the CSV
