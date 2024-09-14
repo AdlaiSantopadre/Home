@@ -1,14 +1,21 @@
 # Test
 
-## Sequenza comandi da shell
+## Sequenza iniziale comandi da shell
 
-c(spreadsheet).  %compilare spreadsheet
+c(spreadsheet).                    %compilare spreadsheet
+spreadsheet:new(my_spreadsheet).  % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite  
+whereis(my_spreadsheet).  % Verificare che il processo sia terminato
 
-spreadsheet:new(my_spreadsheet).  % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite   % Controllare il processo registrato
+## Test scrittura / lettura (senza policy)
 
 my_spreadsheet ! stop.% Fermare il processo
+spreadsheet:set(my_spreadsheet,2,2,2,"prova").
+spreadsheet:set(my_spreadsheet,2,2,2,"prova",2000).
 
-whereis(my_spreadsheet).  % Verificare che il processo sia terminato
+spreadsheet:get(my_spreadsheet,1,1,2).
+spreadsheet:get(my_spreadsheet,1,1,2,2000).
+spreadsheet:get(my_spreadsheet,2,2,2).
+
 % crea due processi
 ProcA = spawn(fun() -> receive stop -> ok end end).
 ProcB = spawn(fun() -> receive stop -> ok end end).

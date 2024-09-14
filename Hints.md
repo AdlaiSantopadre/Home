@@ -74,3 +74,6 @@ loop() ->
         loop()
     end.
 
+## Liste in erlang
+
+Le liste sono immutabili in erlang, ovvero non si possono modificare direttamente.Pertanto per cambiare un elementoin una lista si divide la lista in due parti (precedente e antecedente l`elemento) e si ricostruisce una lista con il nuovo elemento nella posizione voluta.
