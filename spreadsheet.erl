@@ -1,5 +1,5 @@
 -module(spreadsheet). %ver..3.0
--export([new/1, new/4, share/2, loop/5, remove_policy/2,to_csv/2, from_csv/1,get/5, get/6, set/6, set/7]).
+-export([new/1, new/4, share/2, loop/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
@@ -249,9 +249,9 @@ from_csv(Filename) ->
             io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),  % Debug
 
             % Pattern match to extract the spreadsheet name
-%The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
-% case expression, but then try to use it outside of the case block. Variables bound 
-%in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
+            %The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
+            % case expression, but then try to use it outside of the case block. Variables bound 
+            %in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
                 "Spreadsheet Name: " ++ SpreadsheetName ->  
                     io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
                     
