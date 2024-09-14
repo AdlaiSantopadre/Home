@@ -177,12 +177,13 @@ from_csv(Filename) ->
             % Read the first line (Spreadsheet Name)
             SpreadsheetNameLine = io:get_line(File, ''),
             io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),  % Debug
-
+            %The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
+            % case expression, but then try to use it outside of the case block. Variables bound 
+            %in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
             % Pattern match to extract the spreadsheet name
-%The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
-% case expression, but then try to use it outside of the case block. Variables bound 
-%in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
-                "Spreadsheet Name: " ++ SpreadsheetName ->  
+            
+            case string:strip(SpreadsheetNameLine, both, $\n) of
+                     "Spreadsheet Name: " ++ SpreadsheetName ->  
                     io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
                     
                     % Load the tabs from the remaining lines in the CSV
