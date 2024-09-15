@@ -23,6 +23,7 @@ ProcA.
 ProcB.
 spreadsheet:share(my_spreadsheet,[{ProcA, read}, {ProcB, write}]).
 spreadsheet:remove_policy(my_spreadsheet,ProcA).
+observer:start().
 
 ## gestione persistenza
 

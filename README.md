@@ -31,7 +31,7 @@ Il modulo spreadsheet deve contenere almeno le seguenti funzioni:
 share(spreadsheet, AccessPolicies) -> bool
 
 •Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
- A~~ccessPolicies è una lista di {Proc,AP} dove~~
+ ~~AccessPolicies è una lista di {Proc,AP} dove~~
  • ~~Proc è un Pid/reg_name~~
  • AP = read | write
  Le policy di accesso ad un foglio possono cambiare in qualsiasi momento

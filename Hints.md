@@ -62,6 +62,8 @@ end
 
 Il ciclo di vita di un processo in Erlang puo essere gestito d una funzione progettata per ricevere e gestire messaggi in modo continuo, mantenendo lo stato aggiornato del processo. Se il processo termina lo stato non sarà più mantenuto e non sarà possibile inviare ulteriori richieste al processo.
 Esempio di funzione (loop/0)
+
+```console
 loop() ->
     receive
         {msg, From, Message} ->
@@ -73,7 +75,57 @@ loop() ->
         io:format("No messages received in 5 seconds, looping~n"),
         loop()
     end.
+```
 
 ## Liste in erlang
 
 Le liste sono immutabili in erlang, ovvero non si possono modificare direttamente.Pertanto per cambiare un elementoin una lista si divide la lista in due parti (precedente e antecedente l`elemento) e si ricostruisce una lista con il nuovo elemento nella posizione voluta.
+
+## Tracciare i Messaggi con dbg
+
+Per tracciare il messaggio contenente State mentre viene inviato, si puo usare il modulo dbg di Erlang. Il modulo dbg permette di tracciare chiamate di funzione e messaggi scambiati tra processi.
+
+Abilitare il Tracing per i Messaggi
+
+```console
+dbg:tracer().
+
+dbg:p(all, m).  % Traccia i messaggi tra tutti i processi
+
+```
+
+Questo comando monitorerà tutti i messaggi scambiati tra i processi e mostrerà il contenuto di questi messaggi, incluso il valore di State che viene inviato con il messaggio {spreadsheet_state, State}.
+Disattivare il tracing con:
+
+```console
+dbg:stop().
+```
+
+Ecco un esempio per tracciare l'esecuzione della funzione to_csv/2 e i messaggi tra i processi:
+
+```console
+dbg:tracer().
+dbg:tpl(spreadsheet, to_csv, x).  % Traccia tutte le chiamate a to_csv/2
+dbg:p(all, c).  % Traccia tutte le chiamate di funzione
+```
+
+Tracciare i Messaggi Tra Processi
+
+```console
+dbg:tracer().
+dbg:tpl(spreadsheet, loop, x).  % Traccia la funzione loop/1
+dbg:p(all, m).  % Traccia i messaggi tra tutti i processi
+``
+## Uso di observer per Monitoraggio Grafico
+
+Avvia Observer con il seguente comando nella shell Erlang:
+
+```console
+observer:start().
+```
+
+Usa Observer per vedere:
+
+*Processi*: Puoi vedere tutti i processi in esecuzione, il loro PID, e lo stato (sospeso, attivo, ecc.).
+Messaggi: Puoi vedere i messaggi inviati e ricevuti da ogni processo.
+Supervisori: Se hai un supervisore per il foglio di calcolo, puoi visualizzare l'albero dei processi supervisionati.
