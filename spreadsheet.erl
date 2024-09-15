@@ -1,4 +1,4 @@
--module(spreadsheet). %ver..4.0
+-module(spreadsheet). %ver..4.2
 -export([new/1, new/4, share/2, loop/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
