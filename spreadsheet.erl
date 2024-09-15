@@ -80,17 +80,31 @@ replace_nth(Index, NewVal, List) ->
     {Left, [_|Right]} = lists:split(Index-1, List),
     Left ++ [NewVal] ++ Right.
 
-% Funzione che condivide il foglio e recepisce le policy di accesso con un messaggio spedito al Loop/1
+% Funzione per condivide il foglio di lavoro definendo  le policy di accesso (una lista di tuple della forma {Proc, AP) dove Proc è un Pid o il suo nome registrato,
+%e AP la sua policy di accesso read|write)
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     case whereis(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found}; %verifica dell`esistenza del processo
         Pid ->
-            Pid ! {share, self(), AccessPolicies},
+            Pid ! {share, self(), AccessPolicies}, % Invia il nuovo messaggio per aggiornare le politiche
             receive
                 {share_result, Result} -> Result
             end
     end.
+
+% funzione ausuliaria per permettere di moficare la lista di policy di accesso
+% è implementata la List comprehension [Expression || Pattern <- List, Condition]
+update_policies(NewPolicies, ExistingPolicies) ->
+%NewPolicies: The new list of access policies you want to apply (in the form {Proc, AP} where Proc is a process ID or name, and AP is the access policy—read or write).
+    % Filtra le policy esistenti che non sono incluse nella lista di aggiornamento
+    % osserva che l`espressione implicita non va bene..RemainingPolicies = [Policy || Policy = {Proc, _}, not lists:keymember(Proc, 1, NewPolicies)],
+    RemainingPolicies = [Policy || {Proc, _} = Policy <- ExistingPolicies, 
+                                    not lists:keymember(Proc, 1, NewPolicies)], %It checks if Proc is not in the first position (index 1) of any tuple in the NewPolicies list.
+                                                                                %If this condition is true, we keep Policy in RemainingPolicies.
+    
+    RemainingPolicies ++ NewPolicies.  % Combina le nuove policy con quelle esistenti
+
 
 % Funzione per rimuovere una policy di accesso (per un processo specifico)
 remove_policy(SpreadsheetName, Proc) ->
@@ -118,9 +132,10 @@ create_tab(N, M) ->
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     io:format("Spreadsheet State loop started. Waiting for messages.~n"),
+    
     receive
  
-        % Handle get request 
+% Handle get request 
         %la Tab(la matrice) restituita da lists:nth(Tab, Tabs) è assegnata a TabMatrix
         {get, From, Tab, I, J} ->
             io:format("Received get request for Tab: ~p, Row: ~p, Col: ~p~n", [Tab, I, J]),
@@ -196,13 +211,15 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
         {share, From, NewPolicies} ->
             if
                 From =:= Owner ->
-                    % Aggiornare le politiche di accesso
-                    NewState = State#spreadsheet{access_policies = NewPolicies},
-                    From ! {share_result, ok},
+                    % Aggiornare le politiche di accesso usando update_policies/2
+                    UpdatedPolicies = update_policies(NewPolicies, Policies),
+                    NewState = State#spreadsheet{access_policies = UpdatedPolicies},
+                    io:format("Updated access policies: ~p~n", [UpdatedPolicies]),  % Debug
+                    From ! {share_result, true},
                     loop(NewState);
                 true ->
                     % Se non è il proprietario, ritorna un errore
-                    From ! {share_result,{error, not_owner}},
+                    From ! {share_result, {error, not_owner}},
                     loop(State)
             end;
         {remove_policy, From, Proc} ->
