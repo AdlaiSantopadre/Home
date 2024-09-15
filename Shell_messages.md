@@ -53,3 +53,18 @@ spreadsheet:share(my_spreadsheet,[{my_spreadsheet,write},{node2,read}]).
 
 c(spreadsheet).
 {ok, Pid} = spreadsheet:new(my_spreadsheet, 10, 10, 1).
+
+## gestione AccessPolicy
+
+%creazione di quattro processi
+Proc1 = spawn(fun() -> receive stop -> ok end end).
+Proc2 = spawn(fun() -> receive stop -> ok end end).
+Proc3 = spawn(fun() -> receive stop -> ok end end).
+register(processo3,Proc3). %se li voglio registrare...
+AccessPolicy = [{Proc1, read}, {Proc2, write}, {Proc3, read}].
+
+spreadsheet:share(my_spreadsheet,AccessPolicy).
+spreadsheet:share(my_spreadsheet, [{Proc2, read}, {Proc3, write}]).
+spreadsheet:remove_policy(my_spreadsheet,Proc1).
+
+observer:start().

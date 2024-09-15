@@ -88,6 +88,7 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
             {error, spreadsheet_not_found}; %verifica dell`esistenza del processo
         Pid ->
             Pid ! {share, self(), AccessPolicies}, % Invia il nuovo messaggio per aggiornare le politiche
+            io:format("Sent request for share AccessPolicies ~p~n", [AccessPolicies]),
             receive
                 {share_result, Result} -> Result
             end
@@ -235,7 +236,6 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
                     From ! {error, not_owner},
                     loop(State)
             end;
-        % Gestire messaggi per operazioni sul foglio di calcolo
         stop -> 
 
             ok; % esce dal loop , ma attenzione non arresta Spreadsheet !!!
