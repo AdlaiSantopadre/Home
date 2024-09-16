@@ -5,10 +5,10 @@
 
 # Distributed Spreadsheet
 
-• *Un foglio di calcolo è una “matrice” di NxM celle*
-• Una cella può contenere: 
-  qualsiasi tipo di dato primitivo
-• *Il valore undef*
+• ~~Un foglio di calcolo è una “matrice” di NxM celle~~
+• Una cella può contenere:
+  *qualsiasi tipo di dato primitivo* verificare i tipi di dato primitivo e rendere compatibili con essi to_csv e from_csv
+• ~~Il valore undef~~
 
 # Intefaccia
 
@@ -29,12 +29,13 @@ Il modulo spreadsheet deve contenere almeno le seguenti funzioni:
 • ~~assegna il processo creatore come proprietario del foglio~~
 
 share(spreadsheet, AccessPolicies) -> bool
+*Inserire i check sulla esistenza dei processi di cui aggiornare le Access Policies se aggiornate tramite Pid*
 
 •Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
  ~~AccessPolicies è una lista di {Proc,AP} dove~~
  • ~~Proc è un Pid/reg_name~~
- • AP = read | write
- Le policy di accesso ad un foglio possono cambiare in qualsiasi momento
+ • ~~AP = read | write~~
+ ~~Le policy di accesso ad un foglio possono cambiare in qualsiasi momento~~
 
 ~~get(spreadsheet, tab, i, j, val) -> Value | undef~~
 • ~~Legge il valore della cella (i,j) che appartiene al tab del foglio name~~
@@ -44,7 +45,7 @@ set(spreadsheet, tab, i, j, k, val) -> **bool**
 set(spreadsheet, tab, i, j, val, timeout) -> **bool** | timeout
 
 to_cvs(spreadsheet,filename) -> **ok** | {error,reason}
-• Esporta in cvs (comma separated values) il foglio
+• Esporta in cvs (comma separated values) 
 
 from_cvs(filename) -> spreadsheet | {error,reason} 
 
@@ -56,8 +57,10 @@ info(name) -> Spreadsheet_info Le informazioni devono contenere almeno:
 • Numerodi celle x tab 
 • I permessi di lettura e scrittura
 
-Requisiti 
+Requisiti
 • I fogli devono essere visibili su tutti i nodi della rete 
+
+
 • I fogli devono resistere ai fallimenti di uno o più nodi • Esempio: la mia applicazione esegue su tre nodi, 2 cadono ma i fogli sono ancora visibili al nodo rimanente
 
 
