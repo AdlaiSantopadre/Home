@@ -1,5 +1,31 @@
 # Hints
 
+## Tipi di dati primitivi
+
+Numeri
+Interi: Non c'è un limite fisso alla dimensione degli interi, sono solo limitati dalla memoria disponibile.
+Numeri in virgola mobile: Rappresentati con una precisione doppia secondo lo standard IEEE.
+
+Atomi
+costanti il cui nome è il loro valore
+Booleani
+In Erlang, i booleani sono rappresentati dagli atomi true e false. Non sono un tipo distinto ma sono atomi usati convenzionalmente come valori booleani.
+
+Tuple
+Le tuple sono raccolte fisse di valori (potenzialmente di tipi diversi) raggruppate insieme. Le tuple sono indicate da parentesi graffe. Es {1, 2}, {ok, 123}, {error, "not_found"}
+
+Liste
+Le liste in Erlang sono sequenze di elementi. Sono fondamentalmente liste concatenate. Es [1, 2, 3, 4], ["hello", "world"], [a, {2, b}, [1, 2]]
+
+Stringhe
+Le stringhe in Erlang sono rappresentate come liste di interi, dove ogni intero rappresenta un codice ASCII del carattere corrispondente.
+
+Binari
+I binari sono sequenze di byte utilizzate per gestire dati come immagini, files, o qualsiasi flusso di dati non testuale. Sono indicati da << >>. Es <<1, 2, 3, 4>>, <<255>>, <<"hello">>
+
+Funzioni
+In Erlang, anche le funzioni sono considerate come un tipo di dato primitivo, dato che è un linguaggio funzionale. Le funzioni possono essere anonime o possono avere un nome.Fun = fun(X) -> X * 2 end
+
 ## whereis(Name)
 
 In Erlang, quando usi la funzione **whereis(Name)** per cercare un processo registrato con un nome, *otterrai il PID di quel processo solo se la ricerca viene effettuata sullo stesso nodo dove il processo è registrato*. Se tenti di eseguire whereis(my_spreadsheet) su un nodo diverso da quello su cui il processo my_spreadsheet è stato registrato, otterrai undefined. Questo perché la funzione whereis/1 cerca il nome solo nella tabella dei nomi locali del nodo.
