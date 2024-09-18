@@ -172,6 +172,23 @@ L'invio di un messaggio a un nome registrato che si è bloccato genera un errore
 
 (Ad esempio, in fase di esecuzione il nome registrato viene risolto in un PID, ma se il processo è morto, la funzione di ricerca restituirà *undefined* )
 
+### Nomi registrati
+
+• Di solito un modello normale per uno spawn/register remoto è di attendere un messaggio dal processo registrato
+• Il processo spawned prima si registra con un nome dato e poi conferma allo spawner che è ok
+
+```console
+better_reg() ->
+    register(locale,self()),
+    spawn(fun() -> register(remoto,self()),
+                   locale!{remoto,ok},
+                   receive {ok,_P} -> io:format("...\n") end
+
+        end),
+receive {remoto,ok} -> spawn(fun() -> remoto!{ok,self()} end)
+end.
+```
+
 ### whereis(Name)
 
 In Erlang, quando usi la funzione **whereis(Name)** per cercare un processo registrato con un nome, *otterrai il PID di quel processo solo se la ricerca viene effettuata sullo stesso nodo dove il processo è registrato*. Se tenti di eseguire whereis(my_spreadsheet) su un nodo diverso da quello su cui il processo my_spreadsheet è stato registrato, otterrai undefined. Questo perché la funzione whereis/1 cerca il nome solo nella tabella dei nomi locali del nodo.
