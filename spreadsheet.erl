@@ -1,5 +1,5 @@
--module(spreadsheet). %ver..4.0
--export([new/1, new/4, share/2, loop/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
+-module(spreadsheet). %ver..4.3
+-export([new/1, new/4, share/2, starter/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
@@ -25,7 +25,7 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
             Owner =self(), %Il Pid del processo chiamante viene salvato in Owner 
             %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
         
-            Pid = spawn(spreadsheet, loop, [Name, Owner, N, M, K]),  % Avvio di un distinto processo  che esegue loop/5
+            Pid = spawn(spreadsheet, starter, [Name, Owner, N, M, K]),  % Avvio di un distinto processo  per lo spreadsheet
             register(Name, Pid),  % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio  per facilitarne l'accesso
             {ok, Pid};  % Restituisce il Pid del processo creato, per inviargli messaggi
                        
@@ -35,6 +35,13 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
 % restanti controlli sui parametri di new/4
 new(_, _, _, _) ->
     {error, invalid_parameters}.
+
+% Funzione che avvia il processo del foglio di calcolo
+starter(Name, Owner, N, M, K) ->
+    io:format("~p  process started.~n",[Name]),
+    Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
+    loop(Spreadsheet).
 
 % La funzione get/4 spedisce un messaggio al processo spreadsheet richiedendo il valore di una specifica cella del foglio di calcolo
 get(Name, Tab, I, J) ->
@@ -162,12 +169,7 @@ remove_policy(SpreadsheetName, Proc) ->
             end
     end.
 
-% Loop che avvia il processo del foglio di calcolo
-loop(Name, Owner, N, M, K) ->
-    io:format("spreadsheet process started.~p~n",[Name]),
-    Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
-    loop(Spreadsheet).
+
 
 % Funzione per creare una scheda come matrice NxM di celle
 create_tab(N, M) ->
@@ -175,7 +177,7 @@ create_tab(N, M) ->
 
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
-    io:format("Spreadsheet State loop started. Waiting for messages.~n"),
+    io:format("Spreadsheet State waiting for messages.~n"),
     
     receive
  

@@ -26,10 +26,6 @@ I binari sono sequenze di byte utilizzate per gestire dati come immagini, files,
 Funzioni
 In Erlang, anche le funzioni sono considerate come un tipo di dato primitivo, dato che è un linguaggio funzionale. Le funzioni possono essere anonime o possono avere un nome.Fun = fun(X) -> X * 2 end
 
-## whereis(Name)
-
-In Erlang, quando usi la funzione **whereis(Name)** per cercare un processo registrato con un nome, *otterrai il PID di quel processo solo se la ricerca viene effettuata sullo stesso nodo dove il processo è registrato*. Se tenti di eseguire whereis(my_spreadsheet) su un nodo diverso da quello su cui il processo my_spreadsheet è stato registrato, otterrai undefined. Questo perché la funzione whereis/1 cerca il nome solo nella tabella dei nomi locali del nodo.
-
 ## net_adm:ping/1
 
 Quando esegui net_adm:ping(node@localhost), stai inviando una richiesta di ping al nodo Erlang specificato.Se il nodo è raggiungibile e la comunicazione è stabilita correttamente, il nodo destinatario risponde:
@@ -141,8 +137,9 @@ Tracciare i Messaggi Tra Processi
 dbg:tracer().
 dbg:tpl(spreadsheet, loop, x).  % Traccia la funzione loop/1
 dbg:p(all, m).  % Traccia i messaggi tra tutti i processi
-``
-## Uso di observer per Monitoraggio Grafico
+```
+
+## Observer
 
 Avvia Observer con il seguente comando nella shell Erlang:
 
@@ -150,8 +147,31 @@ Avvia Observer con il seguente comando nella shell Erlang:
 observer:start().
 ```
 
-Usa Observer per vedere:
-
+Con OObserver puoi seguire
 *Processi*: Puoi vedere tutti i processi in esecuzione, il loro PID, e lo stato (sospeso, attivo, ecc.).
 Messaggi: Puoi vedere i messaggi inviati e ricevuti da ogni processo.
 Supervisori: Se hai un supervisore per il foglio di calcolo, puoi visualizzare l'albero dei processi supervisionati.
+
+## PID
+
+I PID sono l'unico modo per contattare un attore
+
+• Erlang consente di registrare un PID con un atomo particolare e quindi di fare riferimento
+ad esso con l'atomo invece che con il PID
+È solo un trucco dell'OTP di Erlang, è come una lookup/DNS nelle reti normali
+
+### registered()
+
+restituisce la lista di nomi che sono stati registrati attraverso register/2
+
+### register(Name, Pid)
+
+associa l`atomo Name al processo Pid
+Un errore comune con i nomi registrati è che il PID/attore associato ad esso si blocca (ad esempio, non esiste più).
+L'invio di un messaggio a un nome registrato che si è bloccato genera un errore dovuto alla funzione di ricerca, che non restituisce un PID
+
+(Ad esempio, in fase di esecuzione il nome registrato viene risolto in un PID, ma se il processo è morto, la funzione di ricerca restituirà *undefined* )
+
+### whereis(Name)
+
+In Erlang, quando usi la funzione **whereis(Name)** per cercare un processo registrato con un nome, *otterrai il PID di quel processo solo se la ricerca viene effettuata sullo stesso nodo dove il processo è registrato*. Se tenti di eseguire whereis(my_spreadsheet) su un nodo diverso da quello su cui il processo my_spreadsheet è stato registrato, otterrai undefined. Questo perché la funzione whereis/1 cerca il nome solo nella tabella dei nomi locali del nodo.
