@@ -1,5 +1,5 @@
--module(spreadsheet). %ver..4.3
--export([new/1, new/4, share/2, starter/5, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
+-module(spreadsheet). %ver..4.4
+-export([new/1, new/4, share/2, starter/5,reassign_owner/2, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
@@ -8,8 +8,8 @@
     access_policies = [] % Politiche di accesso (lista di tuple)
 }).
 
-%% il foglio di calcolo verrà creato con un processo separato da quello del proprietario 
-% Funzione per creare un nuovo foglio di nome Name di dimensione 100 x 10 e 1 tab
+
+% Funzione per creare un nuovo foglio di nome Name e dimensioni prescelte
 new(Name) ->
     N = 5,  % Default N (numero di righe)
     M = 5,  % Default M (numero di colonne)
@@ -32,9 +32,11 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
         _ ->
             {error, already_exists}
     end;
-% restanti controlli sui parametri di new/4
+% funzione per gestire chiamate scorrette di new/4
 new(_, _, _, _) ->
     {error, invalid_parameters}.
+
+
 
 % Funzione che avvia il processo del foglio di calcolo
 starter(Name, Owner, N, M, K) ->
@@ -43,6 +45,18 @@ starter(Name, Owner, N, M, K) ->
     Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
     loop(Spreadsheet).
 
+
+% Funzione che permette di riassegnare  il proprietario  di spreadsheet se il processo chiamamante è il corrente proprietario
+reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
+    case whereis(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found}; % The spreadsheet process doesn't exist
+        Pid ->
+            Pid ! {reassign_owner, self(), NewOwnerPid},
+            receive
+                {reassign_owner_result, Result} -> Result
+            end
+    end.
 % La funzione get/4 spedisce un messaggio al processo spreadsheet richiedendo il valore di una specifica cella del foglio di calcolo
 get(Name, Tab, I, J) ->
     Pid = whereis(Name),  % Get the PID of the spreadsheet process
@@ -186,6 +200,18 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
     io:format("Spreadsheet State waiting for messages.~n"),
     
     receive
+         % Handle ownership reassignment
+        {reassign_owner, From, NewOwner} ->
+            if
+                From =:= self() ->  % Only the restarted shell can reassign ownership
+                    NewState = State#spreadsheet{owner = NewOwner},
+                    io:format("Ownership reassigned from ~p to ~p~n", [Owner, NewOwner]),
+                    From ! {reassign_owner_result, ok},
+                    loop(NewState);
+                true ->
+                    From ! {reassign_owner_result, {error, unauthorized}},
+                    loop(State)
+            end;
  
 % Handle get request 
         %la Tab(la matrice) restituita da lists:nth(Tab, Tabs) è assegnata a TabMatrix
