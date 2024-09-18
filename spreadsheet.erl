@@ -87,12 +87,55 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
         undefined ->
             {error, spreadsheet_not_found}; %verifica dell`esistenza del processo
         Pid ->
-            Pid ! {share, self(), AccessPolicies}, % Invia il nuovo messaggio per aggiornare le politiche
-            io:format("Sent request for share AccessPolicies ~p~n", [AccessPolicies]),
-            receive
-                {share_result, Result} -> Result
-            end
+            %convalida le policies
+            case validate_access_policies(AccessPolicies) of
+                ok ->
+                    Pid ! {share, self(), AccessPolicies}, % Invia il nuovo messaggio per aggiornare le politiche
+                    io:format("Sent request for share AccessPolicies ~p~n", [AccessPolicies]),
+                    receive
+                    {share_result, Result} -> Result
+                end;
+
+                {error,Reason} ->
+                    {error, Reason}
+                end
     end.
+%funzioni  ausiliarie per convalidare le policies di accesso
+
+    %validazione tuple politiche di accesso
+validate_access_policies([]) -> ok;  % If the list is empty, it's valid
+validate_access_policies([{Proc, AP} | Rest]) ->
+    case validate_proc(Proc) of
+        ok ->
+            case validate_access_policy(AP) of
+                ok -> 
+                    validate_access_policies(Rest);  %Valida ricorsivamente Rest
+                {error, invalid_access_policy} -> 
+                    {error, {invalid_access_policy, AP}}  % Return error for invalid AP
+            end;
+        {error, invalid_process} -> 
+            {error, {invalid_process, Proc}}  % Return error for invalid Proc
+    end;
+validate_access_policies(_) ->
+    {error, malformed_access_policy}.
+    % Validazione di un processo (Proc)
+validate_proc(Proc) when is_pid(Proc) ->
+    ok;  % Valid if it's a process ID
+validate_proc(Proc) when is_atom(Proc) ->
+    case whereis(Proc) of
+        undefined -> {error, invalid_process};  % Invalid if not a registered process
+        _ -> ok  % Valid if it's a registered process
+    end;
+validate_proc(_) ->
+    {error, invalid_process}.  % Invalid if it's neither a PID nor a registered process
+
+
+    % Validazione della policy (AP)
+validate_access_policy(read) -> ok;
+validate_access_policy(write) -> ok;
+validate_access_policy(_) -> {error, invalid_access_policy}.
+
+
 
 % funzione ausuliaria per permettere di moficare la lista di policy di accesso
 % è implementata la List comprehension [Expression || Pattern <- List, Condition]

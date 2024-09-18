@@ -2,9 +2,10 @@
 
 ## Sequenza iniziale comandi da shell
 
-c(spreadsheet).                    %compilare spreadsheet
-spreadsheet:new(my_spreadsheet).  % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite  
-whereis(my_spreadsheet).  % Verificare che il processo sia terminato
+%compilare spreadsheet % Creare un foglio con nome "my_spreadsheet" e dimensioni predefinite % Verificare che il processo sia terminato
+c(spreadsheet).
+spreadsheet:new(my_spreadsheet).
+whereis(my_spreadsheet).
 
 ## Test scrittura / lettura (senza policy)
 
@@ -54,7 +55,7 @@ spreadsheet:share(my_spreadsheet,[{my_spreadsheet,write},{node2,read}]).
 c(spreadsheet).
 {ok, Pid} = spreadsheet:new(my_spreadsheet, 10, 10, 1).
 
-## gestione AccessPolicy
+## gestione Access Policies
 
 %creazione di quattro processi
 Proc1 = spawn(fun() -> receive stop -> ok end end).
@@ -64,7 +65,7 @@ register(processo3,Proc3). %se li voglio registrare...
 AccessPolicy = [{Proc1, read}, {Proc2, write}, {Proc3, read}].
 
 spreadsheet:share(my_spreadsheet,AccessPolicy).
-spreadsheet:share(my_spreadsheet, [{Proc2, read}, {Proc3, write}]).
+spreadsheet:share(my_spreadsheet, [{Proc4, read}, {Proc3, write}]).
 spreadsheet:remove_policy(my_spreadsheet,Proc1).
 
 observer:start().
