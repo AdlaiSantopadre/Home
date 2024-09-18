@@ -89,24 +89,30 @@ replace_nth(Index, NewVal, List) ->
 
 % Funzione per condivide il foglio di lavoro definendo  le policy di accesso (una lista di tuple della forma {Proc, AP) dove Proc è un Pid o il suo nome registrato,
 %e AP la sua policy di accesso read|write)
-share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
-    case whereis(SpreadsheetName) of
-        undefined ->
-            {error, spreadsheet_not_found}; %verifica dell`esistenza del processo
-        Pid ->
-            %convalida le policies
-            case validate_access_policies(AccessPolicies) of
-                ok ->
-                    Pid ! {share, self(), AccessPolicies}, % Invia il nuovo messaggio per aggiornare le politiche
-                    io:format("Sent request for share AccessPolicies ~p~n", [AccessPolicies]),
-                    receive
-                    {share_result, Result} -> Result
-                end;
 
-                {error,Reason} ->
-                    {error, Reason}
-                end
-    end.
+share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
+    try
+
+        case whereis(SpreadsheetName) of
+            undefined ->
+                {error, spreadsheet_not_found}; %verifica dell`esistenza del processo
+            Pid ->
+                %convalida le policies
+                case validate_access_policies(AccessPolicies) of
+                 ok ->
+                        Pid ! {share, self(), AccessPolicies}, % Invia il nuovo messaggio per aggiornare le politiche
+                        io:format("Sent request for share AccessPolicies ~p~n", [AccessPolicies]),
+                        receive
+                        {share_result, Result} -> Result
+                    end;
+
+                    {error,Reason} ->
+                        {error, Reason}
+                    end
+        end
+catch
+     _:Error -> io:format("Error encountered: ~p~n", [Error])
+end.
 %funzioni  ausiliarie per convalidare le policies di accesso
 
     %validazione tuple politiche di accesso
