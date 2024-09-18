@@ -17,13 +17,6 @@ spreadsheet:get(my_spreadsheet,1,1,2).
 spreadsheet:get(my_spreadsheet,1,1,2,2000).
 spreadsheet:get(my_spreadsheet,2,2,2).
 
-% crea due processi
-ProcA = spawn(fun() -> receive stop -> ok end end).
-ProcB = spawn(fun() -> receive stop -> ok end end).
-ProcA.
-ProcB.
-spreadsheet:share(my_spreadsheet,[{ProcA, read}, {ProcB, write}]).
-spreadsheet:remove_policy(my_spreadsheet,ProcA).
 observer:start().
 
 ## gestione persistenza
@@ -57,15 +50,20 @@ c(spreadsheet).
 
 ## gestione Access Policies
 
-%creazione di quattro processi
+%creazione di tre processi
+c(process_utility).
+Names=[proc1,proc2,proc3].
+process_utility:spawn_and_register_processes(Names).
 Proc1 = spawn(fun() -> receive stop -> ok end end).
 Proc2 = spawn(fun() -> receive stop -> ok end end).
 Proc3 = spawn(fun() -> receive stop -> ok end end).
-register(processo3,Proc3). %se li voglio registrare...
-AccessPolicy = [{Proc1, read}, {Proc2, write}, {Proc3, read}].
+% test Access policies
+AccessPolicy = [{proc1, read}, {proc2, write}, {proc3, read}].
 
 spreadsheet:share(my_spreadsheet,AccessPolicy).
-spreadsheet:share(my_spreadsheet, [{Proc4, read}, {Proc3, write}]).
-spreadsheet:remove_policy(my_spreadsheet,Proc1).
+spreadsheet:share(my_spreadsheet, [{proc2, write}, {proc3, write}]).
+spreadsheet:share(my_spreadsheet, [{proc4, read}, {proc3, write}]).
+spreadsheet:remove_policy(my_spreadsheet,proc1).
+
 
 observer:start().
