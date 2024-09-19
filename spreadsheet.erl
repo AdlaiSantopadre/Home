@@ -147,7 +147,11 @@ validate_access_policies(_) ->
     {error, malformed_access_policy}.
     % Validazione di un processo (Proc)
 validate_proc(Proc) when is_pid(Proc) ->
-    ok;  % Valid if it's a process ID
+    case is_process_alive(Proc) of
+         true -> ok;
+        _proc ->  {error, not_alive_process}  % Invalid 
+         
+    end;
 validate_proc(Proc) when is_atom(Proc) ->
     case whereis(Proc) of
         undefined -> {error, invalid_process};  % Invalid if not a registered process
@@ -288,7 +292,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
 
         {share, From, NewPolicies} ->
             if
-                From =:= Owner ->
+                From =:= State#spreadsheet.owner ->
                     % Aggiornare le politiche di accesso usando update_policies/2
                     UpdatedPolicies = update_policies(NewPolicies, Policies),
                     NewState = State#spreadsheet{access_policies = UpdatedPolicies},
