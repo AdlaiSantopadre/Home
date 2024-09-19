@@ -1,4 +1,4 @@
--module(spreadsheet). %ver..4.4
+-module(spreadsheet). %ver..4.5
 -export([new/1, new/4, share/2, starter/5,reassign_owner/2, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
@@ -168,19 +168,28 @@ validate_access_policy(_) -> {error, invalid_access_policy}.
 
 
 
-% funzione ausuliaria per permettere di moficare la lista di policy di accesso
+% funzione ausuliaria per permettere di moficare la lista di policy di accesso  
+ %Remove duplicates where the process in ExistingPolicies is already represented in NewPolicies (either as a PID or registered name).
+% Ensure that PIDs and registered names referring to the same process are handled correctly without introducing duplicates.
+
 % è implementata la List comprehension [Expression || Pattern <- List, Condition]
 update_policies(NewPolicies, ExistingPolicies) ->
-%NewPolicies: The new list of access policies you want to apply (in the form {Proc, AP} where Proc is a process ID or name, and AP is the access policy—read or write).
-    % Filtra le policy esistenti che non sono incluse nella lista di aggiornamento
-    % osserva che l`espressione implicita non va bene..RemainingPolicies = [Policy || Policy = {Proc, _}, not lists:keymember(Proc, 1, NewPolicies)],
-    RemainingPolicies = [Policy || {Proc, _} = Policy <- ExistingPolicies, 
-                                    not lists:keymember(Proc, 1, NewPolicies)], %It checks if Proc is not in the first position (index 1) of any tuple in the NewPolicies list.
-                                                                                %If this condition is true, we keep Policy in RemainingPolicies.
-    
-    RemainingPolicies ++ NewPolicies.  % Combina le nuove policy con quelle esistenti
+    % Step 1: Filter ExistingPolicies to exclude entries that are already in NewPolicies
+    FilteredExistingPolicies = [
+        Policy || 
+        {Proc, _} = Policy <- ExistingPolicies, 
+        not (
+            lists:keymember(Proc, 1, NewPolicies) orelse
+            is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> whereis(NewProc) == Proc end, NewPolicies) orelse
+            not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == whereis(Proc) end, NewPolicies)
+        )
+    ],
 
+    % Step 2: Return the combined list of NewPolicies and FilteredExistingPolicies
+    FilteredExistingPolicies ++ NewPolicies.
+    %With this single list comprehension, you can effectively:
 
+ 
 % Funzione per rimuovere una policy di accesso (per un processo specifico)
 remove_policy(SpreadsheetName, Proc) ->
     case whereis(SpreadsheetName) of
