@@ -45,13 +45,14 @@ starter(Name, Owner, N, M, K) ->
     Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
     loop(Spreadsheet).
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Funzione che permette di riassegnare  il proprietario  di spreadsheet se il processo chiamamante è il corrente proprietario
 reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
     case whereis(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found}; % The spreadsheet process doesn't exist
         Pid ->
+            io:format("try to reassign owner to ~p~n",[NewOwnerPid]),
             Pid ! {reassign_owner, self(), NewOwnerPid},
             receive
                 {reassign_owner_result, Result} -> Result
@@ -207,7 +208,7 @@ remove_policy(SpreadsheetName, Proc) ->
 % Funzione per creare una scheda come matrice NxM di celle
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
-
+%%%%%%%%%%LOOP %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
 loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     io:format("Spreadsheet State waiting for messages.~n"),
@@ -215,8 +216,9 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
     receive
          % Handle ownership reassignment
         {reassign_owner, From, NewOwner} ->
+            io:format("want reassign from ~p to ~p~n", [#spreadsheet.owner, NewOwner]),
             if
-                From =:= self() ->  % Only the restarted shell can reassign ownership
+                From =:= NewOwner ->  % Only the restarted shell can reassign ownership
                     NewState = State#spreadsheet{owner = NewOwner},
                     io:format("Ownership reassigned from ~p to ~p~n", [Owner, NewOwner]),
                     From ! {reassign_owner_result, ok},
