@@ -59,48 +59,66 @@ reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
             end
     end.
 % La funzione get/4 spedisce un messaggio al processo spreadsheet richiedendo il valore di una specifica cella del foglio di calcolo
-get(Name, Tab, I, J) ->
-    Pid = whereis(Name),  % Get the PID of the spreadsheet process
-    Pid ! {get, self(), Tab, I, J},
-    receive
-        {cell_value, Value} -> Value
-    after 5000 -> % Default timeout of 5 seconds
-        timeout
+% senza limiti sul Timeout
+% La funzione get/5 esegue lo stesso codice impostando un valore specifico per il Timeout
+
+get(SpreadsheetName, TabIndex, I, J) ->
+    get(SpreadsheetName, TabIndex, I, J, infinity). %infiniti riconduce get/4 a get/5
+
+get(SpreadsheetName, TabIndex, I, J, Timeout) ->
+    case whereis(SpreadsheetName) of
+        undefined -> {error, spreadsheet_not_found};
+        Pid ->
+            % Check if the caller has read access
+            %Prima di inviare la richiesta get al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in lettura. In caso contrario, restituiamo {error, access_denied}.
+            case check_access(self(), Spreadsheet#spreadsheet.access_policies, read) of
+                ok ->
+                    Pid ! {get, self(), TabIndex, I, J},
+                    receive
+                        {get_result, Value} -> Value
+                    after Timeout -> {error, timeout}
+                    end;
+                {error, access_denied} -> {error, access_denied}
+            end
     end.
-% La funzione get/5 esegue lo stesso codice impostando un valore specifico per il timeout
-get(Name, Tab, I, J, Timeout) ->
-    Pid = whereis(Name),  % Get the PID of the spreadsheet process
-    Pid ! {get, self(), Tab, I, J},
-    receive
-        {cell_value, Value} -> Value
-    after Timeout -> 
-        timeout
+check_access(PidOrName, Policies, RequiredAccess) ->
+    % Resolve the PID if the process is a registered name
+    ResolvedPid = case is_pid(PidOrName) of
+                      true -> PidOrName;
+                      false -> whereis(PidOrName)
+                  end,
+
+    % Check if the resolved PID has the required access in the access policies
+    case lists:keyfind(ResolvedPid, 1, Policies) of
+        {ResolvedPid, Access} when Access == RequiredAccess -> ok;
+        _ -> {error, access_denied}
     end.
 
 
 %La funzione set/5 spedisce un messaggio al processo spreadsheet per aggiornare una cella specifica con un nuovo valore
-set(Name, Tab, I, J, Val) ->
-    Pid = whereis(Name),  % Get the PID of the spreadsheet process
-    Pid ! {set, self(), Tab, I, J, Val},
-    receive
-        {set_result, Result} -> Result
-    after 5000 -> % Default timeout of 5 seconds
-        timeout
+% set/6 specifica ulteriormente un valore di Timeout desiderato
+set(SpreadsheetName, TabIndex, I, J, Value) ->
+    set(SpreadsheetName, TabIndex, I, J, Value, infinity).
+
+set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
+    case whereis(SpreadsheetName) of
+        undefined -> {error, spreadsheet_not_found};
+        Pid ->
+            % Check if the caller has write access
+            %Prima di inviare la richiesta di set al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in scrittura. In caso contrario, restituiamo {error, access_denied}.
+            case check_access(self(), Spreadsheet#spreadsheet.access_policies, write) of
+                ok ->
+                    Pid ! {set, self(), TabIndex, I, J, Value},
+                    receive
+                        {set_result, Result} -> Result
+                    after Timeout -> {error, timeout}
+                    end;
+                {error, access_denied} -> {error, access_denied}
+            end
     end.
 
-% set/6 specifica ulteriormente un valore di timeout desiderato
-set(Name, Tab, I, J, Val, Timeout) ->
-    Pid = whereis(Name),  % Get the PID of the spreadsheet process
-    Pid ! {set, self(), Tab, I, J, Val},
-    receive
-        {set_result, Result} -> Result
-    after Timeout -> 
-        timeout
-    end.
-%Funzione ausiliaria per rimpiazzare un elemento in una lista al valore di indice dato
-replace_nth(Index, NewVal, List) ->
-    {Left, [_|Right]} = lists:split(Index-1, List),
-    Left ++ [NewVal] ++ Right.
+
+
 
 % Funzione per condivide il foglio di lavoro definendo  le policy di accesso (una lista di tuple della forma {Proc, AP) dove Proc è un Pid o il suo nome registrato,
 %e AP la sua policy di accesso read|write)
