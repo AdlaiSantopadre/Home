@@ -71,7 +71,7 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) ->
         Pid ->
             % Check if the caller has read access
             %Prima di inviare la richiesta get al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in lettura. In caso contrario, restituiamo {error, access_denied}.
-            case check_access(self(), Spreadsheet#spreadsheet.access_policies, read) of
+            case check_access(self(), SpreadsheetName#spreadsheet.access_policies, read) of
                 ok ->
                     Pid ! {get, self(), TabIndex, I, J},
                     receive
@@ -81,6 +81,35 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) ->
                 {error, access_denied} -> {error, access_denied}
             end
     end.
+%La funzione set/5 spedisce un messaggio al processo spreadsheet per aggiornare una cella specifica con un nuovo valore
+% set/6 specifica ulteriormente un valore di Timeout desiderato
+set(SpreadsheetName, TabIndex, I, J, Value) ->
+    set(SpreadsheetName, TabIndex, I, J, Value, infinity).
+
+set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
+    case whereis(SpreadsheetName) of
+        undefined -> {error, spreadsheet_not_found};
+        Pid ->
+            % Check if the caller has write access
+            %Prima di inviare la richiesta di set al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in scrittura. In caso contrario, restituiamo {error, access_denied}.
+            case check_access(self(), SpreadsheetName#spreadsheet.access_policies, write) of
+                ok ->
+                    Pid ! {set, self(), TabIndex, I, J, Value},
+                    receive
+                        {set_result, Result} -> Result
+                    after Timeout -> {error, timeout}
+                    end;
+                {error, access_denied} -> {error, access_denied}
+            end
+    end.
+
+
+%Funzione ausiliaria per rimpiazzare un elemento in una lista al valore di indice dato
+replace_nth(Index, NewVal, List) ->
+    {Left, [_|Right]} = lists:split(Index-1, List),
+    Left ++ [NewVal] ++ Right.
+
+% Check if the calling process has the required access (read/write)
 check_access(PidOrName, Policies, RequiredAccess) ->
     % Resolve the PID if the process is a registered name
     ResolvedPid = case is_pid(PidOrName) of
@@ -93,33 +122,6 @@ check_access(PidOrName, Policies, RequiredAccess) ->
         {ResolvedPid, Access} when Access == RequiredAccess -> ok;
         _ -> {error, access_denied}
     end.
-
-
-%La funzione set/5 spedisce un messaggio al processo spreadsheet per aggiornare una cella specifica con un nuovo valore
-% set/6 specifica ulteriormente un valore di Timeout desiderato
-set(SpreadsheetName, TabIndex, I, J, Value) ->
-    set(SpreadsheetName, TabIndex, I, J, Value, infinity).
-
-set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
-    case whereis(SpreadsheetName) of
-        undefined -> {error, spreadsheet_not_found};
-        Pid ->
-            % Check if the caller has write access
-            %Prima di inviare la richiesta di set al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in scrittura. In caso contrario, restituiamo {error, access_denied}.
-            case check_access(self(), Spreadsheet#spreadsheet.access_policies, write) of
-                ok ->
-                    Pid ! {set, self(), TabIndex, I, J, Value},
-                    receive
-                        {set_result, Result} -> Result
-                    after Timeout -> {error, timeout}
-                    end;
-                {error, access_denied} -> {error, access_denied}
-            end
-    end.
-
-
-
-
 % Funzione per condivide il foglio di lavoro definendo  le policy di accesso (una lista di tuple della forma {Proc, AP) dove Proc è un Pid o il suo nome registrato,
 %e AP la sua policy di accesso read|write)
 
