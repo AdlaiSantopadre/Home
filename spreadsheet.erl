@@ -1,5 +1,5 @@
 -module(spreadsheet). %ver..4.5
--export([new/1, new/4, share/2, starter/5,reassign_owner/2, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
+-export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
@@ -71,15 +71,17 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) ->
         Pid ->
             % Check if the caller has read access
             %Prima di inviare la richiesta get al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in lettura. In caso contrario, restituiamo {error, access_denied}.
-            case check_access(self(), SpreadsheetName#spreadsheet.access_policies, read) of
-                ok ->
+            %case check_access(self(), SpreadsheetName#spreadsheet.access_policies, read) of
+            %    ok ->
                     Pid ! {get, self(), TabIndex, I, J},
                     receive
-                        {get_result, Value} -> Value
-                    after Timeout -> {error, timeout}
-                    end;
-                {error, access_denied} -> {error, access_denied}
-            end
+                        {get_result, Value} -> Value;
+                        {error, access_denied} -> {error, access_denied}
+                    after Timeout ->
+                         {error, timeout}
+                    end
+                
+            %end
     end.
 %La funzione set/5 spedisce un messaggio al processo spreadsheet per aggiornare una cella specifica con un nuovo valore
 % set/6 specifica ulteriormente un valore di Timeout desiderato
@@ -90,17 +92,20 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
     case whereis(SpreadsheetName) of
         undefined -> {error, spreadsheet_not_found};
         Pid ->
-            % Check if the caller has write access
-            %Prima di inviare la richiesta di set al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in scrittura. In caso contrario, restituiamo {error, access_denied}.
-            case check_access(self(), SpreadsheetName#spreadsheet.access_policies, write) of
-                ok ->
+           % Send the get request to the spreadsheet process  
+                %ERRATO
+                %Prima di inviare la richiesta di set al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in scrittura. In caso contrario, restituiamo {error, access_denied}.
+                %case check_access(self(), SpreadsheetName#spreadsheet.access_policies, write) of
+                %ok ->
+
                     Pid ! {set, self(), TabIndex, I, J, Value},
                     receive
-                        {set_result, Result} -> Result
-                    after Timeout -> {error, timeout}
-                    end;
-                {error, access_denied} -> {error, access_denied}
-            end
+                        {set_result, ok} -> ok;
+                        {error, access_denied} -> {error, access_denied}
+                    after Timeout ->
+                         {error, timeout}
+                    end
+                %end
     end.
 
 
@@ -242,6 +247,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
             io:format("want reassign from ~p to ~p~n", [#spreadsheet.owner, NewOwner]),
             if
                 From =:= NewOwner ->  % Only the restarted shell can reassign ownership
+
                     NewState = State#spreadsheet{owner = NewOwner},
                     io:format("Ownership reassigned from ~p to ~p~n", [Owner, NewOwner]),
                     From ! {reassign_owner_result, ok},
@@ -254,62 +260,76 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
 % Handle get request 
         %la Tab(la matrice) restituita da lists:nth(Tab, Tabs) è assegnata a TabMatrix
         {get, From, Tab, I, J} ->
-            io:format("Received get request for Tab: ~p, Row: ~p, Col: ~p~n", [Tab, I, J]),
-            if
-                Tab > length(Tabs) orelse Tab < 1 ->
-                    io:format("Tab index ~p is out of bounds~n", [Tab]),
-                    From ! {cell_value, undef};
-                true ->
-                    TabMatrix = lists:nth(Tab, Tabs),
-                    if
-                        I > length(TabMatrix) orelse I < 1 ->
-                            io:format("Row index ~p is out of bounds in Tab ~p~n", [I, Tab]),
-                            From ! {cell_value, undef}; %If the indices are out of bounds, we return undef instead of trying to access an invalid position.
+            % Check if the requesting process has read access
+            case check_access(From, Policies, read) of
+                ok ->      
+                    io:format("Received get request for Tab: ~p, Row: ~p, Col: ~p~n", [Tab, I, J]),
+                        if
+                            Tab > length(Tabs) orelse Tab < 1 ->
+                                io:format("Tab index ~p is out of bounds~n", [Tab]),
+                                From ! {cell_value, undef};
                         true ->
-                            Row = lists:nth(I, TabMatrix),
+                            TabMatrix = lists:nth(Tab, Tabs),
                             if
-                                J > length(Row) orelse J < 1 ->
-                                    io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, Tab]),
-                                    From ! {cell_value, undef};
+                                I > length(TabMatrix) orelse I < 1 ->
+                                    io:format("Row index ~p is out of bounds in Tab ~p~n", [I, Tab]),
+                                    From ! {cell_value, undef}; %If the indices are out of bounds, we return undef instead of trying to access an invalid position.
                                 true ->
-                                    Value = lists:nth(J, Row),
+                                Row = lists:nth(I, TabMatrix),
+                                    if
+                                        J > length(Row) orelse J < 1 ->
+                                            io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, Tab]),
+                                            From ! {cell_value, undef};
+                                    true ->
+                                        Value = lists:nth(J, Row),
                                     
-                                    From ! {cell_value, Value}
+                                        From ! {cell_value, Value}
+                                    end
                             end
-                    end
-            end,
-            loop(State);
-
+                        end,
+                        loop(State);
+                {error, access_denied} ->
+                    From ! {error, access_denied},
+                    loop(State)
+            end;
 % Handle set request
         {set, From, Tab, I, J, Val} ->
-            io:format("Received set request for Tab: ~p, Row: ~p, Col: ~p, Val: ~p~n", [Tab, I, J, Val]),
-            if
-                Tab > length(Tabs) orelse Tab < 1 ->
-                    io:format("Tab index ~p is out of bounds~n", [Tab]),
-                    From ! {set_result, false};
-                true ->
-                    TabMatrix = lists:nth(Tab, Tabs),
+        % Check if the requesting process has write access
+            case check_access(From, Policies, write) of
+                ok ->
+
+                    io:format("Received set request for Tab: ~p, Row: ~p, Col: ~p, Val: ~p~n", [Tab, I, J, Val]),
                     if
-                        I > length(TabMatrix) orelse I < 1 ->
-                            io:format("Row index ~p is out of bounds in Tab ~p~n", [I, Tab]),
+                        Tab > length(Tabs) orelse Tab < 1 ->
+                            io:format("Tab index ~p is out of bounds~n", [Tab]),
                             From ! {set_result, false};
                         true ->
-                            Row = lists:nth(I, TabMatrix),
+                            TabMatrix = lists:nth(Tab, Tabs),
                             if
-                                J > length(Row) orelse J < 1 ->
-                                    io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, Tab]),
+                                I > length(TabMatrix) orelse I < 1 ->
+                                    io:format("Row index ~p is out of bounds in Tab ~p~n", [I, Tab]),
                                     From ! {set_result, false};
                                 true ->
-                                    io:format("Setting value ~p at Tab: ~p, Row: ~p, Col: ~p~n", [Val, Tab, I, J]),
-                                    NewRow = replace_nth(J, Val, Row),
-                                    NewTabMatrix = replace_nth(I, NewRow, TabMatrix),
-                                    NewTabs = replace_nth(Tab, NewTabMatrix, Tabs),
-                                    NewState = State#spreadsheet{tabs = NewTabs},
-                                    From ! {set_result, true},
-                                    loop(NewState)
+                                    Row = lists:nth(I, TabMatrix),
+                                    if
+                                        J > length(Row) orelse J < 1 ->
+                                            io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, Tab]),
+                                            From ! {set_result, false};
+                                        true ->
+                                            io:format("Setting value ~p at Tab: ~p, Row: ~p, Col: ~p~n", [Val, Tab, I, J]),
+                                            NewRow = replace_nth(J, Val, Row),
+                                            NewTabMatrix = replace_nth(I, NewRow, TabMatrix),
+                                            NewTabs = replace_nth(Tab, NewTabMatrix, Tabs),
+                                            NewState = State#spreadsheet{tabs = NewTabs},
+                                            From ! {set_result, true},
+                                            loop(NewState)
+                                    end
                             end
-                    end
-            end;
+                    end;
+                {error, access_denied} ->
+                    From ! {error, access_denied},
+                    loop(State)
+            end;                  
 
        
 
