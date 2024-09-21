@@ -50,12 +50,14 @@ starter(Name, Owner, N, M, K) ->
 reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
     case whereis(SpreadsheetName) of
         undefined ->
-            {error, spreadsheet_not_found}; % The spreadsheet process doesn't exist
+            {error, spreadsheet_not_found};   % The spreadsheet process doesn't exist
         Pid ->
             io:format("try to reassign owner to ~p~n",[NewOwnerPid]),
             Pid ! {reassign_owner, self(), NewOwnerPid},
             receive
-                {reassign_owner_result, Result} -> Result
+                {reassign_owner_result, Result} -> {ok,Result}
+            after 5000 ->  % Timeout after 5000 milliseconds (5 seconds)
+                    {error, timeout}    
             end
     end.
 % La funzione get/4 spedisce un messaggio al processo spreadsheet richiedendo il valore di una specifica cella del foglio di calcolo
