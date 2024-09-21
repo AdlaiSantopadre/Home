@@ -119,7 +119,7 @@ replace_nth(Index, NewVal, List) ->
 % Check if the calling process has the required access (read/write)
 check_access(PidOrName, Policies, RequiredAccess) ->
 
-    io:format("control if ~p  process has access to ~p in list ~p~n",[PidOrName],[RequiredAccess],[Policies]),
+    io:format("control if ~p  process has access to ~p in list ~p~n",[PidOrName,RequiredAccess,Policies]),
 
     % Resolve the PID if the process is a registered name
     ResolvedPid = case is_pid(PidOrName) of
