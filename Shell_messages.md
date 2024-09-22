@@ -58,7 +58,7 @@ Proc1 = spawn(fun() -> receive stop -> ok end end).
 Proc2 = spawn(fun() -> receive stop -> ok end end).
 Proc3 = spawn(fun() -> receive stop -> ok end end).
 % test Access policies
-AccessPolicy = [{proc1, read}, {proc2, write}, {proc3, read}].
+
 
 spreadsheet:share(my_spreadsheet,AccessPolicy).
 spreadsheet:share(my_spreadsheet, [{proc2, write}, {proc3, write}]).
