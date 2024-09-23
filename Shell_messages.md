@@ -53,17 +53,21 @@ c(spreadsheet).
 %creazione di tre processi
 c(process_utility).
 Names=[proc1,proc2,proc3].
+
 process_utility:spawn_and_register_processes(Names).
 Proc1 = spawn(fun() -> receive stop -> ok end end).
 Proc2 = spawn(fun() -> receive stop -> ok end end).
 Proc3 = spawn(fun() -> receive stop -> ok end end).
 % test Access policies
-
+AccessPolicy = [{proc1, read}, {proc2, write}, {proc3, read}].
 
 spreadsheet:share(my_spreadsheet,AccessPolicy).
 spreadsheet:share(my_spreadsheet, [{proc2, write}, {proc3, write}]).
 spreadsheet:share(my_spreadsheet, [{proc4, read}, {proc3, write}]).
 spreadsheet:remove_policy(my_spreadsheet,proc1).
 
-
 observer:start().
+
+## in caso di crash della shell
+
+spreadsheet:reassign_owner(my_spreadsheet,self()).

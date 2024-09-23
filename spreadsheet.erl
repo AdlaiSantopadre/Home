@@ -1,5 +1,5 @@
 -module(spreadsheet). %ver..4.6
--export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2, from_csv/1, get/4, get/5, set/5, set/6]).
+-export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2, to_csv/3,  from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
@@ -272,7 +272,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
     receive
          % Handle ownership reassignment
         {reassign_owner, From, NewOwner} ->
-            io:format("want reassign from ~p to ~p~n", [#spreadsheet.owner, NewOwner]),
+            io:format("want reassign from ~p to ~p~n", [Owner, NewOwner]),
             if
                 From =:= NewOwner ->  % Only the restarted shell can reassign ownership
 
@@ -406,8 +406,11 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
             io:format("Unknown message received: ~p~n", [_Other]),
             loop(State)
     end.
-% Funzione per salvare il foglio di calcolo in un file CSV, attraverso il registered name
+% Funzione per salvare il foglio di calcolo e metadati in un file CSV, attraverso il registered name
 to_csv(Filename, SpreadsheetName) ->
+to_csv(Filename, SpreadsheetName, infinity). 
+
+to_csv(Filename, SpreadsheetName, Timeout) ->
     io:format("Starting to_csv with Filename: ~p and SpreadsheetName: ~p~n", [Filename, SpreadsheetName]),
     
     % Recupera il PID associato al nome registrato
@@ -421,14 +424,22 @@ to_csv(Filename, SpreadsheetName) ->
             % Invia un messaggio al processo per ottenere lo stato del foglio di calcolo
             Pid ! {get_spreadsheetPid, self()},
             receive
-                {spreadsheet_state, #spreadsheet{name = Name, tabs = Tabs}} ->
+                {spreadsheet_state, #spreadsheet{name = Name, tabs = Tabs,owner = Owner,access_policies=AccessPolicies}} ->
                     io:format("Received spreadsheet state for Name: ~p~n", [Name]),
                     % Apri il file per la scrittura
                     case file:open(Filename, [write]) of
                         {ok, File} ->
                             io:format("Opened file: ~p~n", [Filename]),
+
                             % Scrivi il nome del foglio
                             io:format(File, "Spreadsheet Name: ~s~n", [atom_to_list(Name)]),
+
+                             % Write the owner information
+                            io:format(File, "Owner: ~p~n", [Owner]),
+
+                            % Write the access policies
+                            io:format(File, "Access Policies: ~p~n", [AccessPolicies]),
+
                             % Salva ogni tab come riga CSV
                             lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
                             file:close(File),
@@ -438,7 +449,7 @@ to_csv(Filename, SpreadsheetName) ->
                             io:format("Error opening file: ~p, Reason: ~p~n", [Filename, Reason]),
                             {error, Reason}
                     end
-            after 5000 ->
+            after Timeout ->
                 io:format("Timeout while waiting for response from PID: ~p~n", [Pid]),
                 {error, timeout}  % Timeout se il processo non risponde
             end
