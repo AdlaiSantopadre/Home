@@ -28,10 +28,10 @@ Il modulo spreadsheet deve contenere almeno le seguenti funzioni:
 • ~~Ogni tab ha dimensioni NxM~~ 
 • ~~assegna il processo creatore come proprietario del foglio~~
 
-share(spreadsheet, AccessPolicies) -> bool
-*Inserire i check sulla esistenza dei processi di cui aggiornare le Access Policies se aggiornate tramite Pid*
+~~share(spreadsheet, AccessPolicies) -> bool
+*Inserire i check sulla esistenza dei processi di cui aggiornare le Access Policies se aggiornate tramite Pid*~~
 
-•Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
+~~•Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi~~
  ~~AccessPolicies è una lista di {Proc,AP} dove~~
  • ~~Proc è un Pid/reg_name~~
  • ~~AP = read | write~~
@@ -48,9 +48,8 @@ to_cvs(spreadsheet,filename) -> **ok** | {error,reason}
 • Esporta in cvs (comma separated values) 
 
 from_cvs(filename) -> spreadsheet | {error,reason} 
-
+*Controlla la presenza delle versioni con timeout*
 to_cvs(name,filename, timeout) -> **ok** | {error,reason} | timeout 
-
 from_cvs(name,filename, timeout)->spreadsheet | {error,reason} | timeout 
 
 info(name) -> Spreadsheet_info Le informazioni devono contenere almeno: 
@@ -66,11 +65,14 @@ Requisiti
 
 # Spreadsheet avanzato 
  Prerequisiti: • Aver implementato la parte “semplice” 
- Aggiungiamo operazioni che modificano la forma del foglio 
+ Aggiungiamo operazioni che modificano la forma del foglio
+
  add_row(spreadsheet, tab) -> ok | {err,reason} 
  • Aggiunge una riga in append al tab del foglio name 
+ 
  del_row(spreadsheet, tab,i) -> ok | {err,reason} 
  • Rimuove l’iesima riga del tab del foglio nameSpreadsheet avanzato 2/2 
+ 
  Una cella può contenere 
  • qualsiasi tipo di dato primitivo 
  • Il valore undef 
