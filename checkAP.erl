@@ -13,8 +13,8 @@ check_access(PidOrName, Policies, RequiredAccess) ->
                                Resolved
                   end,
     % Get the registered name if PidOrName is a PID and registered
-    RegisteredName = case is_pid(PidOrName) of
-                         true -> lists:keyfind(PidOrName, 2, erlang:processes());  % Check if it's registered
+   RegisteredName = case is_pid(PidOrName) of
+                         true -> find_registered_name(ResolvedPid);  % Get registered name for the PID
                          false -> PidOrName  % If it's already a name, keep it
                      end,
     io:format("ResolvedPid is ~p~n",[ResolvedPid]),io:format("registeredName is  ~p~n",[RegisteredName]),
@@ -28,3 +28,16 @@ check_access(PidOrName, Policies, RequiredAccess) ->
                  _ -> {error, access_denied}
             end
     end.
+%Funzione ausiliaria di chec_access
+%Trova il registered_name di un processo in base al suo PID
+find_registered_name(Pid) ->
+    lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
+        fun(Name, Acc) ->
+            case whereis(Name) of
+                Pid when Pid =/= undefined -> Name;  % Return the name if it matches the PID
+                _ -> Acc  % Otherwise, keep searching
+            end
+        end,
+        undefined,
+        registered()
+    ).
