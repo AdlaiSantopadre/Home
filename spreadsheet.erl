@@ -145,7 +145,7 @@ check_access(PidOrName, Policies, RequiredAccess) ->
                  _ -> {error, access_denied}
             end
     end.
-%Funzione ausiliaria di chec_access
+%Funzione ausiliaria di check_access
 %Trova il registered_name di un processo in base al suo PID
 find_registered_name(Pid) ->
     lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
