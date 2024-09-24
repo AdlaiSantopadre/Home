@@ -468,57 +468,97 @@ format_cell(undef) -> "undef";
 format_cell(Cell) -> io_lib:format("~p", [Cell]).
 
 
-    % Funzione per caricare il foglio di calcolo da un file CSVhe function opens the file and reads the first line.
-%If the first line starts with "Spreadsheet Name: ", we extract the actual name (SpreadsheetName) and proceed to load the rest of the data.
-%If the format of the first line doesn’t match, we handle it gracefully by closing the file and returning an error.
-from_csv(Filename) ->
+ from_csv(Filename) ->
     case file:open(Filename, [read]) of
         {ok, File} ->
-            %% Read the first line (Spreadsheet Name)
+            % Read the first line (Spreadsheet Name)
             SpreadsheetNameLine = io:get_line(File, ''),
-            io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),  % Debug
-           
-            %The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
-            % case expression, but then try to use it outside of the case block. Variables bound 
-            %in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
-                        
-            % Pattern match to extract the spreadsheet name
+            io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),
+
+            % Extract the spreadsheet name
             case string:strip(SpreadsheetNameLine, both, $\n) of
-                "Spreadsheet Name: " ++ SpreadsheetName ->  
+                "Spreadsheet Name: " ++ SpreadsheetName ->
                     io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
-                    
-                    % Load the tabs from the remaining lines in the CSV
-                    Tabs = load_tabs_from_csv(File),
-                    io:format("Read Tabs: ~p~n", [Tabs]),  % Debug
-            % Read the owner field
-            {ok, [OwnerLine]} = io:read(File, ''),
-            {Owner, _} = io_lib:fread("Owner: ~p", OwnerLine),
 
-            % Read the access policies field
-            {ok, [AccessPoliciesLine]} = io:read(File, ''),
-            {AccessPolicies, _} = io_lib:fread("Access Policies: ~p", AccessPoliciesLine),
-                    
-                    
-            file:close(File),
+                    % Read the owner field
+                    OwnerLine = io:get_line(File, ''),
+                    io:format("Raw Owner Line: ~p~n", [OwnerLine]),
 
-            % Construct the spreadsheet record
-            Spreadsheet = #spreadsheet{
-                        name = list_to_atom(SpreadsheetName),  % Convert the name to an atom
-                        tabs = Tabs,
-                        owner = Owner,  
-                        access_policies = AccessPolicies
-                    },                
-            {ok, Spreadsheet};    
+                    % Extract the owner
+                    case string:strip(OwnerLine, both, $\n) of
+                        "Owner: " ++ Owner ->
+                            io:format("Extracted Owner PID: ~p~n", [Owner]),
 
-            _ ->
+                            % Read the access policies field
+                            AccessPoliciesLine = io:get_line(File, ''),
+                            io:format("Raw Access Policies Line: ~p~n", [AccessPoliciesLine]),
+
+                            % Extract the access policies
+                            case string:strip(AccessPoliciesLine, both, $\n) of
+                                "Access Policies: " ++ AccessPoliciesString ->
+                                    io:format("Extracted Access Policies (String): ~p~n", [AccessPoliciesString]),
+
+                                    % Convert access policies string to a valid term
+                                    case parse_term_from_string(AccessPoliciesString) of
+                                        {ok, AccessPolicies} ->
+                                            io:format("Parsed Access Policies: ~p~n", [AccessPolicies]),
+
+                                            % Load the tabs from the remaining lines in the CSV
+                                            Tabs = load_tabs_from_csv(File),
+                                            io:format("Read Tabs: ~p~n", [Tabs]),  % Debug
+
+                                            % Close the file
+                                            file:close(File),
+
+                                            % Construct the spreadsheet record
+                                            Spreadsheet = #spreadsheet{
+                                                name = list_to_atom(SpreadsheetName),  % Convert the name to an atom
+                                                tabs = Tabs,
+                                                owner = list_to_pid(Owner),  % Convert owner to a PID
+                                                access_policies = AccessPolicies  % Use the parsed term for access policies
+                                            },
+
+                                            {ok, Spreadsheet};
+                                        {error, Reason} ->
+                                            io:format("Error parsing Access Policies: ~p~n", [Reason]),
+                                            file:close(File),
+                                            {error, invalid_access_policies}
+                                    end;
+
+                                _ ->
+                                    io:format("Error: Invalid format for Access Policies line~n"),
+                                    file:close(File),
+                                    {error, invalid_format}
+                            end;
+
+                        _ ->
+                            io:format("Error: Invalid format for Owner line~n"),
+                            file:close(File),
+                            {error, invalid_format}
+                    end;
+
+                _ ->
                     io:format("Error: Invalid format for Spreadsheet Name line~n"),
                     file:close(File),
                     {error, invalid_format}
-        end;
+            end;
 
         {error, Reason} ->
             io:format("Error opening file: ~p~n", [Reason]),
             {error, Reason}
+    end.
+
+% Helper function to parse a term from a string representation
+parse_term_from_string(String) ->
+    % Tokenize the string
+    case erl_scan:string(String ++ ".") of  % Add a period to complete the expression
+        {ok, Tokens, _} ->
+            % Parse the tokens into an Erlang term
+            case erl_parse:parse_term(Tokens) of
+                {ok, Term} -> {ok, Term};
+                {error, Reason} -> {error, Reason}
+            end;
+        {error, Reason, _} -> {error, Reason}
     end.
 
 
