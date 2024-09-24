@@ -267,7 +267,7 @@ create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
 %%%%%%%%%%LOOP %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
-loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies}) ->
+loop(State = #spreadsheet{ tabs = Tabs, owner = Owner, access_policies = Policies}) ->
     io:format("Spreadsheet State waiting for messages.~n"),
     
     receive
