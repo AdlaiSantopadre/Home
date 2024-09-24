@@ -1,5 +1,6 @@
--module(spreadsheet). %ver..4.6
--export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2, to_csv/3,  from_csv/1, get/4, get/5, set/5, set/6]).
+-module(spreadsheet). %ver..4.7
+-export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2,
+        to_csv/3,from_csv/1, get/4, get/5, set/5, set/6]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
@@ -406,7 +407,7 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
             io:format("Unknown message received: ~p~n", [_Other]),
             loop(State)
     end.
-% Funzione per salvare il foglio di calcolo e metadati in un file CSV, attraverso il registered name
+% Funzione per salvare i dati del foglio di calcolo e i metadati in un file CSV, attraverso il registered name
 to_csv(Filename, SpreadsheetName) ->
 to_csv(Filename, SpreadsheetName, infinity). 
 
@@ -473,15 +474,14 @@ format_cell(Cell) -> io_lib:format("~p", [Cell]).
 from_csv(Filename) ->
     case file:open(Filename, [read]) of
         {ok, File} ->
-            % Read the first line (Spreadsheet Name)
+            %% Read the first line (Spreadsheet Name)
             SpreadsheetNameLine = io:get_line(File, ''),
             io:format("Raw Spreadsheet Name Line: ~p~n", [SpreadsheetNameLine]),  % Debug
-
-            
+           
             %The error variable 'SpreadsheetName' unsafe in 'case' occurs in Erlang when you attempt to bind a variable inside a
             % case expression, but then try to use it outside of the case block. Variables bound 
             %in a case expression are only valid within that expression, and Erlang does not allow them to be used outside of it.            case string:strip(SpreadsheetNameLine, both, $\n) of
-            
+                        
             % Pattern match to extract the spreadsheet name
             case string:strip(SpreadsheetNameLine, both, $\n) of
                 "Spreadsheet Name: " ++ SpreadsheetName ->  
@@ -490,23 +490,31 @@ from_csv(Filename) ->
                     % Load the tabs from the remaining lines in the CSV
                     Tabs = load_tabs_from_csv(File),
                     io:format("Read Tabs: ~p~n", [Tabs]),  % Debug
+            % Read the owner field
+            {ok, [OwnerLine]} = io:read(File, ''),
+            {Owner, _} = io_lib:fread("Owner: ~p", OwnerLine),
 
-                    file:close(File),
+            % Read the access policies field
+            {ok, [AccessPoliciesLine]} = io:read(File, ''),
+            {AccessPolicies, _} = io_lib:fread("Access Policies: ~p", AccessPoliciesLine),
+                    
+                    
+            file:close(File),
 
-                    % Construct the spreadsheet record
-                    Spreadsheet = #spreadsheet{
+            % Construct the spreadsheet record
+            Spreadsheet = #spreadsheet{
                         name = list_to_atom(SpreadsheetName),  % Convert the name to an atom
                         tabs = Tabs,
-                        owner = self(),  % Set the current process as the owner
-                        access_policies = []  % Empty access policies for now
-                    },
-                    {ok, Spreadsheet};
+                        owner = Owner,  
+                        access_policies = AccessPolicies
+                    },                
+            {ok, Spreadsheet};    
 
-                _ ->
+            _ ->
                     io:format("Error: Invalid format for Spreadsheet Name line~n"),
                     file:close(File),
                     {error, invalid_format}
-            end;
+        end;
 
         {error, Reason} ->
             io:format("Error opening file: ~p~n", [Reason]),
