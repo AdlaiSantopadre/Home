@@ -1,12 +1,13 @@
--module(spreadsheet). %ver..4.7
--export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2,
-        to_csv/3,from_csv/1, get/4, get/5, set/5, set/6]).
+-module(spreadsheet). %ver..5.8 
+-export([new/1, new/4, share/2, starter/6, reassign_owner/2, remove_policy/2, to_csv/2,
+        to_csv/3,from_csv/1, get/4, get/5, set/5, set/6, info/1]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
     tabs = [],           % Dati (una lista di tab, una tab è una matrice)
     owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
-    access_policies = [] % Politiche di accesso (lista di tuple)
+    access_policies = [], % Politiche di accesso (lista di tuple)
+    last_modified = undefined   % Timestamp dell` ultima modifica dei dati
 }).
 
 
@@ -22,28 +23,40 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
     % Controllo se il nome del foglio esiste già!
     case whereis(Name) of
         undefined ->
-            
+            LastModified= calendar:universal_time(),
             Owner =self(), %Il Pid del processo chiamante viene salvato in Owner 
             %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
         
-            Pid = spawn(spreadsheet, starter, [Name, Owner, N, M, K]),  % Avvio di un distinto processo  per lo spreadsheet
+            Pid = spawn(spreadsheet, starter, [Name, Owner, N, M, K, LastModified]),  % Avvio di un distinto processo  per lo spreadsheet
             register(Name, Pid),  % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio  per facilitarne l'accesso
             {ok, Pid};  % Restituisce il Pid del processo creato, per inviargli messaggi
                        
         _ ->
             {error, already_exists}
     end;
-% funzione per gestire chiamate scorrette di new/4
 new(_, _, _, _) ->
     {error, invalid_parameters}.
 
+% Function to get spreadsheet information
+info(SpreadsheetName) ->
+    case whereis(SpreadsheetName) of
+        undefined -> {error, spreadsheet_not_found};  % If the process is not found
+        Pid ->
+            % Send a request to the spreadsheet process to get its state
+            Pid ! {get_info, self()},
+            receive
+                {info_result, Info} -> {ok, Info};
+                {error, Reason} -> {error, Reason}
+            after 5000 -> {error, timeout}
+            end
+    end.
 
 
 % Funzione che avvia il processo del foglio di calcolo
-starter(Name, Owner, N, M, K) ->
+starter(Name, Owner, N, M, K, LastModified) ->
     io:format("~p  process started.~n",[Name]),
     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = []},
+    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = [], last_modified = LastModified},
     loop(Spreadsheet).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -145,7 +158,7 @@ check_access(PidOrName, Policies, RequiredAccess) ->
                  _ -> {error, access_denied}
             end
     end.
-%Funzione ausiliaria di check_access
+%Funzione ausiliaria di chec_access
 %Trova il registered_name di un processo in base al suo PID
 find_registered_name(Pid) ->
     lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
@@ -267,7 +280,7 @@ create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
 %%%%%%%%%%LOOP %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % loop che gestisce lo State del foglio di calcolo e le operazioni sui dati
-loop(State = #spreadsheet{ tabs = Tabs, owner = Owner, access_policies = Policies}) ->
+loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified}) ->
     io:format("Spreadsheet State waiting for messages.~n"),
     
     receive
@@ -285,7 +298,30 @@ loop(State = #spreadsheet{ tabs = Tabs, owner = Owner, access_policies = Policie
                     From ! {reassign_owner_result, {error, unauthorized}},
                     loop(State)
             end;
- 
+% Handle the request of info
+        {get_info, From} ->
+             io:format("want info from ~p~n", [From]),
+            % Calculate the number of cells and total tabs
+            TotalTabs = length(Tabs),
+            TotalCells = lists:sum([length(Tab) * length(lists:nth(1, Tab)) || Tab <- Tabs]),
+            
+            % Split access policies into read and write permissions
+            ReadPermissions = [Proc || {Proc, read} <- Policies],
+            WritePermissions = [Proc || {Proc, write} <- Policies],
+            
+            % Create the info result
+            Info = #{name => Name,
+                     owner => Owner,
+                     last_modified => LastModified,
+                     total_tabs => TotalTabs,
+                     total_cells => TotalCells,
+                     read_permissions => ReadPermissions,
+                     write_permissions => WritePermissions
+                     },
+
+            % Send the result back to the requester
+            From ! {info_result,Info},
+            loop(State);
 % Handle get request 
         %la Tab(la matrice) restituita da lists:nth(Tab, Tabs) è assegnata a TabMatrix
         {get, From, Tab, I, J} ->
@@ -349,7 +385,9 @@ loop(State = #spreadsheet{ tabs = Tabs, owner = Owner, access_policies = Policie
                                             NewRow = replace_nth(J, Val, Row),
                                             NewTabMatrix = replace_nth(I, NewRow, TabMatrix),
                                             NewTabs = replace_nth(Tab, NewTabMatrix, Tabs),
-                                            NewState = State#spreadsheet{tabs = NewTabs},
+                                            % Update the last modified timestamp
+                                            CurrentTime = calendar:universal_time(),
+                                            NewState = State#spreadsheet{tabs = NewTabs, last_modified = CurrentTime},
                                             From ! {set_result, true},
                                             loop(NewState)
                                     end
@@ -425,7 +463,7 @@ to_csv(Filename, SpreadsheetName, Timeout) ->
             % Invia un messaggio al processo per ottenere lo stato del foglio di calcolo
             Pid ! {get_spreadsheetPid, self()},
             receive
-                {spreadsheet_state, #spreadsheet{name = Name, tabs = Tabs,owner = Owner,access_policies=AccessPolicies}} ->
+                {spreadsheet_state, #spreadsheet{name = Name, tabs = Tabs,owner = Owner,access_policies=AccessPolicies, last_modified = LastModified}} ->
                     io:format("Received spreadsheet state for Name: ~p~n", [Name]),
                     % Apri il file per la scrittura
                     case file:open(Filename, [write]) of
@@ -441,6 +479,8 @@ to_csv(Filename, SpreadsheetName, Timeout) ->
                             % Write the access policies
                             io:format(File, "Access Policies: ~p~n", [AccessPolicies]),
 
+                            io:format(File, "Last Modified: ~p~n", [LastModified]),
+                            % Include last modified date
                             % Salva ogni tab come riga CSV
                             lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
                             file:close(File),
@@ -503,6 +543,11 @@ format_cell(Cell) -> io_lib:format("~p", [Cell]).
                                         {ok, AccessPolicies} ->
                                             io:format("Parsed Access Policies: ~p~n", [AccessPolicies]),
 
+                                            LastModifiedLine = io:get_line(File, ''),
+
+                                            case string:strip(LastModifiedLine, both, $\n) of
+                                                "Last Modified : " ++ LastModifiedString ->
+                                                io:format("Extracted last timestamp: ~p~n", [LastModifiedString]),
                                             % Load the tabs from the remaining lines in the CSV
                                             Tabs = load_tabs_from_csv(File),
                                             io:format("Read Tabs: ~p~n", [Tabs]),  % Debug
@@ -515,16 +560,23 @@ format_cell(Cell) -> io_lib:format("~p", [Cell]).
                                                 name = list_to_atom(SpreadsheetName),  % Convert the name to an atom
                                                 tabs = Tabs,
                                                 owner = list_to_pid(Owner),  % Convert owner to a PID
-                                                access_policies = AccessPolicies  % Use the parsed term for access policies
+                                                access_policies = AccessPolicies,% Use the parsed term for access policies
+                                                last_modified = LastModifiedString
+                                                  
                                             },
 
                                             {ok, Spreadsheet};
+                                            _ ->
+                                                io:format("Error: Invalid format for Last Modified line~n"),
+                                                file:close(File),
+                                                {error, invalid_format}
+                            end;
                                         {error, Reason} ->
                                             io:format("Error parsing Access Policies: ~p~n", [Reason]),
                                             file:close(File),
                                             {error, invalid_access_policies}
                                     end;
-
+                                    
                                 _ ->
                                     io:format("Error: Invalid format for Access Policies line~n"),
                                     file:close(File),
@@ -583,6 +635,11 @@ parse_cell(Value) ->
         {'EXIT', _} -> Value;  % Se non è possibile, lascia il valore come stringa
         Atom -> Atom  % Converte in atomo se possibile
     end.
+
+
+
+
+
 
 
 
