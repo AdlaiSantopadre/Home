@@ -16,6 +16,21 @@ Quando esegui net_adm:ping(node@localhost), stai inviando una richiesta di ping 
 quando passi un record come parametro, se non hai bisogno di aggiornare tutti i campi, puoi aggiornare solo quelli specifici e lasciare il resto invariato con la sintassi Record#record_name{campo = valore}.
  Tuttavia, quando stai passando lo stato nel ciclo (loop) , sarebbe preferibile 'includere tutti i campi del record se essi fanno parte dello stato che il processo deve gestire'
 
+
+
+## Liste in erlang
+
+Le liste sono immutabili in erlang, ovvero non si possono modificare direttamente.Pertanto per cambiare un elemento in una lista si divide la lista in due parti (precedente e antecedente l`elemento) e si ricostruisce una lista con il nuovo elemento nella posizione voluta.
+
+## lists:map(Function, List)
+
+applica la funzione specificata a ciascun elemento della lista fornita e restituisce una nuova lista con i risultati;
+la lista su cui viene applicata la mappatura è quella generata da **lists:seq(1, N)**
+
+## lists:duplicate(M, undef)
+
+crea una nuova lista lunga M di elementi il cui valore è undef per cui tale funzione chiamata su lists:seq(1,N) produce attraverso lists:map una matrice come lista di liste.
+
 ## lists:filter/2
 
 lists:filter/2 è una funzione della libreria standard di Erlang che prende una funzione (in questo caso un funtore) e una lista come argomenti.
@@ -33,14 +48,15 @@ NewPolicies = [
     {proc_c, read}
 ].
 
-## lists:map(Function, List)
+## PID
 
-applica la funzione specificata a ciascun elemento della lista fornita e restituisce una nuova lista con i risultati;
-la lista su cui viene applicata la mappatura è quella generata da **lists:seq(1, N)**
+PIDs are typically used within running systems and are not usually persisted as strings or passed around in text formats for long-term storage or inter-process communication that survives system restarts. However, there are specific scenarios where you might need to convert a string to a PID, such as when debugging, logging, or interacting with external systems that record PIDs as strings.
 
-## lists:duplicate(M, undef)
+Understanding PID Representation
+A PID in Erlang is typically printed and seen in the format <X.Y.Z>, where X, Y, and Z are integers. This is the standard textual representation of PIDs in Erlang.
 
-crea una nuova lista lunga M di elementi il cui valore è undef per cui tale funzione chiamata su lists:seq(1,N) produce attraverso lists:map una matrice come lista di liste.
+Converting String to PID
+Erlang does not directly provide a built-in function to safely convert a string representation of a PID back into a PID type because this operation is inherently unsafe and generally discouraged. PIDs are meant to be ephemeral identifiers in a running system. However, *if you absolutely need to convert a string to a PID for purposes like debugging or controlled environments, you can use **list_to_pid/1.***
 
 ## Meccanismo di passaggio dei messaggi
 
@@ -73,7 +89,3 @@ loop() ->
         io:format("No messages received in 5 seconds, looping~n"),
         loop()
     end.
-
-## Liste in erlang
-
-Le liste sono immutabili in erlang, ovvero non si possono modificare direttamente.Pertanto per cambiare un elementoin una lista si divide la lista in due parti (precedente e antecedente l`elemento) e si ricostruisce una lista con il nuovo elemento nella posizione voluta.

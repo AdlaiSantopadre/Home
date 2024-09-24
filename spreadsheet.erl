@@ -1,12 +1,13 @@
--module(spreadsheet). %ver..4.7 senza modulo check_access
+-module(spreadsheet). %ver..5.8 
 -export([new/1, new/4, share/2, starter/5, reassign_owner/2, remove_policy/2, to_csv/2,
-        to_csv/3,from_csv/1, get/4, get/5, set/5, set/6]).
+        to_csv/3,from_csv/1, get/4, get/5, set/5, set/6, info/1]).
 
 -record(spreadsheet, {
     name,                % Nome del foglio di calcolo
     tabs = [],           % Dati (una lista di tab, una tab è una matrice)
     owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
-    access_policies = [] % Politiche di accesso (lista di tuple)
+    access_policies = [], % Politiche di accesso (lista di tuple)
+    last_modified = undefined   % Timestamp dell` ultima modifica dei dati
 }).
 
 
@@ -33,10 +34,22 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
         _ ->
             {error, already_exists}
     end;
-% funzione per gestire chiamate scorrette di new/4
 new(_, _, _, _) ->
     {error, invalid_parameters}.
 
+% Function to get spreadsheet information
+info(SpreadsheetName) ->
+    case whereis(SpreadsheetName) of
+        undefined -> {error, spreadsheet_not_found};  % If the process is not found
+        Pid ->
+            % Send a request to the spreadsheet process to get its state
+            Pid ! {get_info, self()},
+            receive
+                {info_result, Info} -> {ok, Info};
+                {error, Reason} -> {error, Reason}
+            after 5000 -> {error, timeout}
+            end
+    end.
 
 
 % Funzione che avvia il processo del foglio di calcolo
@@ -285,7 +298,27 @@ loop(State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_polici
                     From ! {reassign_owner_result, {error, unauthorized}},
                     loop(State)
             end;
- 
+% Handle the request of info
+        {get_info, From} ->
+            % Calculate the number of cells and total tabs
+            TotalTabs = length(Tabs),
+            TotalCells = lists:sum([length(Tab) * length(lists:nth(1, Tab)) || Tab <- Tabs]),
+            
+            % Split access policies into read and write permissions
+            ReadPermissions = [Proc || {Proc, read} <- Policies],
+            WritePermissions = [Proc || {Proc, write} <- Policies],
+
+            % Create the info result
+            Info = #{name => Name,
+                     owner => Owner,
+                     total_tabs => TotalTabs,
+                     total_cells => TotalCells,
+                     read_permissions => ReadPermissions,
+                     write_permissions => WritePermissions},
+
+            % Send the result back to the requester
+            From ! {info_result, Info},
+            loop(State);
 % Handle get request 
         %la Tab(la matrice) restituita da lists:nth(Tab, Tabs) è assegnata a TabMatrix
         {get, From, Tab, I, J} ->
