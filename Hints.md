@@ -238,11 +238,13 @@ To modify a record, you can use the record syntax to specify which fields to upd
 
 *UpdatedJohn = John#person{age = 31}.*
 
-###Limitations of Records
+### Limitations of Records
 
 Scope: Record definitions are not global. They are scoped to the module in which they are defined unless included in other modules via header files.
 Pattern Matching: While records improve readability, you need to remember that under the hood, they are just tuples. This means that operations like pattern matching are done using the tuple structure, which can complicate expressions slightly.
+
 ## Header Files
+
  Often, records are defined in header files (.hrl files) and included in multiple modules using -include directive. This approach promotes reuse and ensures consistency across different parts of an application.
 
 *-include("person.hrl").*
