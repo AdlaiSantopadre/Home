@@ -1,14 +1,14 @@
 -module(spreadsheet). %ver..5.8 
 -export([new/1, new/4, share/2, starter/6, reassign_owner/2, remove_policy/2, to_csv/2,
         to_csv/3,from_csv/1, get/4, get/5, set/5, set/6, info/1]).
-
--record(spreadsheet, {
-    name,                % Nome del foglio di calcolo
-    tabs = [],           % Dati (una lista di tab, una tab è una matrice)
-    owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
-    access_policies = [], % Politiche di accesso (lista di tuple)
-    last_modified = undefined   % Timestamp dell` ultima modifica dei dati
-}).
+-include("spreadsheet.hrl").
+%-record(spreadsheet, {
+%    name,                % Nome del foglio di calcolo
+%    tabs = [],           % Dati (una lista di tab, una tab è una matrice)
+%    owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
+%    access_policies = [], % Politiche di accesso (lista di tuple)
+%    last_modified = undefined   % Timestamp dell` ultima modifica dei dati
+%}).
 
 
 % Funzione per creare un nuovo foglio di nome Name e dimensioni prescelte

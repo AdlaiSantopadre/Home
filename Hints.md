@@ -192,3 +192,139 @@ end.
 ### whereis(Name)
 
 In Erlang, quando usi la funzione **whereis(Name)** per cercare un processo registrato con un nome, *otterrai il PID di quel processo solo se la ricerca viene effettuata sullo stesso nodo dove il processo è registrato*. Se tenti di eseguire whereis(my_spreadsheet) su un nodo diverso da quello su cui il processo my_spreadsheet è stato registrato, otterrai undefined. Questo perché la funzione whereis/1 cerca il nome solo nella tabella dei nomi locali del nodo.
+
+### global:whereis_name/1
+
+Un'altra alternativa per situazioni dove i processi devono essere visibili globalmente è usare il modulo global, che registra i nomi dei processi in modo che siano accessibili da qualsiasi nodo nell'ambiente distribuito:
+
+```console
+% Su node1
+global:register_name(my_global_spreadsheet, self()).
+
+% Su node2 o qualsiasi altro nodo
+global:whereis_name(my_global_spreadsheet).
+```
+
+Questa funzione restituirà il PID del processo my_global_spreadsheet indipendentemente dal nodo da cui viene chiamata, a condizione che il processo sia stato registrato con global:register_name/2 e che i nodi siano configurati correttamente per la comunicazione distribuita.
+
+## Record
+
+records are a syntactic sugar over tuples, and their definitions (i.e., the layout and field names) aren't known to the Erlang runtime but to the Erlang compiler. If you're trying to use a record in the shell or in your code, and you get an error saying that the record name is undefined, it usually means that the record definition hasn't been loaded into the shell or hasn't been included correctly in your module.
+
+### Load Record Definitions in the Shell
+
+ When using the Erlang shell, you must ensure that the record definitions are available. You can do this by compiling the module that contains the record definitions with c/1 or by including the record definitions directly in the shell.
+
+*rd(record_name, {field1, field2, field3}).*
+Or, if the records are defined in a module, ensure to compile that module:
+
+*c(module_with_records).*
+
+Records are defined using the -record directive in Erlang modules
+
+```console
+-record(person, {name, age, gender}).
+```
+
+### Creating Record Instances
+
+To create a record instance, you specify the record name followed by the fields in their respective order or by naming the fields explicitly:
+
+*John = #person{name="John Doe", age=30, gender=male}.*
+If you don't specify all the fields, the unspecified fields will be initialized to undefined.
+You can access fields of a record using the record name and the field name, as follows:
+*Name = John#person.name.*
+To modify a record, you can use the record syntax to specify which fields to update:
+
+*UpdatedJohn = John#person{age = 31}.*
+
+###Limitations of Records
+
+Scope: Record definitions are not global. They are scoped to the module in which they are defined unless included in other modules via header files.
+Pattern Matching: While records improve readability, you need to remember that under the hood, they are just tuples. This means that operations like pattern matching are done using the tuple structure, which can complicate expressions slightly.
+## Header Files
+ Often, records are defined in header files (.hrl files) and included in multiple modules using -include directive. This approach promotes reuse and ensures consistency across different parts of an application.
+
+*-include("person.hrl").*
+When compiling the modules, make sure Erlang knows where to find the header file (spreadsheet.hrl). If the header file is in the same directory as your Erlang modules, it will be found automatically. Otherwise, you may need to specify the path during compilation:
+*erlc -I path/to/headers module1.erl module2.erl*
+
+### Loading Record Definition
+
+If you have a header file, you can load the record definitions directly in the shell using the rr/1 or rr/2 function which reads record definitions from a file:
+
+*rr("path/to/spreadsheet.hrl").*
+
+## Mnesia
+
+Using Mnesia, Erlang's built-in distributed database system, to save and load your spreadsheet record can provide several advantages including transaction support, fault tolerance, and straightforward integration with Erlang applications. Here’s how to set up and use Mnesia to manage your spreadsheet records:
+
+Steps to Use Mnesia for Saving and Loading Spreadsheet Records
+
+1. Define the Database Schema
+
+You need to define a schema that includes a table for your spreadsheet records. Here’s how you can do it:
+
+Start Mnesia and Create a Schema:
+
+You need to start Mnesia with a directory where the database files will be stored.
+erlang
+Copia codice
+mnesia:create_schema([node()]).
+mnesia:start().
+Create Tables:
+
+Define a table to store your spreadsheet records. The attributes of the record become columns in the Mnesia table.
+erlang
+Copia codice
+mnesia:create_table(spreadsheet, [
+    {attributes, record_info(fields, spreadsheet)},
+    {type, set},
+    {record_name, spreadsheet}
+]).
+
+2. Save Records to Mnesia
+To save a spreadsheet record into Mnesia, you typically use Mnesia's transaction or dirty functions. Here is how you can write a function to save records:
+
+erlang
+Copia codice
+-module(spreadsheet_db).
+-export([save_spreadsheet/1, load_spreadsheet/1]).
+
+-record(spreadsheet, {name, owner, tabs, accesspolicy}).
+
+save_spreadsheet(SpreadsheetRecord) ->
+    Fun = fun() ->
+        mnesia:write(SpreadsheetRecord)
+    end,
+    mnesia:transaction(Fun).
+In the function save_spreadsheet/1, mnesia:write/1 is used to insert or update a record in the database. It's wrapped in a transaction to ensure consistency.
+
+3. Load Records from Mnesia
+Retrieving records from Mnesia can be done using a simple match or by key. Here’s a basic example to fetch a record by its key:
+
+erlang
+Copia codice
+load_spreadsheet(Name) ->
+    Fun = fun() ->
+        mnesia:read({spreadsheet, Name})
+    end,
+    Result = mnesia:transaction(Fun),
+    case Result of
+        {atomic, [Record]} -> {ok, Record};
+        {atomic, []} -> {error, not_found};
+        {aborted, Reason} -> {error, Reason}
+    end.
+In load_spreadsheet/1, the record is fetched using its key, which in this case is assumed to be name.
+
+4. Operational Considerations
+Transactions: Mnesia transactions are used to ensure the atomicity and integrity of database operations. Transactions can also help in handling concurrency in a multi-user environment.
+Starting Mnesia: Make sure that Mnesia is started with the appropriate parameters, and the schema is initialized before your application tries to access the database.
+Error Handling: Always handle the possibility of transaction failures or other issues such as network failures or data corruption.
+5. Advanced Features
+Mnesia also supports more advanced features like:
+
+Replication: You can easily configure Mnesia to replicate data across nodes for fault tolerance.
+Complex Queries: Mnesia supports QLC (Query List Comprehensions) that can be used to perform complex queries on the data.
+Conclusion
+Using Mnesia to manage your spreadsheet records provides robust data management capabilities, especially useful in distributed Erlang applications. Mnesia’s integration within the Erlang runtime offers a seamless experience for managing persistent data without the need for external database systems. This setup is particularly beneficial for applications requiring high availability and data consistency across multiple nodes.
