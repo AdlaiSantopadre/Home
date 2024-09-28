@@ -1,14 +1,14 @@
--module(spreadsheet). %ver..5.8 
+-module(spreadsheet). %ver..6.1
 -export([new/1, new/4, share/2, starter/6, reassign_owner/2, remove_policy/2, to_csv/2,
         to_csv/3,from_csv/1, get/4, get/5, set/5, set/6, info/1]).
-
--record(spreadsheet, {
-    name,                % Nome del foglio di calcolo
-    tabs = [],           % Dati (una lista di tab, una tab è una matrice)
-    owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
-    access_policies = [], % Politiche di accesso (lista di tuple)
-    last_modified = undefined   % Timestamp dell` ultima modifica dei dati
-}).
+-include("spreadsheet.hrl").
+%-record(spreadsheet, {
+%    name,                % Nome del foglio di calcolo
+%    tabs = [],           % Dati (una lista di tab, una tab è una matrice)
+%    owner = undefined,   % Proprietario del foglio di calcolo (PID del processo creatore)
+%    access_policies = [], % Politiche di accesso (lista di tuple)
+%    last_modified = undefined   % Timestamp dell` ultima modifica dei dati
+%}).
 
 
 % Funzione per creare un nuovo foglio di nome Name e dimensioni prescelte
@@ -21,14 +21,15 @@ new(Name) ->
 % Funzione per creare un nuovo foglio con dimensioni passate per valori
 new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 0, K > 0 ->    % guardie sui valori passati
     % Controllo se il nome del foglio esiste già!
-    case whereis(Name) of
+    case global:whereis_name(Name) of
         undefined ->
             LastModified= calendar:universal_time(),
             Owner =self(), %Il Pid del processo chiamante viene salvato in Owner 
             %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
         
             Pid = spawn(spreadsheet, starter, [Name, Owner, N, M, K, LastModified]),  % Avvio di un distinto processo  per lo spreadsheet
-            register(Name, Pid),  % REGISTRAZIONE DEL PROCESSO  CON IL NOME del foglio  per facilitarne l'accesso
+            global:register_name(Name, Pid),  % REGISTRAZIONE globale del processo con IL NOME del foglio  per facilitarne l'accesso
+
             {ok, Pid};  % Restituisce il Pid del processo creato, per inviargli messaggi
                        
         _ ->
@@ -39,7 +40,7 @@ new(_, _, _, _) ->
 
 % Function to get spreadsheet information
 info(SpreadsheetName) ->
-    case whereis(SpreadsheetName) of
+    case global:whereis_name(SpreadsheetName) of
         undefined -> {error, spreadsheet_not_found};  % If the process is not found
         Pid ->
             % Send a request to the spreadsheet process to get its state
@@ -56,13 +57,14 @@ info(SpreadsheetName) ->
 starter(Name, Owner, N, M, K, LastModified) ->
     io:format("~p  process started.~n",[Name]),
     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = [], last_modified = LastModified},
+    StartAccessPolicies = [{Owner,write}],
+    Spreadsheet = #spreadsheet{name = Name, tabs = Tabs, owner = Owner,access_policies = StartAccessPolicies, last_modified = LastModified},
     loop(Spreadsheet).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Funzione che permette di riassegnare  il proprietario  di spreadsheet se il processo chiamamante è il corrente proprietario
 reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
-    case whereis(SpreadsheetName) of
+    case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};   % The spreadsheet process doesn't exist
         Pid ->
@@ -82,7 +84,7 @@ get(SpreadsheetName, TabIndex, I, J) ->
     get(SpreadsheetName, TabIndex, I, J, infinity). %infiniti riconduce get/4 a get/5
 
 get(SpreadsheetName, TabIndex, I, J, Timeout) ->
-    case whereis(SpreadsheetName) of
+    case global:whereis_name(SpreadsheetName) of
         undefined -> {error, spreadsheet_not_found};
         Pid ->
             % Check if the caller has read access
@@ -105,7 +107,7 @@ set(SpreadsheetName, TabIndex, I, J, Value) ->
     set(SpreadsheetName, TabIndex, I, J, Value, infinity).
 
 set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
-    case whereis(SpreadsheetName) of
+    case global:whereis_name(SpreadsheetName) of
         undefined -> {error, spreadsheet_not_found};
         Pid ->
            % Send the get request to the spreadsheet process  
@@ -138,7 +140,7 @@ check_access(PidOrName, Policies, RequiredAccess) ->
     % Resolve PidOrName to both PID and registered name if possible
     ResolvedPid = case is_pid(PidOrName) of
                      true -> PidOrName;
-                     false -> Resolved = whereis(PidOrName),
+                     false -> Resolved = global:whereis_name(PidOrName),
                                 io:format("PidOrName is a registered name resolving to: ~p~n", [Resolved]),
                                Resolved
                   end,
@@ -163,7 +165,7 @@ check_access(PidOrName, Policies, RequiredAccess) ->
 find_registered_name(Pid) ->
     lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
         fun(Name, Acc) ->
-            case whereis(Name) of
+            case global:whereis_name(Name) of
                 Pid when Pid =/= undefined -> Name;  % Return the name if it matches the PID
                 _ -> Acc  % Otherwise, keep searching
             end
@@ -178,7 +180,7 @@ find_registered_name(Pid) ->
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     try
 
-        case whereis(SpreadsheetName) of
+        case global:whereis_name(SpreadsheetName) of
             undefined ->
                 {error, spreadsheet_not_found}; %verifica dell`esistenza del processo
             Pid ->
@@ -224,7 +226,7 @@ validate_proc(Proc) when is_pid(Proc) ->
          
     end;
 validate_proc(Proc) when is_atom(Proc) ->
-    case whereis(Proc) of
+    case global:whereis_name(Proc) of
         undefined -> {error, invalid_process};  % Invalid if not a registered process
         _ -> ok  % Valid if it's a registered process
     end;
@@ -251,8 +253,8 @@ update_policies(NewPolicies, ExistingPolicies) ->
         {Proc, _} = Policy <- ExistingPolicies, 
         not (
             lists:keymember(Proc, 1, NewPolicies) orelse
-            is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> whereis(NewProc) == Proc end, NewPolicies) orelse
-            not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == whereis(Proc) end, NewPolicies)
+            is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> global:whereis_name(NewProc) == Proc end, NewPolicies) orelse
+            not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == global:whereis_name(Proc) end, NewPolicies)
         )
     ],
 
@@ -263,7 +265,7 @@ update_policies(NewPolicies, ExistingPolicies) ->
  
 % Funzione per rimuovere una policy di accesso (per un processo specifico)
 remove_policy(SpreadsheetName, Proc) ->
-    case whereis(SpreadsheetName) of
+    case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};
         Pid ->
@@ -453,7 +455,7 @@ to_csv(Filename, SpreadsheetName, Timeout) ->
     io:format("Starting to_csv with Filename: ~p and SpreadsheetName: ~p~n", [Filename, SpreadsheetName]),
     
     % Recupera il PID associato al nome registrato
-    case whereis(SpreadsheetName) of
+    case global:whereis_name(SpreadsheetName) of
         undefined ->
             io:format("Error: Spreadsheet process not found for name: ~p~n", [SpreadsheetName]),
             {error, spreadsheet_not_found};  % Se il processo non è trovato
@@ -635,6 +637,10 @@ parse_cell(Value) ->
         {'EXIT', _} -> Value;  % Se non è possibile, lascia il valore come stringa
         Atom -> Atom  % Converte in atomo se possibile
     end.
+
+
+
+
 
 
 
