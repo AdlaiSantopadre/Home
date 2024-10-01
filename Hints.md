@@ -285,7 +285,7 @@ mnesia:create_table(spreadsheet, [
     {record_name, spreadsheet}
 ]).
 
-2. Save Records to Mnesia
+2.Save Records to Mnesia
 To save a spreadsheet record into Mnesia, you typically use Mnesia's transaction or dirty functions. Here is how you can write a function to save records:
 
 erlang
@@ -302,7 +302,7 @@ save_spreadsheet(SpreadsheetRecord) ->
     mnesia:transaction(Fun).
 In the function save_spreadsheet/1, mnesia:write/1 is used to insert or update a record in the database. It's wrapped in a transaction to ensure consistency.
 
-3. Load Records from Mnesia
+3.Load Records from Mnesia
 Retrieving records from Mnesia can be done using a simple match or by key. Here’s a basic example to fetch a record by its key:
 
 erlang
@@ -319,7 +319,7 @@ load_spreadsheet(Name) ->
     end.
 In load_spreadsheet/1, the record is fetched using its key, which in this case is assumed to be name.
 
-4. Operational Considerations
+4.Operational Considerations
 Transactions: Mnesia transactions are used to ensure the atomicity and integrity of database operations. Transactions can also help in handling concurrency in a multi-user environment.
 Starting Mnesia: Make sure that Mnesia is started with the appropriate parameters, and the schema is initialized before your application tries to access the database.
 Error Handling: Always handle the possibility of transaction failures or other issues such as network failures or data corruption.

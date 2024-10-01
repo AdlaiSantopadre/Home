@@ -70,7 +70,10 @@ spreadsheet:info(my_spreadsheet).
 
 observer:start().
 
-## in caso di crash della shell
+## distributed_spreadsheet
 
+c(distributed_spreadsheet).
+distributed_spreadsheet:new(my_dspreadsheet).
+global:whereis_name(my_dspreadsheet).
 
 
