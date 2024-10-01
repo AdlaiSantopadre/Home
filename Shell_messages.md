@@ -75,5 +75,6 @@ observer:start().
 c(distributed_spreadsheet).
 distributed_spreadsheet:new(my_dspreadsheet).
 global:whereis_name(my_dspreadsheet).
+distributed_spreadsheet:info(my_dspreadsheet).
 
 

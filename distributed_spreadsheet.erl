@@ -64,11 +64,17 @@ info(SpreadsheetName) ->
 init({Name, Owner, N, M, K, LastModified}) ->
     %% Init with  parameters from new/4
     io:format("~p process .~n", [Name]),
-    Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-    Policies = [{Owner, write}],  % Initial access policy
-    State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
-    {ok, State}.
-
+     try
+        Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+        Policies = [{Owner, write}],  % Initial access policy
+        State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
+        {ok, State}
+    catch
+        Class:Reason ->
+            io:format("Error in init/1: ~p ~p~n", [Class, Reason]),
+            {stop, {init_failed, Reason}}
+    end.
+    
 %% Handle synchronous calls(e.g., getting a cell, or getting spreadsheet info)
 %% Handle the synchronous request to get the spreadsheet's info
 handle_call(get_info, _From,  State=#spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified}) ->
