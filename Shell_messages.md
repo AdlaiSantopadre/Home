@@ -68,12 +68,11 @@ spreadsheet:share(my_spreadsheet, [{proc4, read}, {proc3, write}]).
 spreadsheet:remove_policy(my_spreadsheet,proc1).
 spreadsheet:info(my_spreadsheet).
 
-observer:start().
-
-## distributed_spreadsheet
+## *distributed_spreadsheet*
 
 c(distributed_spreadsheet).
 distributed_spreadsheet:new(my_dspreadsheet1).
+observer:start().
 global:whereis_name(my_dspreadsheet1).
 distributed_spreadsheet:info(my_dspreadsheet1).
 

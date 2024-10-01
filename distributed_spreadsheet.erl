@@ -32,7 +32,7 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
             %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
         
             gen_server:start_link({global, Name}, ?MODULE, {Name, Owner, N, M, K, LastModified}, []);
-            % Restituisce il Pid del processo creato, per inviargli messaggi                       
+                                  
         _ ->
             {error, already_exists}
     end;
@@ -77,7 +77,8 @@ init({Name, Owner, N, M, K, LastModified}) ->
     
 %% Handle synchronous calls(e.g., getting a cell, or getting spreadsheet info)
 %% Handle the synchronous request to get the spreadsheet's info
-handle_call(get_info, _From,  State=#spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified}) ->
+handle_call(get_info, _From, State) when is_record(State, spreadsheet) ->
+    #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} = State,
     io:format("want info from ~p~n", [_From]),
     TotalTabs = length(Tabs),
     TotalCells = lists:sum([length(Tab) * length(lists:nth(1, Tab)) || Tab <- Tabs]),
