@@ -50,11 +50,39 @@ stop() ->
 
 %% Get information about the spreadsheet
 info(SpreadsheetName) ->
-     case global:whereis_name(SpreadsheetName) of
-        undefined -> {error, spreadsheet_not_found};  % If the process is not found
+    %% Step 1: Check if the process is registered globally
+    case global:whereis_name(SpreadsheetName) of
+        undefined -> 
+            io:format("Spreadsheet ~p not found globally.~n", [SpreadsheetName]),
+            {error, spreadsheet_not_found};
+        
+        Pid when is_pid(Pid) ->
+            %% Step 2: Check if the process is alive
+            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, Pid]),
+            
+            case erlang:is_process_alive(Pid) of
+                true ->
+                    %% Step 3: Log the system status of the process
+                    Status = sys:get_status(Pid),
+                    io:format("Spreadsheet process status: ~p~n", [Status]),
+
+                    %% Step 4: Try to make the gen_server:call using PID directly
+                    try
+                        gen_server:call(Pid, get_info)
+                    catch
+                        Class:Reason ->
+                            io:format("Error calling gen_server:call/2 with PID: ~p, Reason: ~p, ~p~n", [Pid, Class, Reason]),
+                            {error, {call_failed, Reason}}
+                    end;
+                
+                false ->
+                    io:format("Process ~p is not alive.~n", [Pid]),
+                    {error, process_not_alive}
+            end;
+
         _Pid ->
-            %% Use gen_server:call/2 to request the spreadsheet's state information
-            gen_server:call(SpreadsheetName, get_info)
+            io:format("Invalid process registration for ~p: ~p~n", [SpreadsheetName, _Pid]),
+            {error, invalid_process}
     end.
 
 %%% gen_server CALLBACKS %%%
