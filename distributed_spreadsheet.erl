@@ -27,7 +27,7 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
     %gen_server:call(Name, {new, Name, N, M, K}).
     case global:whereis_name(Name) of
         undefined ->
-            LastModified= erlang:system_time(),%calendar:universal_time(),
+            LastModified= calendar:universal_time(),
             Owner =self(), %Il Pid del processo chiamante viene salvato in Owner 
             %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
         
