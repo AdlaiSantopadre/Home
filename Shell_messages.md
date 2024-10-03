@@ -78,3 +78,22 @@ global:whereis_name(my_dspreadsheet1).
 distributed_spreadsheet:info(my_dspreadsheet1).
 distributed_spreadsheet:share(my_dspreadsheet1,AccessPolicy).
 
+## creazione di nodi di un cluster
+
+erl -sname node1 -setcookie mysecretcookie
+erl -sname node2 -setcookie mysecretcookie
+erl -sname node3 -setcookie mysecretcookie
+ or programmatically
+erlang:set_cookie(node(), mysecretcookie).
+erlang:set_cookie('node2@DESKTOPQ2A2FL7', mysecretcookie).
+net_adm:ping('node2@DESKTOPQ2A2FL7').
+
+## creazione di tre processi distribuiti
+
+c(distributed_processes_utility).
+Processes = [{'proc1', 'node1@DESKTOPQ2A2FL7'},
+             {'proc2', 'node2@DESKTOPQ2A2FL7'},
+             %{'proc3', 'node3@DESKTOPQ2A2FL7'}
+             ].
+process_utility:spawn_and_register_processes(Processes).
+
