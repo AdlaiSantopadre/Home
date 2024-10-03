@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, reassign_owner/2,
+-export([new/1, new/4, reassign_owner/2,share/2,
          info/1, stop/0]).
 
 %% gen_server callbacks
@@ -63,15 +63,15 @@ info(SpreadsheetName) ->
             case erlang:is_process_alive(Pid) of
                 true ->
                     %% Step 3: Log the system status of the process
-                    Status = sys:get_status(Pid),
-                    io:format("Spreadsheet process status: ~p~n", [Status]),
+                    %%Status = sys:get_status(Pid),
+                    %%io:format("Spreadsheet process status: ~p~n", [Status]),
 
                     %% Step 4: Try to make the gen_server:call using PID directly
                     try
                         gen_server:call(Pid, get_info)
                     catch
                         Class:Reason ->
-                            io:format("Error calling gen_server:call/2 with PID: ~p, Reason: ~p, ~p~n", [Pid, Class, Reason]),
+                            io:format("Error calling gen_server:call/2 with Pid: ~p, Reason: ~p, ~p~n", [Pid, Class, Reason]),
                             {error, {call_failed, Reason}}
                     end;
                 
@@ -84,6 +84,66 @@ info(SpreadsheetName) ->
             io:format("Invalid process registration for ~p: ~p~n", [SpreadsheetName, _Pid]),
             {error, invalid_process}
     end.
+%% API function to share access policies
+
+share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};  % If the process is not found
+
+        Pid when is_pid(Pid) ->
+            %% Validate the access policies
+            case validate_access_policies(AccessPolicies) of
+                ok ->
+                    %% Use gen_server:call to send the request synchronously
+                    try
+                        gen_server:call(Pid, {share, AccessPolicies})
+                    catch
+                        _:Error ->
+                            io:format("Error encountered: ~p~n", [Error]),
+                            {error, internal_error}
+                    end;
+
+                {error, Reason} ->
+                    {error, Reason}
+            end
+    end.
+%% Validate the list of access policies
+validate_access_policies([]) -> 
+    ok;  % An empty list is valid
+
+validate_access_policies([{Proc, AP} | Rest]) ->
+    case validate_proc(Proc) of
+        ok ->
+            case validate_access_policy(AP) of
+                ok -> validate_access_policies(Rest);  % Recursively validate the rest
+                {error, invalid_access_policy} -> {error, {invalid_access_policy, AP}}
+            end;
+        {error, invalid_process} -> 
+            {error, {invalid_process, Proc}}
+    end;
+
+validate_access_policies(_) -> 
+    {error, malformed_access_policy}.  % Catch all for malformed policies
+%% Validate a process identifier (either a PID or an atom)
+validate_proc(Proc) when is_pid(Proc) ->
+    case is_process_alive(Proc) of
+        true -> ok;
+        false -> {error, not_alive_process}
+    end;
+
+validate_proc(Proc) when is_atom(Proc) ->
+    case global:whereis_name(Proc) of
+        undefined -> {error, invalid_process};  % Invalid if not registered
+        _ -> ok  % Valid if registered
+    end;
+
+validate_proc(_) -> 
+    {error, invalid_process}.  % Invalid if neither a PID nor a registered process
+%% Validate the access policy
+validate_access_policy(read) -> ok;
+validate_access_policy(write) -> ok;
+validate_access_policy(_) -> {error, invalid_access_policy}.
 
 %%% gen_server CALLBACKS %%%
 
@@ -125,11 +185,25 @@ handle_call(get_info, _From, State) when is_record(State, spreadsheet) ->
              write_permissions => WritePermissions
             },
     {reply, {ok, Info}, State};
-
-handle_call({get, TabIdx, Row, Col}, _From, State) ->
-    Tabs = State#spreadsheet.tabs,
-    CellValue = lists:nth(Col, lists:nth(Row, lists:nth(TabIdx, Tabs))),
-    {reply, {ok, CellValue}, State}.
+%% Handle the 'share' request in the gen_server
+handle_call({share, NewPolicies}, {CallerPid, Alias}, State = #spreadsheet{owner = Owner, access_policies = CurrentPolicies}) ->
+    %% Check if the calling process is the owner
+    if 
+        {CallerPid, Alias} =:= {Owner, Alias} ->
+            %% Update the access policies
+            UpdatedPolicies = update_policies(NewPolicies, CurrentPolicies),
+            NewState = State#spreadsheet{access_policies = UpdatedPolicies},
+            
+            %% Log the updated policies (for debugging purposes)
+            io:format("Updated access policies: ~p~n", [UpdatedPolicies]),
+            
+            %% Respond with success
+            {reply, {ok, UpdatedPolicies}, NewState};
+        
+        true ->
+            %% If not the owner, return an error
+            {reply, {error, not_owner}, State}
+    end.
 
 
 
@@ -157,4 +231,27 @@ code_change(_OldVsn, State, _Extra) ->
 %% Create a new tab with NxM cells
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
+
+% funzione ausuliaria per permettere di moficare la lista di policy di accesso  
+ %Remove duplicates where the process in ExistingPolicies is already represented in NewPolicies (either as a PID or registered name).
+% Ensure that PIDs and registered names referring to the same process are handled correctly without introducing duplicates.
+
+% è implementata la List comprehension [Expression || Pattern <- List, Condition]
+update_policies(NewPolicies, ExistingPolicies) ->
+    % Step 1: Filter ExistingPolicies to exclude entries that are already in NewPolicies
+    FilteredExistingPolicies = [
+        Policy || 
+        {Proc, _} = Policy <- ExistingPolicies, 
+        not (
+            lists:keymember(Proc, 1, NewPolicies) orelse
+            is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> global:whereis_name(NewProc) == Proc end, NewPolicies) orelse
+            not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == global:whereis_name(Proc) end, NewPolicies)
+        )
+    ],
+
+    % Step 2: Return the combined list of NewPolicies and FilteredExistingPolicies
+    FilteredExistingPolicies ++ NewPolicies.
+    %With this single list comprehension, you can effectively:
+
+ 
 
