@@ -39,8 +39,21 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
 new(_, _, _, _) ->
     {error, invalid_parameters}.
 %% Reassign the owner of the spreadsheet
-reassign_owner(SpreadsheetName, NewOwner) ->
-    gen_server:cast(SpreadsheetName, {reassign_owner, NewOwner}).
+%% API function to reassign the owner of a spreadsheet
+reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};  % The spreadsheet process doesn't exist
+        Pid when is_pid(Pid) ->
+            io:format("Attempting to reassign owner to ~p~n", [NewOwnerPid]),
+            %% Use gen_server:call/2 for synchronous communication
+            try
+                gen_server:call(Pid, {reassign_owner, NewOwnerPid}, 5000)  %% 5 seconds timeout
+            catch
+                _:_Error -> {error, timeout}  %% Handle timeout or other errors
+            end
+    end.
+
 
 %% Stop the spreadsheet process
 stop() ->
@@ -60,8 +73,9 @@ info(SpreadsheetName) ->
             %% Step 2: Check if the process is alive
             io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, Pid]),
             
-            case erlang:is_process_alive(Pid) of
-                true ->
+            %% nella versione distribuita il case 
+            %% case erlang:is_process_alive(Pid) of
+            %%    true -> genera errore perche is_process_alice(pid) vale solo localmente
                     %% Step 3: Log the system status of the process
                     %%Status = sys:get_status(Pid),
                     %%io:format("Spreadsheet process status: ~p~n", [Status]),
@@ -73,17 +87,12 @@ info(SpreadsheetName) ->
                         Class:Reason ->
                             io:format("Error calling gen_server:call/2 with Pid: ~p, Reason: ~p, ~p~n", [Pid, Class, Reason]),
                             {error, {call_failed, Reason}}
-                    end;
+                    end
                 
-                false ->
-                    io:format("Process ~p is not alive.~n", [Pid]),
-                    {error, process_not_alive}
-            end;
-
-        _Pid ->
-            io:format("Invalid process registration for ~p: ~p~n", [SpreadsheetName, _Pid]),
-            {error, invalid_process}
+                
     end.
+
+        
 %% API function to share access policies
 
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
@@ -203,6 +212,22 @@ handle_call({share, NewPolicies}, {CallerPid, Alias}, State = #spreadsheet{owner
         true ->
             %% If not the owner, return an error
             {reply, {error, not_owner}, State}
+    end;
+%% In your gen_server module
+handle_call({reassign_owner, NewOwnerPid}, {CallerPid, Alias}, State = #spreadsheet{owner = Owner}) ->
+    %CallerPid = element(1, From),
+    io:format("Received reassign_owner request from ~p to assign new owner ~p~n", [CallerPid, NewOwnerPid]),
+    if
+        %CallerPid =:= Owner ->
+        {CallerPid, Alias} =:= {Owner, Alias} ->
+            %% Update the owner in the state
+            NewState = State#spreadsheet{owner = NewOwnerPid},
+            io:format("Ownership reassigned from ~p to ~p~n", [Owner, NewOwnerPid]),
+            {reply, {ok, owner_reassigned}, NewState};
+        true ->
+            %% Caller is not the owner; deny the request
+            io:format("Unauthorized reassign_owner request from ~p~n", [CallerPid]),
+            {reply, {error, unauthorized}, State}
     end.
 
 

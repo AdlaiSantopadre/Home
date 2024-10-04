@@ -72,7 +72,7 @@ spreadsheet:info(my_spreadsheet).
 ## *distributed_spreadsheet*
 
 erl -sname node1 -setcookie mycookie
-c(distributed_spreadsheet).
+
 distributed_spreadsheet:new(my_dspreadsheet1).
 observer:start().
 global:whereis_name(my_dspreadsheet1).
