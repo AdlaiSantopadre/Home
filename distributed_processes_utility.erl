@@ -7,10 +7,11 @@ spawn_and_register_processes(NamesAndNodes) ->
     lists:foreach(fun({Name, Node}) -> spawn_process_on_node(Name, Node) end, NamesAndNodes).
 
 %% Helper function to spawn a process on a given node and register it globally
-spawn_process_on_node(Name, Node) ->
+spawn_process_on_node(Name, Node) when is_atom(Name), is_atom(Node)->
     %% Spawn the process on the specified Node
+    io:format("spawn Name ~p on node ~p~n", [Name, Node]),
     Pid = spawn(Node, fun() -> process_loop() end),
-    
+    io:format("Attempting to register Name: ~p with Pid: ~p on Node: ~p~n", [Name, Pid, Node]),
     %% Register the process globally
     global:register_name(Name, Pid),
     
