@@ -1,9 +1,9 @@
 -module(distributed_processes_utility).
--export([spawn_and_register_processes/1, spawn_process_on_node/2]).
+-export([spawn_and_register/1, spawn_process_on_node/2]).
 
 %% Function to spawn and register processes on different nodes
 %% Takes a list of {Name, Node} tuples.
-spawn_and_register_processes(NamesAndNodes) ->
+spawn_and_register(NamesAndNodes) ->
     lists:foreach(fun({Name, Node}) -> spawn_process_on_node(Name, Node) end, NamesAndNodes).
 
 %% Helper function to spawn a process on a given node and register it globally
