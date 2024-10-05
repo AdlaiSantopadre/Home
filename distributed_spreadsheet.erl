@@ -1,8 +1,8 @@
--module(distributed_spreadsheet). %ver 1.2
+-module(distributed_spreadsheet). %ver 1.5
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, reassign_owner/2,share/2,
+-export([new/1, new/4, restore_owner/2, reassign_owner/2, share/2,
          info/1, stop/0]).
 
 %% gen_server callbacks
@@ -38,7 +38,18 @@ new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 
     end;
 new(_, _, _, _) ->
     {error, invalid_parameters}.
-%% Reassign the owner of the spreadsheet
+
+%% API function to restore the ownership of the spreadsheet if the current owner shell has crashed
+restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};
+        Pid when is_pid(Pid) ->
+            %% Use gen_server:call to send a restore_owner request
+            gen_server:call(Pid, {restore_owner, NewOwnerPid})
+    end.
+
+
 %% API function to reassign the owner of a spreadsheet
 reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
     case global:whereis_name(SpreadsheetName) of
@@ -61,7 +72,7 @@ stop() ->
 
 
 
-%% Get information about the spreadsheet
+%% API function to get information about the spreadsheet
 info(SpreadsheetName) ->
     %% Step 1: Check if the process is registered globally
     case global:whereis_name(SpreadsheetName) of
@@ -172,7 +183,8 @@ init({Name, Owner, N, M, K, LastModified}) ->
             {stop, {init_failed, Reason}}
     end.
     
-%% Handle synchronous calls(e.g., getting a cell, or getting spreadsheet info)
+%%%%%%%%%%% Handle synchronous calls
+
 %% Handle the synchronous request to get the spreadsheet's info
 handle_call(get_info, _From, State) when is_record(State, spreadsheet) ->
     #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} = State,
@@ -194,6 +206,7 @@ handle_call(get_info, _From, State) when is_record(State, spreadsheet) ->
              write_permissions => WritePermissions
             },
     {reply, {ok, Info}, State};
+
 %% Handle the 'share' request in the gen_server
 handle_call({share, NewPolicies}, {CallerPid, Alias}, State = #spreadsheet{owner = Owner, access_policies = CurrentPolicies}) ->
     %% Check if the calling process is the owner
@@ -213,22 +226,48 @@ handle_call({share, NewPolicies}, {CallerPid, Alias}, State = #spreadsheet{owner
             %% If not the owner, return an error
             {reply, {error, not_owner}, State}
     end;
-%% In your gen_server module
-handle_call({reassign_owner, NewOwnerPid}, {CallerPid, Alias}, State = #spreadsheet{owner = Owner}) ->
-    %CallerPid = element(1, From),
+%% Handle restore_owner request
+handle_call({restore_owner, NewOwnerPid}, From, State = #spreadsheet{owner = Owner}) ->
+    CallerPid = element(1, From),
+    io:format("Restore owner request from ~p for new owner ~p~n", [CallerPid, NewOwnerPid]),
+    
+    %% Check if the current owner is alive
+    
+        case is_process_alive(Owner) of
+            
+            true ->
+            %% Case 1: The current owner's shell is still alive, so reject the restore request
+                io:format("Owner's shell ~p is still alive, restore request denied~n", [Owner]),
+                
+                {reply, {error, owner_alive}, State};
+            
+
+            %% Case 2: The current owner's shell has crashed, allow the restore
+            false ->
+            io:format("Owner's shell ~p is not alive, restoring ownership to ~p~n", [Owner, NewOwnerPid]),
+            NewState = State#spreadsheet{owner = NewOwnerPid},
+            
+        {reply, ok, NewState}
+            
+            end; 
+    
+%% handle call to reassign the owner(?!)
+handle_call({reassign_owner, NewOwnerPid}, From, State = #spreadsheet{owner = Owner}) ->
+    CallerPid = element(1, From),
     io:format("Received reassign_owner request from ~p to assign new owner ~p~n", [CallerPid, NewOwnerPid]),
-    if
-        %CallerPid =:= Owner ->
-        {CallerPid, Alias} =:= {Owner, Alias} ->
+    
+    case  CallerPid of
+        Owner ->
             %% Update the owner in the state
             NewState = State#spreadsheet{owner = NewOwnerPid},
             io:format("Ownership reassigned from ~p to ~p~n", [Owner, NewOwnerPid]),
             {reply, {ok, owner_reassigned}, NewState};
-        true ->
-            %% Caller is not the owner; deny the request
+        _ ->
+            
             io:format("Unauthorized reassign_owner request from ~p~n", [CallerPid]),
             {reply, {error, unauthorized}, State}
     end.
+
 
 
 
