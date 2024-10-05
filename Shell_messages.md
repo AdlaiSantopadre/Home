@@ -69,15 +69,20 @@ spreadsheet:share(my_spreadsheet, [{proc4, read}, {proc3, write}]).
 spreadsheet:remove_policy(my_spreadsheet,proc1).
 spreadsheet:info(my_spreadsheet).
 
-## *distributed_spreadsheet*
+## distributed_spreadsheet
 
 erl -sname node1 -setcookie mycookie
 
 distributed_spreadsheet:new(my_dspreadsheet1).
+
 observer:start().
+
 global:whereis_name(my_dspreadsheet1).
+
 distributed_spreadsheet:info(my_dspreadsheet1).
+
 distributed_spreadsheet:share(my_dspreadsheet1,AccessPolicy).
+
 
 ## *creazione di nodi di un cluster*
 
@@ -88,6 +93,9 @@ erl -sname node3 -setcookie mysecretcookie
 erlang:set_cookie(node(), mysecretcookie).
 erlang:set_cookie('node2@DESKTOPQ2A2FL7', mysecretcookie).
 
+## test reassign_owner
+
+NewOwnerPid = spawn(fun() -> receive after infinity -> ok end end).
 
 ## creazione di due/tre processi distribuiti
 
