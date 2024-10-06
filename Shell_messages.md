@@ -9,14 +9,6 @@ global:whereis_name(my_spreadsheet).
 
 my_spreadsheet ! stop.% Fermare il processo
 
-## Test scrittura / lettura
-
-spreadsheet:set(my_spreadsheet,2,2,2,"prova").
-spreadsheet:set(my_spreadsheet,2,2,2,"prova",2000).
-
-spreadsheet:get(my_spreadsheet,1,1,2).
-spreadsheet:get(my_spreadsheet,1,1,2,2000).
-spreadsheet:get(my_spreadsheet,2,2,2).
 
 observer:start().
 
@@ -81,7 +73,7 @@ global:whereis_name(my_dspreadsheet1).
 
 distributed_spreadsheet:info(my_dspreadsheet1).
 
-distributed_spreadsheet:share(my_dspreadsheet1,AccessPolicy).
+distributed_spreadsheet:share(my_dspreadsheet1,AccessPolicies).
 
 
 ## *creazione di nodi di un cluster*
@@ -106,4 +98,14 @@ Processes = [{'proc1', 'node1@DESKTOPQ2A2FL7'},
              %{'proc3', 'node3@DESKTOPQ2A2FL7'}
              ].
 distributed_processes_utility:spawn_and_register(Processes).
+AccessPolicies = [{self(), read}, {proc1, write}].
+
+## Test scrittura / lettura
+
+spreadsheet:set(my_spreadsheet,2,2,2,"prova").
+spreadsheet:set(my_spreadsheet,2,2,2,"prova",2000).
+
+distributed_spreadsheet:get(my_dspreadsheet1,1,1,2).
+distributed_spreadsheet:get(my_dspreadsheet1,1,1,2,2000).
+distributed_spreadsheet:get(my_dspreadsheet1,2,2,2).
 

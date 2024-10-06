@@ -85,7 +85,8 @@ get(SpreadsheetName, TabIndex, I, J) ->
 
 get(SpreadsheetName, TabIndex, I, J, Timeout) ->
     case global:whereis_name(SpreadsheetName) of
-        undefined -> {error, spreadsheet_not_found};
+        undefined ->
+                 {error, spreadsheet_not_found};
         Pid ->
             % Check if the caller has read access
             %Prima di inviare la richiesta get al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in lettura. In caso contrario, restituiamo {error, access_denied}.
@@ -131,7 +132,7 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
 replace_nth(Index, NewVal, List) ->
     {Left, [_|Right]} = lists:split(Index-1, List),
     Left ++ [NewVal] ++ Right.
-
+%%Ausiliary function
 % Check if the calling process has the required access (read/write)
 check_access(PidOrName, Policies, RequiredAccess) ->
 
@@ -160,7 +161,7 @@ check_access(PidOrName, Policies, RequiredAccess) ->
                  _ -> {error, access_denied}
             end
     end.
-%Funzione ausiliaria di chec_access
+%Funzione ausiliaria di check_access
 %Trova il registered_name di un processo in base al suo PID
 find_registered_name(Pid) ->
     lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
@@ -203,7 +204,7 @@ end.
 %funzioni  ausiliarie per convalidare le policies di accesso
 
     %validazione tuple politiche di accesso
-validate_access_policies([]) -> ok;  % If the list is empty, it's valid
+validate_access_policies([]) -> ok;  % ?????If the list is empty, it's valid?????
 validate_access_policies([{Proc, AP} | Rest]) ->
     case validate_proc(Proc) of
         ok ->

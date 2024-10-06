@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, restore_owner/2, reassign_owner/2, share/2,
+-export([new/1, new/4, get/4, get/5,  restore_owner/2, reassign_owner/2, share/2,
          info/1, stop/0]).
 
 %% gen_server callbacks
@@ -165,6 +165,26 @@ validate_access_policy(read) -> ok;
 validate_access_policy(write) -> ok;
 validate_access_policy(_) -> {error, invalid_access_policy}.
 
+%% API function to get the value from a specific cell with default timeout (infinity)
+get(SpreadsheetName, TabIndex, I, J) ->
+    get(SpreadsheetName, TabIndex, I, J, infinity).
+
+%% API function to get the value from a specific cell with a custom timeout
+get(SpreadsheetName, TabIndex, I, J, Timeout) when is_integer(TabIndex), is_integer(I), is_integer(J)  ->
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};
+        Pid when is_pid(Pid) ->
+            %% Make a gen_server:call with a timeout
+            try
+                gen_server:call(Pid, {get, TabIndex, I, J}, Timeout)
+            catch
+                _:_ -> {error, timeout}
+            end
+    end.
+
+
+
 %%% gen_server CALLBACKS %%%
 
 %% Initialize the spreadsheet process
@@ -266,8 +286,48 @@ handle_call({reassign_owner, NewOwnerPid}, From, State = #spreadsheet{owner = Ow
             
             io:format("Unauthorized reassign_owner request from ~p~n", [CallerPid]),
             {reply, {error, unauthorized}, State}
-    end.
+    end;
 
+%% Handle the 'get' request in the gen_server
+handle_call({get, TabIndex, I, J}, From, State = #spreadsheet{tabs = Tabs, access_policies = Policies}) ->
+    CallerPid = element(1, From),
+    io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
+
+    %% Check if the calling process has read access
+    case check_access(CallerPid, Policies, read) of
+        ok ->
+            %% Ensure the TabIndex is within bounds
+            if
+                TabIndex > length(Tabs) orelse TabIndex < 1 ->
+                    io:format("Tab index ~p is out of bounds~n", [TabIndex]),
+                    {reply, {error, out_of_bounds}, State};
+                true ->
+                    %% Retrieve the Tab (TabMatrix) at TabIndex
+                    TabMatrix = lists:nth(TabIndex, Tabs),
+                    %% Ensure Row index I is within bounds
+                    if
+                        I > length(TabMatrix) orelse I < 1 ->
+                            io:format("Row index ~p is out of bounds in Tab ~p~n", [I, TabIndex]),
+                            {reply, {error, out_of_bounds}, State};
+                        true ->
+                            %% Retrieve the Row and ensure Column index J is within bounds
+                            Row = lists:nth(I, TabMatrix),
+                            if
+                                J > length(Row) orelse J < 1 ->
+                                    io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, TabIndex]),
+                                    {reply, {error, out_of_bounds}, State};
+                                true ->
+                                    %% Retrieve the value at position (I, J)
+                                    Value = lists:nth(J, Row),
+                                    io:format("Returning value: ~p for Tab: ~p, Row: ~p, Col: ~p~n", [Value, TabIndex, I, J]),
+                                    {reply, {ok, Value}, State}
+                            end
+                    end
+            end;
+        {error, access_denied} ->
+            io:format("Access denied for process ~p~n", [CallerPid]),
+            {reply, {error, access_denied}, State}
+    end.
 
 
 
@@ -290,7 +350,7 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%%% HELPER FUNCTIONS %%%
+%%% PRIVATE HELPER FUNCTIONS %%%
 
 %% Create a new tab with NxM cells
 create_tab(N, M) ->
@@ -318,4 +378,45 @@ update_policies(NewPolicies, ExistingPolicies) ->
     %With this single list comprehension, you can effectively:
 
  
+% Check if the calling process has the required access (read/write)
+check_access(PidOrName, Policies, RequiredAccess) ->
+
+    io:format("control if ~p  process has access to ~p in list ~p~n",[PidOrName,RequiredAccess,Policies]),
+
+    % Resolve PidOrName to both PID and registered name if possible
+    ResolvedPid = case is_pid(PidOrName) of
+                     true -> PidOrName;
+                     false -> Resolved = global:whereis_name(PidOrName),
+                                io:format("PidOrName is a registered name resolving to: ~p~n", [Resolved]),
+                               Resolved
+                  end,
+    % Get the registered name if PidOrName is a PID and registered
+   RegisteredName = case is_pid(PidOrName) of
+                         true -> find_registered_name(ResolvedPid);  % Get registered name for the PID
+                         false -> PidOrName  % If it's already a name, keep it
+                     end,
+    io:format("ResolvedPid is ~p~n",[ResolvedPid]),io:format("registeredName is  ~p~n",[RegisteredName]),
+    % Check if either the resolved PID or the registered name has the required access in the access policies
+    case lists:keyfind(ResolvedPid, 1, Policies) of
+        {ResolvedPid, Access} when Access == RequiredAccess ->io:format("tuple is ~p~n",[{ResolvedPid,Access}]),
+            ok;
+            _ ->               
+                case lists:keyfind(RegisteredName, 1, Policies) of
+                    {RegisteredName, Access} when Access == RequiredAccess -> io:format("tuple is ~p~n",[{RegisteredName,Access}]), ok;
+                 _ -> {error, access_denied}
+            end
+    end.
+%Funzione ausiliaria di check_access
+%Trova il registered_name di un processo in base al suo PID
+find_registered_name(Pid) ->
+    lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
+        fun(Name, Acc) ->
+            case global:whereis_name(Name) of
+                Pid when Pid =/= undefined -> Name;  % Return the name if it matches the PID
+                _ -> Acc  % Otherwise, keep searching
+            end
+        end,
+        undefined,
+        registered()
+    ).
 
