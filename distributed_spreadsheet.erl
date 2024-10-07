@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, get/4, get/5,  restore_owner/2, reassign_owner/2, share/2,
+-export([new/1, new/4, get/4, get/5, set/5, set/6,  restore_owner/2, reassign_owner/2, share/2,
          info/1, stop/0]).
 
 %% gen_server callbacks
@@ -128,42 +128,6 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
                     {error, Reason}
             end
     end.
-%% Validate the list of access policies
-validate_access_policies([]) -> 
-    ok;  % An empty list is valid
-
-validate_access_policies([{Proc, AP} | Rest]) ->
-    case validate_proc(Proc) of
-        ok ->
-            case validate_access_policy(AP) of
-                ok -> validate_access_policies(Rest);  % Recursively validate the rest
-                {error, invalid_access_policy} -> {error, {invalid_access_policy, AP}}
-            end;
-        {error, invalid_process} -> 
-            {error, {invalid_process, Proc}}
-    end;
-
-validate_access_policies(_) -> 
-    {error, malformed_access_policy}.  % Catch all for malformed policies
-%% Validate a process identifier (either a PID or an atom)
-validate_proc(Proc) when is_pid(Proc) ->
-    case is_process_alive(Proc) of
-        true -> ok;
-        false -> {error, not_alive_process}
-    end;
-
-validate_proc(Proc) when is_atom(Proc) ->
-    case global:whereis_name(Proc) of
-        undefined -> {error, invalid_process};  % Invalid if not registered
-        _ -> ok  % Valid if registered
-    end;
-
-validate_proc(_) -> 
-    {error, invalid_process}.  % Invalid if neither a PID nor a registered process
-%% Validate the access policy
-validate_access_policy(read) -> ok;
-validate_access_policy(write) -> ok;
-validate_access_policy(_) -> {error, invalid_access_policy}.
 
 %% API function to get the value from a specific cell with default timeout (infinity)
 get(SpreadsheetName, TabIndex, I, J) ->
@@ -183,6 +147,32 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when is_integer(TabIndex), is_inte
             end
     end.
 
+%% API function to set a value with default timeout (infinity)
+set(SpreadsheetName, TabIndex, I, J, Value) ->
+    set(SpreadsheetName, TabIndex, I, J, Value, infinity).
+
+%% API function to set a value with a custom timeout
+set(SpreadsheetName, TabIndex, I, J, Value, Timeout) 
+    when is_integer(TabIndex), is_integer(I), is_integer(J) ->
+    case global:whereis_name(SpreadsheetName) of
+        undefined -> {error, spreadsheet_not_found};
+        Pid when is_pid(Pid) ->
+            %% Check that Value is a valid Erlang term, dynamically handle all types
+            case validate_value(Value) of
+                ok ->
+                    try
+                        gen_server:call(Pid, {set, TabIndex, I, J, Value}, Timeout)
+                    catch
+                         _:_ -> {error, timeout}
+                    end;            
+                {error, invalid_type} ->
+                    {reply, {error, invalid_type}}
+            end
+        end.
+
+
+            
+    
 
 
 %%% gen_server CALLBACKS %%%
@@ -327,9 +317,53 @@ handle_call({get, TabIndex, I, J}, From, State = #spreadsheet{tabs = Tabs, acces
         {error, access_denied} ->
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
+    end;
+
+
+handle_call({set, TabIndex, I, J, Value}, From, State = #spreadsheet{tabs = Tabs, access_policies = Policies}) ->
+    CallerPid = element(1, From),
+    io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [CallerPid, TabIndex, I, J, Value]),
+
+    %% Check if the calling process has write access
+    case check_access(CallerPid, Policies, write) of
+        ok ->
+            %% Ensure the TabIndex is within bounds
+            if
+                TabIndex > length(Tabs) orelse TabIndex < 1 ->
+                    io:format("Tab index ~p is out of bounds~n", [TabIndex]),
+                    {reply, {error, out_of_bounds}, State};
+                true ->
+                    %% Retrieve the Tab (TabMatrix) at TabIndex
+                    TabMatrix = lists:nth(TabIndex, Tabs),
+                    %% Ensure Row index I is within bounds
+                    if
+                        I > length(TabMatrix) orelse I < 1 ->
+                            io:format("Row index ~p is out of bounds in Tab ~p~n", [I, TabIndex]),
+                            {reply, {error, out_of_bounds}, State};
+                        true ->
+                            %% Retrieve the Row and ensure Column index J is within bounds
+                            Row = lists:nth(I, TabMatrix),
+                            if
+                                J > length(Row) orelse J < 1 ->
+                                    io:format("Col index ~p is out of bounds in Row ~p, Tab ~p~n", [J, I, TabIndex]),
+                                    {reply, {error, out_of_bounds}, State};
+                                true ->
+                                    %% Replace the value at position (I, J) and update state
+                                    NewRow = replace_nth(J, Value, Row), %% Any valid Erlang term can be set
+                                    NewTabMatrix = replace_nth(I, NewRow, TabMatrix),
+                                    NewTabs = replace_nth(TabIndex, NewTabMatrix, Tabs),
+                                    %% Update the last modified timestamp
+                                    CurrentTime = calendar:universal_time(),
+                                    NewState = State#spreadsheet{tabs = NewTabs, last_modified = CurrentTime},
+                                    io:format("Value set successfully~n"),
+                                    {reply, ok, NewState}
+                            end
+                    end
+            end;
+        {error, access_denied} ->
+            io:format("Access denied for process ~p~n", [CallerPid]),
+            {reply, {error, access_denied}, State}
     end.
-
-
 
 
 %% Handle asynchronous casts (e.g., updating a cell, sharing, reassigning ownership)
@@ -419,4 +453,63 @@ find_registered_name(Pid) ->
         undefined,
         registered()
     ).
+%Funzione ausiliaria per rimpiazzare un elemento in una lista al valore di indice dato
+replace_nth(Index, NewVal, List) ->
+    {Left, [_|Right]} = lists:split(Index-1, List),
+    Left ++ [NewVal] ++ Right.
+%% Helper functions to Validate the list of access policies,valditate process identifier,
+%% validate atom AP representing policy
+validate_access_policies([]) -> 
+    ok;  % An empty list is valid
+
+validate_access_policies([{Proc, AP} | Rest]) ->
+    case validate_proc(Proc) of
+        ok ->
+            case validate_access_policy(AP) of
+                ok -> validate_access_policies(Rest);  % Recursively validate the rest
+                {error, invalid_access_policy} -> {error, {invalid_access_policy, AP}}
+            end;
+        {error, invalid_process} -> 
+            {error, {invalid_process, Proc}}
+    end;
+validate_access_policies(_) -> 
+    {error, malformed_access_policy}.  % Catch all for malformed policies
+
+%% Validate a process identifier (either a PID or an atom)
+validate_proc(Proc) when is_pid(Proc) ->
+    case is_process_alive(Proc) of
+        true -> ok;
+        false -> {error, not_alive_process}
+    end;
+validate_proc(Proc) when is_atom(Proc) ->
+    case global:whereis_name(Proc) of
+        undefined -> {error, invalid_process};  % Invalid if not registered
+        _ -> ok  % Valid if registered
+    end;
+validate_proc(_) -> 
+    {error, invalid_process}.  % Invalid if neither a PID nor a registered process
+
+%% Validate the access policy
+validate_access_policy(read) -> ok;
+validate_access_policy(write) -> ok;
+validate_access_policy(_) -> {error, invalid_access_policy}. 
+%% Helper function to validate the type of Value
+validate_value(Value) ->
+    case is_basic_type(Value) of
+        true -> ok;
+        false -> {error, invalid_type}
+    end.
+
+%% Helper to check for basic types in Erlang
+is_basic_type(Value) when is_integer(Value); 
+                         is_float(Value);
+                         is_atom(Value);
+                         is_list(Value);
+                         is_tuple(Value);
+                         is_map(Value);
+                         is_binary(Value) ->
+    true;
+is_basic_type(_) ->
+    false.
+
 

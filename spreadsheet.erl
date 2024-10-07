@@ -112,10 +112,7 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) ->
         undefined -> {error, spreadsheet_not_found};
         Pid ->
            % Send the get request to the spreadsheet process  
-                %ERRATO
-                %Prima di inviare la richiesta di set al processo del foglio di calcolo, controlliamo se il processo %chiamante (self()) ha accesso in scrittura. In caso contrario, restituiamo {error, access_denied}.
-                %case check_access(self(), SpreadsheetName#spreadsheet.access_policies, write) of
-                %ok ->
+                
 
                     Pid ! {set, self(), TabIndex, I, J, Value},
                     receive
@@ -133,6 +130,8 @@ replace_nth(Index, NewVal, List) ->
     {Left, [_|Right]} = lists:split(Index-1, List),
     Left ++ [NewVal] ++ Right.
 %%Ausiliary function
+
+
 % Check if the calling process has the required access (read/write)
 check_access(PidOrName, Policies, RequiredAccess) ->
 
