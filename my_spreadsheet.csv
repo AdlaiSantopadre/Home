@@ -1,6 +1,7 @@
-Spreadsheet Name: my_spreadsheet
-Owner: <0.203.0>
-Access Policies: [{proc1,read},{proc2,write},{proc3,read}]
+Spreadsheet Name: my_dspreadsheet1
+Owner: <0.90.0>
+Access Policies: [{<0.90.0>,write}]
+Last Modified: {{2024,10,7},{17,56,15}}
 undef,undef,undef,undef,undef
 undef,undef,undef,undef,undef
 undef,undef,undef,undef,undef
