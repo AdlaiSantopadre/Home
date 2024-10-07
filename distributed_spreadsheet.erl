@@ -1,8 +1,8 @@
--module(distributed_spreadsheet). %ver 1.5
+-module(distributed_spreadsheet). %ver 1.6
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, get/4, get/5, set/5, set/6,  restore_owner/2, reassign_owner/2, share/2,
+-export([new/1, new/4, get/4, get/5, set/5, set/6,  restore_owner/2, reassign_owner/2, share/2, to_csv/2, to_csv/3,
          info/1, stop/0]).
 
 %% gen_server callbacks
@@ -62,6 +62,30 @@ reassign_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
                 gen_server:call(Pid, {reassign_owner, NewOwnerPid}, 5000)  %% 5 seconds timeout
             catch
                 _:_Error -> {error, timeout}  %% Handle timeout or other errors
+            end
+    end.
+%% API function to export spreadsheet data to CSV (with default timeout)
+to_csv(Filename, SpreadsheetName) ->
+    to_csv(Filename, SpreadsheetName, infinity).
+
+%% API function to export spreadsheet data to CSV with a custom timeout
+to_csv(Filename, SpreadsheetName, Timeout) when is_atom(SpreadsheetName) ->
+    io:format("Starting to_csv with Filename: ~p and SpreadsheetName: ~p~n", [Filename, SpreadsheetName]),
+    
+    % Retrieve the PID associated with the registered name
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            io:format("Error: Spreadsheet process not found for name: ~p~n", [SpreadsheetName]),
+            {error, spreadsheet_not_found};  % If the process is not found
+        Pid when is_pid(Pid) ->
+            io:format("Found PID: ~p for SpreadsheetName: ~p~n", [Pid, SpreadsheetName]),
+            % Use gen_server:call to request the spreadsheet state, with a custom timeout
+            try
+                gen_server:call(Pid, {export_to_csv, Filename}, Timeout)
+            catch
+                _:Error ->
+                    io:format("Error during CSV export operation~n"),
+                    {error, timeout}
             end
     end.
 
@@ -319,7 +343,35 @@ handle_call({get, TabIndex, I, J}, From, State = #spreadsheet{tabs = Tabs, acces
             {reply, {error, access_denied}, State}
     end;
 
+%% Handle the 'export_to_csv' request in the gen_server
+handle_call({export_to_csv, Filename}, _From, State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = AccessPolicies, last_modified = LastModified}) ->
+    io:format("Exporting spreadsheet ~p to CSV file ~p~n", [Name, Filename]),
+    
+    %% Open the file for writing
+    case file:open(Filename, [write]) of
+        {ok, File} ->
+            io:format("Opened file: ~p~n", [Filename]),
 
+            %% Write the spreadsheet metadata to the file
+            io:format(File, "Spreadsheet Name: ~s~n", [atom_to_list(Name)]),
+            io:format(File, "Owner: ~p~n", [Owner]),
+            io:format(File, "Access Policies: ~p~n", [AccessPolicies]),
+            io:format(File, "Last Modified: ~p~n", [LastModified]),
+
+            %% Write each tab (as rows) to the file in CSV format
+            lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
+            
+            %% Close the file
+            file:close(File),
+            io:format("Finished writing to CSV file: ~p~n", [Filename]),
+            {reply, ok, State};
+        
+        {error, Reason} ->
+            io:format("Error opening file ~p: ~p~n", [Filename, Reason]),
+            {reply, {error, Reason}, State}
+    end;
+
+%% Handle the 'set' request in the gen_server
 handle_call({set, TabIndex, I, J, Value}, From, State = #spreadsheet{tabs = Tabs, access_policies = Policies}) ->
     CallerPid = element(1, From),
     io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [CallerPid, TabIndex, I, J, Value]),
@@ -522,5 +574,24 @@ is_basic_type(Value) when is_integer(Value);
     true;
 is_basic_type(_) ->
     false.
+%% Save each tab (matrix) to CSV rows
+save_tab_to_csv(File, Tab) ->
+    lists:foreach(fun(Row) ->
+        %% Format each row as a CSV line
+        Line = lists:map(fun(Cell) -> format_cell(Cell) end, Row),
+        %% Join cells with commas and write to file
+        io:format(File, "~s~n", [string:join(Line, ",")])
+    end, Tab).
+
+%% Format individual cells for CSV output
+format_cell(undef) -> "undef";
+format_cell(Cell) ->
+    case is_basic_type(Cell) of
+        true -> io_lib:format("~p", [Cell]);
+        false -> "unsupported"
+    end.
+
+
+
 
 

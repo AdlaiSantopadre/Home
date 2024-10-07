@@ -97,12 +97,15 @@ distributed_spreadsheet:set(my_dspreadsheet1, 1, 2, 3, #{key => value}).
 
 %% List of integers
 distributed_spreadsheet:set(my_dspreadsheet1, 1, 2, 3, [1, 2, 3, 4]).
+distributed_spreadsheet:set(my_dspreadsheet1, 1, 2, 3, "I'm a string").
+
+
 
 distributed_spreadsheet:get(my_dspreadsheet1,1,2,3).
 distributed_spreadsheet:get(my_dspreadsheet1,1,1,2,2000).
 distributed_spreadsheet:get(my_dspreadsheet1,2,2,2).
 
- ## gestione persistenza
+## gestione persistenza
 
 Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
 spreadsheet:to_csv("my_spreadsheet.csv",my_spreadsheet).
