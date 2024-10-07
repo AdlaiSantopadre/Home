@@ -83,7 +83,7 @@ to_csv(Filename, SpreadsheetName, Timeout) when is_atom(SpreadsheetName) ->
             try
                 gen_server:call(Pid, {export_to_csv, Filename}, Timeout)
             catch
-                _:Error ->
+                _:_Error ->
                     io:format("Error during CSV export operation~n"),
                     {error, timeout}
             end
