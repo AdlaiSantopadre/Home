@@ -1,8 +1,8 @@
--module(distributed_spreadsheet). %ver 1.6
+-module(distributed_spreadsheet). %ver 1.7
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, get/4, get/5, set/5, set/6,  restore_owner/2, reassign_owner/2, share/2, to_csv/2, to_csv/3,
+-export([new/1, new/4, get/4, get/5, set/5, set/6, from_csv/1,  restore_owner/2, reassign_owner/2, share/2, to_csv/2, to_csv/3,
          info/1, stop/0]).
 
 %% gen_server callbacks
@@ -88,6 +88,41 @@ to_csv(Filename, SpreadsheetName, Timeout) when is_atom(SpreadsheetName) ->
                     {error, timeout}
             end
     end.
+%% API function to load spreadsheet data from CSV file
+%% API function to load spreadsheet data from a CSV file
+from_csv(Filename) ->
+    %% Step 1: Open the CSV file and parse metadata (including SpreadsheetName)
+    case file:open(Filename, [read]) of
+        {ok, File} ->
+            % Parse the spreadsheet metadata (including name) and tabs
+            case parse_csv(File) of
+                {ok, SpreadsheetState = #spreadsheet{name = SpreadsheetName}} ->
+                    file:close(File),
+
+                    % Step 2: Check if a process is registered under SpreadsheetName
+                    case global:whereis_name(SpreadsheetName) of
+                        undefined ->
+                            %% No process registered -> Start a new gen_server process with the loaded state
+                            io:format("Starting new spreadsheet process for ~p~n", [SpreadsheetName]),
+                            gen_server:start_link({global, SpreadsheetName}, ?MODULE, SpreadsheetState, []),
+                            {ok, SpreadsheetState};
+
+                        Pid when is_pid(Pid) ->
+                            %% Process already registered -> Update the existing gen_server with the new state
+                            io:format("Updating existing spreadsheet process for ~p~n", [SpreadsheetName]),
+                            gen_server:call(Pid, {load_from_csv, SpreadsheetState}),
+                            {ok, SpreadsheetState}
+                    end;
+                {error, Reason} ->
+                    file:close(File),
+                    io:format("Error parsing CSV file: ~p~n", [Reason]),
+                    {error, Reason}
+            end;
+        {error, Reason} ->
+            io:format("Error opening file: ~p~n", [Reason]),
+            {error, Reason}
+    end.
+
 
 
 %% Stop the spreadsheet process
@@ -371,6 +406,12 @@ handle_call({export_to_csv, Filename}, _From, State = #spreadsheet{name = Name, 
             {reply, {error, Reason}, State}
     end;
 
+%% Handle the 'load_from_csv' request in the gen_server
+handle_call({load_from_csv, NewSpreadsheetState}, _From, _CurrentState) ->
+    %% Update the gen_server state with the new spreadsheet data
+    io:format("Updating spreadsheet state from CSV~n"),
+    {reply, ok, NewSpreadsheetState};
+
 %% Handle the 'set' request in the gen_server
 handle_call({set, TabIndex, I, J, Value}, From, State = #spreadsheet{tabs = Tabs, access_policies = Policies}) ->
     CallerPid = element(1, From),
@@ -590,6 +631,91 @@ format_cell(Cell) ->
         true -> io_lib:format("~p", [Cell]);
         false -> "unsupported"
     end.
+%% Parse the spreadsheet data and metadata from the CSV file
+parse_csv(File) ->
+    % Read the first line (Spreadsheet Name)
+    case io:get_line(File, '') of
+        "Spreadsheet Name: " ++ SpreadsheetNameLine ->
+            SpreadsheetName = string:strip(SpreadsheetNameLine, both, $\n),
+
+            % Read the owner line
+            case io:get_line(File, '') of
+                "Owner: " ++ OwnerLine ->
+                    Owner = string:strip(OwnerLine, both, $\n),
+
+                    % Read the access policies line
+                    case io:get_line(File, '') of
+                        "Access Policies: " ++ AccessPoliciesString ->
+                            case parse_term_from_string(AccessPoliciesString) of
+                                {ok, AccessPolicies} ->
+
+                                    % Read the last modified line
+                                    case io:get_line(File, '') of
+                                        "Last Modified : " ++ LastModifiedString ->
+                                            io:format("Extracted Last Modified: ~p~n", [LastModifiedString]),
+
+                                            % Now load the tabs (rows of the spreadsheet)
+                                            Tabs = load_tabs_from_csv(File),
+
+                                            % Construct the spreadsheet record
+                                            Spreadsheet = #spreadsheet{
+                                                name = list_to_atom(SpreadsheetName),
+                                                tabs = Tabs,
+                                                owner = list_to_pid(Owner),
+                                                access_policies = AccessPolicies,
+                                                last_modified = LastModifiedString
+                                            },
+                                            {ok, Spreadsheet};
+                                        _ ->
+                                            {error, invalid_last_modified}
+                                    end;
+                                {error, Reason} ->
+                                    io:format("Error parsing access policies: ~p~n", [Reason]),
+                                    {error, Reason}
+                            end;
+                        _ ->
+                            {error, invalid_access_policies}
+                    end;
+                _ ->
+                    {error, invalid_owner}
+            end;
+        _ ->
+            {error, invalid_spreadsheet_name}
+    end.
+%% Load the tabs (rows) from the CSV file
+load_tabs_from_csv(File) ->
+    case io:get_line(File, '') of
+        eof -> [];  % End of file, no more rows
+        Line ->
+            % Split each line by commas and parse the cells
+            Row = string:tokens(string:strip(Line, both, $\n), ","),
+            [parse_row(Row) | load_tabs_from_csv(File)]
+    end.
+%% Parse a row (list of cells) into a list of Erlang terms
+parse_row(Row) ->
+    lists:map(fun parse_cell/1, Row).
+
+%% Parse an individual cell, interpreting basic Erlang types
+parse_cell("undef") -> undef;
+parse_cell(Value) when is_number(Value) -> list_to_integer(Value);  % If it's a number, convert to integer
+parse_cell(Value) ->
+    case catch list_to_atom(Value) of
+        {'EXIT', _} -> Value;  % If it can't be an atom, leave as string
+        Atom -> Atom  % Convert to atom if possible
+    end.
+%% Helper function to parse a term from a string representation
+parse_term_from_string(String) ->
+    % Tokenize the string
+    case erl_scan:string(String ++ ".") of  % Add a period to complete the expression
+        {ok, Tokens, _} ->
+            % Parse the tokens into an Erlang term
+            case erl_parse:parse_term(Tokens) of
+                {ok, Term} -> {ok, Term};
+                {error, Reason} -> {error, Reason}
+            end;
+        {error, Reason, _} -> {error, Reason}
+    end.
+
 
 
 

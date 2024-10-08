@@ -638,6 +638,8 @@ parse_cell(Value) ->
         Atom -> Atom  % Converte in atomo se possibile
     end.
 
+    
+
 
 
 
