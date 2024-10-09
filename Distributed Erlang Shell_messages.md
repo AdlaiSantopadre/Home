@@ -1,4 +1,3 @@
-# Avvio da shell 
 
 $shell1
 erl -sname node1 -setcookie mycookie
@@ -33,7 +32,7 @@ spreadsheet:share(my_spreadsheet, [{proc4, read}, {proc3, write}]).
 spreadsheet:remove_policy(my_spreadsheet,proc1).
 spreadsheet:info(my_spreadsheet).
 
-#  Avvio distributed_spreadsheet
+# Avvio distributed_spreadsheet
 
 erl -sname node1 -setcookie mycookie
 
@@ -106,4 +105,6 @@ distributed_spreadsheet:get(my_dspreadsheet1,2,2,2).
 Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
 
 distributed_spreadsheet:to_csv("my_spreadsheet.csv",my_dspreadsheet1,5000).
-spreadsheet:from_csv("my_spreadsheet.csv").
+
+
+

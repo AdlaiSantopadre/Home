@@ -3,7 +3,7 @@
 
 %% API functions exported
 -export([new/1, new/4, get/4, get/5, set/5, set/6, from_csv/1,  restore_owner/2, reassign_owner/2, share/2, to_csv/2, to_csv/3,
-         info/1, stop/0]).
+         info/1, stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -126,8 +126,8 @@ from_csv(Filename) ->
 
 
 %% Stop the spreadsheet process
-stop() ->
-    gen_server:cast(self(), stop).
+stop(SpreadsheetName) ->
+    gen_server:cast({global, SpreadsheetName}, stop).
 
 
 
@@ -237,20 +237,20 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout)
 %%% gen_server CALLBACKS %%%
 
 %% Initialize the spreadsheet process
-
-init({Name, Owner, N, M, K, LastModified}) ->
-    %% Init with  parameters from new/4
-    io:format("~p process .~n", [Name]),
-     try
-        Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-        Policies = [{Owner, write}],  % Initial access policy
-        State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
-        {ok, State}
-    catch
-        Class:Reason ->
-            io:format("Error in init/1: ~p ~p~n", [Class, Reason]),
-            {stop, {init_failed, Reason}}
+init(Args) ->
+    io:format("Init called with args: ~p~n", [Args]),
+    case Args of
+        {Name, Owner, N, M, K, LastModified} ->
+            io:format("Starting spreadsheet: ~p~n", [Name]),
+            Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+            Policies = [{Owner, write}],
+            State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
+            {ok, State};
+        _ ->
+            io:format("Invalid init arguments: ~p~n", [Args]),
+            {stop, {init_failed, function_clause}, Args}
     end.
+
     
 %%%%%%%%%%% Handle synchronous calls
 
@@ -390,9 +390,11 @@ handle_call({export_to_csv, Filename}, _From, State = #spreadsheet{name = Name, 
             %% Write the spreadsheet metadata to the file
             io:format(File, "Spreadsheet Name: ~s~n", [atom_to_list(Name)]),
             io:format(File, "Owner: ~p~n", [Owner]),
-            io:format(File, "Access Policies: ~p~n", [AccessPolicies]),
-            io:format(File, "Last Modified: ~p~n", [LastModified]),
-
+            %% Convert access policies to a format suitable for CSV (PIDs to strings)
+            write_access_policies_to_csv(File, AccessPolicies),
+                
+            
+            write_last_modified_to_csv(File, LastModified),
             %% Write each tab (as rows) to the file in CSV format
             lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
             
@@ -463,6 +465,7 @@ handle_call({set, TabIndex, I, J, Value}, From, State = #spreadsheet{tabs = Tabs
 
 
 handle_cast(stop, State) ->
+    io:format("Stopping the gen_server process~n"),
     {stop, normal, State}.
 
 %% Handle any other messages
@@ -632,6 +635,9 @@ format_cell(Cell) ->
         false -> "unsupported"
     end.
 %% Parse the spreadsheet data and metadata from the CSV file
+%% Parse the spreadsheet data and metadata from the CSV file
+%% Parse the spreadsheet data and metadata from the CSV file
+%% Parse the spreadsheet data and metadata from the CSV file
 parse_csv(File) ->
     % Read the first line (Spreadsheet Name)
     case io:get_line(File, '') of
@@ -647,41 +653,43 @@ parse_csv(File) ->
                     case io:get_line(File, '') of
                         "Access Policies: " ++ AccessPoliciesString ->
                             case parse_term_from_string(AccessPoliciesString) of
-                                {ok, AccessPolicies} ->
+                                {ok, AccessPoliciesStringTerm} ->
+                                    case parse_access_policies(AccessPoliciesStringTerm) of
+                                        {ok, AccessPolicies} ->
 
-                                    % Read the last modified line
-                                    case io:get_line(File, '') of
-                                        "Last Modified : " ++ LastModifiedString ->
-                                            io:format("Extracted Last Modified: ~p~n", [LastModifiedString]),
-
-                                            % Now load the tabs (rows of the spreadsheet)
-                                            Tabs = load_tabs_from_csv(File),
-
-                                            % Construct the spreadsheet record
-                                            Spreadsheet = #spreadsheet{
-                                                name = list_to_atom(SpreadsheetName),
-                                                tabs = Tabs,
-                                                owner = list_to_pid(Owner),
-                                                access_policies = AccessPolicies,
-                                                last_modified = LastModifiedString
-                                            },
-                                            {ok, Spreadsheet};
-                                        _ ->
-                                            {error, invalid_last_modified}
+                                            % Read the last modified line
+                                            case io:get_line(File, '') of
+                                                "Last Modified: " ++ LastModifiedString ->
+                                                    % Parse the last modified timestamp as a human-readable string
+                                                    case parse_datetime(LastModifiedString) of
+                                                        {error, Reason} ->
+                                                            {error, Reason};
+                                                        LastModifiedTuple ->
+                                                            % Load the tabs (spreadsheet data)
+                                                            Tabs = load_tabs_from_csv(File),
+                                                            % Return the constructed spreadsheet state
+                                                            {ok, #spreadsheet{
+                                                                name = list_to_atom(SpreadsheetName),
+                                                                tabs = Tabs,
+                                                                owner = list_to_pid(Owner),
+                                                                access_policies = AccessPolicies,
+                                                                last_modified = LastModifiedTuple
+                                                            }}
+                                                    end;
+                                                _ -> {error, invalid_last_modified}
+                                            end;
+                                        {error, Reason} -> {error, Reason}
                                     end;
-                                {error, Reason} ->
-                                    io:format("Error parsing access policies: ~p~n", [Reason]),
-                                    {error, Reason}
+                                {error, Reason} -> {error, Reason}
                             end;
-                        _ ->
-                            {error, invalid_access_policies}
+                        _ -> {error, invalid_access_policies}
                     end;
-                _ ->
-                    {error, invalid_owner}
+                _ -> {error, invalid_owner}
             end;
-        _ ->
-            {error, invalid_spreadsheet_name}
+        _ -> {error, invalid_spreadsheet_name}
     end.
+
+
 %% Load the tabs (rows) from the CSV file
 load_tabs_from_csv(File) ->
     case io:get_line(File, '') of
@@ -715,6 +723,66 @@ parse_term_from_string(String) ->
             end;
         {error, Reason, _} -> {error, Reason}
     end.
+%% Convert access policies from string to valid terms (Strings to PIDs, atoms left unchanged)
+parse_access_policies(AccessPoliciesString) ->
+    AccessPolicies = lists:map(
+        fun({Identifier, Access}) ->
+            case catch list_to_pid(Identifier) of
+                {'EXIT', _} ->  % If it's not a PID, assume it's a registered name (atom)
+                    {Identifier, Access};
+                Pid ->  % Convert valid PID strings back to PIDs
+                    {Pid, Access}
+            end
+        end,
+        AccessPoliciesString
+    ),
+    {ok, AccessPolicies}.
+%% Convert access policies to a format suitable for CSV (PIDs to strings, atoms left unchanged)
+write_access_policies_to_csv(File, AccessPolicies) ->
+    AccessPoliciesString = lists:map(
+        fun({Identifier, Access}) ->
+            case is_pid(Identifier) of
+                true -> {pid_to_list(Identifier), Access};  % Convert PIDs to strings
+                false -> {Identifier, Access}  % Leave registered names (atoms) unchanged
+            end
+        end,
+        AccessPolicies
+    ),
+    io:format(File, "Access Policies: ~p~n", [AccessPoliciesString]).
+
+%% Convert {{Year, Month, Day}, {Hour, Minute, Second}} to a human-readable string
+format_datetime({{Year, Month, Day}, {Hour, Minute, Second}}) ->
+    io_lib:format("~4..0w-~2..0w-~2..0w ~2..0w:~2..0w:~2..0w",
+                  [Year, Month, Day, Hour, Minute, Second]).
+
+%% Write the last modified timestamp as a human-readable string
+write_last_modified_to_csv(File, LastModified) ->
+    LastModifiedString = lists:flatten(format_datetime(LastModified)),
+    io:format(File, "Last Modified: ~s~n", [LastModifiedString]).
+
+
+
+%% Parse a human-readable datetime string "YYYY-MM-DD HH:MM:SS" into {{Year, Month, Day}, {Hour, Minute, Second}}
+%% Parse a human-readable datetime string "YYYY-MM-DD HH:MM:SS" into {{Year, Month, Day}, {Hour, Minute, Second}}
+%% Parse a human-readable datetime string "YYYY-MM-DD HH:MM:SS" into {{Year, Month, Day}, {Hour, Minute, Second}}
+parse_datetime(String) ->
+    case string:tokens(String, " :-") of
+        [YearS, MonthS, DayS, HourS, MinuteS, SecondS] ->
+            {{list_to_integer(string:trim(YearS, both, [$\s, $\n, $\t])),
+              list_to_integer(string:trim(MonthS, both, [$\s, $\n, $\t])),
+              list_to_integer(string:trim(DayS, both, [$\s, $\n, $\t]))},
+             {list_to_integer(string:trim(HourS, both, [$\s, $\n, $\t])),
+              list_to_integer(string:trim(MinuteS, both, [$\s, $\n, $\t])),
+              list_to_integer(string:trim(SecondS, both, [$\s, $\n, $\t]))}};
+        _ ->
+            {error, invalid_datetime_format}
+    end.
+
+
+
+
+
+
 
 
 
