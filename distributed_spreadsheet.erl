@@ -1,9 +1,11 @@
 -module(distributed_spreadsheet). %ver 1.7
 -behaviour(gen_server).
 
-%% API functions exported
--export([new/1, new/4, get/4, get/5, set/5, set/6, from_csv/1,  restore_owner/2, reassign_owner/2, share/2, to_csv/2, to_csv/3,
-         info/1, stop/1]).
+%% API functions exported from assignement
+-export([new/1, new/4,share/2, get/4, get/5, set/5, set/6,
+        from_csv/1, to_csv/2, to_csv/3,info/1 ]).
+%% API functions added
+-export([restore_owner/2, reassign_owner/2,stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
