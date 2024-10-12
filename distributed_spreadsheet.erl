@@ -257,28 +257,35 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout)
 init(Args) ->
     io:format("Init called with args: ~p~n", [Args]),
     case Args of
-        % Case when loading from CSV with existing state
+        % Case when restoring directly from a passed-in state (e.g., from_csv/1)
         #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} ->
-            io:format("Loading spreadsheet from CSV: ~p~n", [Name]),
-            % No need to create new tabs, just use the state
+            io:format("Restoring spreadsheet from provided state for ~p~n", [Name]),
             {ok, #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified}};
         
-        % Case when initializing a new spreadsheet (from new/1 or new/4)
+        % Case when initializing a new spreadsheet (e.g., from new/1 or new/4)
         {Name, Owner, N, M, K, LastModified} ->
-            io:format("Starting new spreadsheet: ~p~n", [Name]),
-            Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),  %% Create new tabs
-            Policies = [{Owner, write}],
-            State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
-            {ok, State};
+            %% Try to load from CSV, and if not found, fall back to fresh initialization
+            case file:read_file(Name ++ ".csv") of
+                {ok, _Data} ->
+                    io:format("Restoring spreadsheet from CSV file for ~p~n", [Name]),
+                    %% Parse the CSV file and restore state (you should implement parse_csv logic here)
+                    {ok, RestoredState} = parse_csv(Name ++ ".csv"),
+                    {ok, RestoredState};
+                {error, _Reason} ->
+                    io:format("No CSV found. Starting new spreadsheet for ~p~n", [Name]),
+                    %% Fresh initialization if CSV doesn't exist
+                    Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+                    Policies = [{Owner, write}],
+                    State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
+                    {ok, State}
+            end;
         
-        % Catch-all clause for error handling
+        % Catch-all clause for invalid or unexpected arguments
         _ ->
             io:format("Invalid init arguments: ~p~n", [Args]),
             {stop, {init_failed, function_clause}, Args}
     end.
 
-
-    
 %%%%%%%%%%% Handle synchronous calls
 
 %% Handle the synchronous request to get the spreadsheet's info
