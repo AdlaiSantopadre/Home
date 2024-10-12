@@ -1,8 +1,8 @@
--module(distributed_spreadsheet). %ver 1.7
+-module(distributed_spreadsheet). %ver 1.8
 -behaviour(gen_server).
 
 %% API functions exported
--export([new/1, new/4, get/4, get/5, set/5, set/6, from_csv/1,  restore_owner/2, reassign_owner/2, share/2, to_csv/2, to_csv/3,
+-export([new/1, new/4, get/4, get/5, set/5, set/6, from_csv/1,  restore_owner/1, reassign_owner/2, share/2, to_csv/2, to_csv/3,
          info/1, stop/1]).
 
 %% gen_server callbacks
@@ -23,31 +23,48 @@ new(Name) ->
     
 
 %% Funzione per creare un nuovo foglio con dimensioni  passate per valori
-new(Name, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 0, K > 0 ->    % guardie sui valori passati->
-    %gen_server:call(Name, {new, Name, N, M, K}).
-    case global:whereis_name(Name) of
+new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), N > 0, M > 0, K > 0 ->
+    case global:whereis_name(SpreadsheetName) of
         undefined ->
-            LastModified= calendar:universal_time(),
-            Owner =self(), %Il Pid del processo chiamante viene salvato in Owner 
-            %Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
-        
-            gen_server:start_link({global, Name}, ?MODULE, {Name, Owner, N, M, K, LastModified}, []);
-                                  
+            %% Spreadsheet doesn't exist, create it
+            LastModified = erlang:system_time(),
+            OwnerPid = self(),  % The shell that created the spreadsheet is the owner
+            Result = gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, OwnerPid, N, M, K, LastModified}, []),
+            
+            %% Now register the owner globally and monitor the process
+            case Result of
+                {ok, Pid} ->
+                    register_owner(SpreadsheetName, OwnerPid),
+                    {ok, Pid};
+                Error -> Error
+            end;
         _ ->
             {error, already_exists}
     end;
-new(_, _, _, _) ->
-    {error, invalid_parameters}.
+new(_, _, _, _) -> {error, invalid_parameters}.
+
+restore_owner(SpreadsheetName) ->
+    NewOwnerPid = self(),  % Assume the current process (new shell) is the new owner
+    case global:re_register_name({SpreadsheetName, owner}, NewOwnerPid) of
+        ok ->
+            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, NewOwnerPid]),
+            erlang:monitor(process, NewOwnerPid),
+            {ok, NewOwnerPid};
+        {error, Reason} ->
+            io:format("Failed to restore ownership: ~p~n", [Reason]),
+            {error, Reason}
+    end.
+
 
 %% API function to restore the ownership of the spreadsheet if the current owner shell has crashed
-restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
-    case global:whereis_name(SpreadsheetName) of
-        undefined ->
-            {error, spreadsheet_not_found};
-        Pid when is_pid(Pid) ->
-            %% Use gen_server:call to send a restore_owner request
-            gen_server:call(Pid, {restore_owner, NewOwnerPid})
-    end.
+%restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
+%    case global:whereis_name(SpreadsheetName) of
+%        undefined ->
+%            {error, spreadsheet_not_found};
+%        Pid when is_pid(Pid) ->
+%            %% Use gen_server:call to send a restore_owner request
+%            gen_server:call(Pid, {restore_owner, NewOwnerPid})
+%    end.
 
 
 %% API function to reassign the owner of a spreadsheet
@@ -478,6 +495,14 @@ handle_cast(stop, State) ->
     io:format("Stopping the gen_server process~n"),
     {stop, normal, State}.
 
+handle_info({'DOWN', _Ref, process, OwnerPid, _Reason}, State) ->
+    io:format("Owner process ~p has crashed. Waiting for a new shell to take ownership...~n", [OwnerPid]),
+    %% The owner process is down, you can trigger manual recovery here
+    restore_owner(my_dspreadsheet1),
+    {noreply, State};
+    
+
+
 %% Handle any other messages
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -787,6 +812,20 @@ parse_datetime(String) ->
         _ ->
             {error, invalid_datetime_format}
     end.
+%% Register the owner globally and monitor the owner process
+register_owner(SpreadsheetName, OwnerPid) ->
+    %% Register the owner globally
+    case global:register_name({SpreadsheetName, owner}, OwnerPid) of
+        ok ->
+            io:format("Owner ~p registered globally for spreadsheet ~p~n", [OwnerPid, SpreadsheetName]),
+            %% Monitor the owner process
+            erlang:monitor(process, OwnerPid),
+            ok;
+        {error, Reason} ->
+            io:format("Failed to register owner for spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
+            {error, Reason}
+    end.
+
 
 
 
