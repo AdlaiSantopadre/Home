@@ -507,7 +507,6 @@ handle_cast(stop, State) ->
 handle_info({'DOWN', _Ref, process, OwnerPid, _Reason}, State) ->
     io:format("Owner process ~p has crashed. Waiting for a new shell to take ownership...~n", [OwnerPid]),
     %% The owner process is down, you can trigger manual recovery here
-    %% 
     restore_owner(my_dspreadsheet1),
     {noreply, State};
     
