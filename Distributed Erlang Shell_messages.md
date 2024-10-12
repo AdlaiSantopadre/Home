@@ -65,7 +65,6 @@ NewOwnerPid = spawn(fun() -> receive after infinity -> ok end end).
 ## creazione di due/tre processi distribuiti
 
 net_adm:ping('node2@DESKTOPQ2A2FL7').
-c(distributed_processes_utility).
 Processes = [{'proc1', 'node1@DESKTOPQ2A2FL7'},
              {'proc2', 'node2@DESKTOPQ2A2FL7'}
              %{'proc3', 'node3@DESKTOPQ2A2FL7'}

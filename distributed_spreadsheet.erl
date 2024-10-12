@@ -5,7 +5,7 @@
 -export([new/1, new/4,share/2, get/4, get/5, set/5, set/6,
         from_csv/1, to_csv/2, to_csv/3,info/1 ]).
 %% API functions added
--export([restore_owner/2, reassign_owner/2,stop/1]).
+-export([restore_owner/1, reassign_owner/2,stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -507,6 +507,7 @@ handle_cast(stop, State) ->
 handle_info({'DOWN', _Ref, process, OwnerPid, _Reason}, State) ->
     io:format("Owner process ~p has crashed. Waiting for a new shell to take ownership...~n", [OwnerPid]),
     %% The owner process is down, you can trigger manual recovery here
+    %% 
     restore_owner(my_dspreadsheet1),
     {noreply, State};
     
