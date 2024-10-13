@@ -29,7 +29,7 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             %% Spreadsheet doesn't exist, create it
-            LastModified = erlang:system_time(),
+            LastModified = calendar:universal_time(),
             OwnerPid = self(),  % The shell that created the spreadsheet is the owner
             Result = gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, OwnerPid, N, M, K, LastModified}, []),
             
@@ -266,12 +266,13 @@ init(Args) ->
         
         % Case when initializing a new spreadsheet (e.g., from new/1 or new/4)
         {Name, Owner, N, M, K, LastModified} ->
+            FileName = atom_to_list(Name) ++ ".csv",  %% Convert atom to string
             %% Try to load from CSV, and if not found, fall back to fresh initialization
-            case file:read_file(Name ++ ".csv") of
+            case file:read_file(FileName) of
                 {ok, _Data} ->
-                    io:format("Restoring spreadsheet from CSV file for ~p~n", [Name]),
+                    io:format("Restoring spreadsheet from CSV file for ~p~n", [FileName]),
                     %% Parse the CSV file and restore state (you should implement parse_csv logic here)
-                    {ok, RestoredState} = parse_csv(Name ++ ".csv"),
+                    {ok, RestoredState} = parse_csv(FileName),
                     {ok, RestoredState};
                 {error, _Reason} ->
                     io:format("No CSV found. Starting new spreadsheet for ~p~n", [Name]),
@@ -826,7 +827,7 @@ parse_datetime(String) ->
 register_owner(SpreadsheetName, OwnerPid) ->
     %% Register the owner globally
     case global:register_name({SpreadsheetName, owner}, OwnerPid) of
-        ok ->
+        yes ->
             io:format("Owner ~p registered globally for spreadsheet ~p~n", [OwnerPid, SpreadsheetName]),
             %% Monitor the owner process
             erlang:monitor(process, OwnerPid),

@@ -32,9 +32,11 @@ spreadsheet:share(my_spreadsheet, [{proc4, read}, {proc3, write}]).
 spreadsheet:remove_policy(my_spreadsheet,proc1).
 spreadsheet:info(my_spreadsheet).
 
+# DISTRIBUTED ERLANG
+
 # Avvio distributed_spreadsheet
 
-erl -sname node1 -setcookie mycookie
+erl -sname node1 -setcookie mysecretcookie
 
 c(distributed_spreadsheet).
 
@@ -62,7 +64,11 @@ erlang:set_cookie('node2@DESKTOPQ2A2FL7', mysecretcookie).
 
 NewOwnerPid = spawn(fun() -> receive after infinity -> ok end end).
 
+
+
 ## creazione di due/tre processi distribuiti
+
+c(distributed_processes_utility).
 
 net_adm:ping('node2@DESKTOPQ2A2FL7').
 Processes = [{'proc1', 'node1@DESKTOPQ2A2FL7'},

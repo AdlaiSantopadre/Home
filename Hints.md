@@ -171,6 +171,22 @@ Un errore comune con i nomi registrati è che il PID/attore associato ad esso si
 L'invio di un messaggio a un nome registrato che si è bloccato genera un errore dovuto alla funzione di ricerca, che non restituisce un PID
 
 (Ad esempio, in fase di esecuzione il nome registrato viene risolto in un PID, ma se il processo è morto, la funzione di ricerca restituirà *undefined* )
+The global:register_name/2 function in Erlang is part of the global module and is used to globally register a process (identified by its PID) with a name that can be accessed across multiple nodes in a distributed system.
+
+Here is the documentation for global:register_name/2:
+
+global:register_name(Name, Pid) -> yes | {error, Reason}
+Arguments:
+Name: This is an atom or tuple that you want to use as the global identifier for the process.
+Pid: The PID of the process that you want to register globally under the given name.
+Return Values:
+yes: The function returns yes if the registration was successful.
+{error, Reason}: If the registration fails, it returns {error, Reason} where Reason is typically an error message indicating why the registration failed. Possible reasons include:
+already_registered: This indicates that a process with the same name is already registered globally.
+badarg: This indicates that the arguments passed to register_name/2 were invalid (e.g., the name or PID wasn't valid).
+mportant Notes:
+The Name can be either an atom (like my_process) or a tuple (like {SpreadsheetName, owner} in your case). This allows you to give more structured names.
+The Pid must be a valid process identifier (PID) that can be globally referenced.
 
 ### Nomi registrati
 
