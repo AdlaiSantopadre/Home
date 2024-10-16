@@ -554,58 +554,76 @@ update_policies(NewPolicies, ExistingPolicies) ->
     %With this single list comprehension, you can effectively:
 
  
-% Check if the calling process has the required access (read/write)
-%% Check if the calling process has the required access (read/write)
 check_access(PidOrName, Policies, RequiredAccess) ->
     io:format("Checking if ~p process has ~p access in policies: ~p~n", [PidOrName, RequiredAccess, Policies]),
 
-    %% Resolve PidOrName to both PID and registered name if possible
-    ResolvedPid = case is_pid(PidOrName) of
-                     true -> PidOrName;
-                     false -> global:whereis_name(PidOrName)
-                  end,
+    %% Resolve the globally registered name (if PidOrName is a PID, find its name; otherwise, it's a name)
+    ResolvedNameOrPid = case is_pid(PidOrName) of
+        true -> find_registered_name_or_use_pid(PidOrName);  % Try to find the registered name, fallback to PID
+        false -> PidOrName  % It's already a name (e.g., user2)
+    end,
 
-    %% Check if the resolved PID or registered name has the 'write' access
-    case lists:keyfind(ResolvedPid, 1, Policies) of
-        {ResolvedPid, write} ->
-            io:format("Access granted with superior write access for PID: ~p~n", [ResolvedPid]),
-            ok;  %% If write access is found, return ok immediately
-        _ ->
-            %% Check for access by registered name (if available)
-            case find_registered_name(ResolvedPid) of
-                undefined -> check_read_access(PidOrName, Policies, RequiredAccess);
-                RegisteredName ->
-                    case lists:keyfind(RegisteredName, 1, Policies) of
-                        {RegisteredName, write} ->
-                            io:format("Access granted with superior write access for registered name: ~p~n", [RegisteredName]),
-                            ok;  %% If write access is found by name, return ok immediately
-                        _ -> check_read_access(RegisteredName, Policies, RequiredAccess)
-                    end
-            end
-    end.
+    io:format("Resolved to name or PID: ~p~n", [ResolvedNameOrPid]),
 
-%% Helper function to check for read access
-check_read_access(PidOrName, Policies, RequiredAccess) ->
-    case lists:keyfind(PidOrName, 1, Policies) of
-        {PidOrName, read} when RequiredAccess == read ->
-            io:format("Read access granted for ~p~n", [PidOrName]),
+    %% Check if the resolved name has the required access
+    case lists:keyfind(ResolvedNameOrPid, 1, Policies) of
+        {ResolvedNameOrPid, Access} when Access == RequiredAccess ->
+            %% Exact match found for the required access
+            io:format("Access granted with ~p access for ~p~n", [RequiredAccess, ResolvedNameOrPid]),
             ok;
-        _ -> {error, access_denied}
+        {ResolvedNameOrPid, write} when RequiredAccess == read ->
+            %% Process has superior write access, which implies read access
+            io:format("Superior write access granted for ~p (for read operation)~n", [ResolvedNameOrPid]),
+            ok;
+        %% Fallback: If the registered name is found but does not grant access, check the PID directly
+        _ when is_pid(PidOrName) ->
+            %% Now fallback to checking the original PID directly
+            io:format("Falling back to checking access for the original PID: ~p~n", [PidOrName]),
+            case lists:keyfind(PidOrName, 1, Policies) of
+                {PidOrName, Access} when Access == RequiredAccess ->
+                    io:format("Access granted with ~p access for PID: ~p~n", [RequiredAccess, PidOrName]),
+                    ok;
+                _ ->
+                    io:format("Access denied for PID: ~p~n", [PidOrName]),
+                    {error, access_denied}
+            end;
+
+        %% Fallback for names that are not found in the policies at all
+        _ ->
+            io:format("Access denied for ~p~n", [ResolvedNameOrPid]),
+            {error, access_denied}
     end.
 
-%Funzione ausiliaria di check_access
+
+    %Funzioni ausiliarie di check_access
+find_registered_name_or_use_pid(Pid) ->
+    io:format("Searching for registered name for PID ~p~n", [Pid]),
+    case find_registered_name(Pid) of
+        undefined -> Pid;  % If no registered name is found, use the PID
+        Name -> Name  % If a registered name is found, return it
+    end.
+
+
 %Trova il registered_name di un processo in base al suo PID
+%% Helper function to find the registered name for a PID
 find_registered_name(Pid) ->
-    lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
+    io:format("Searching for global registered name for PID ~p~n", [Pid]),
+    GlobalNames = global:registered_names(),  % Get all globally registered names
+    lists:foldl(
         fun(Name, Acc) ->
             case global:whereis_name(Name) of
-                Pid when Pid =/= undefined -> Name;  % Return the name if it matches the PID
+                Pid when Pid =/= undefined ->  % If the PID matches, return the global name
+                    io:format("Found global registered name ~p for PID ~p~n", [Name, Pid]),
+                    Name;
                 _ -> Acc  % Otherwise, keep searching
             end
         end,
-        undefined,
-        registered()
+        undefined,  % Initial accumulator
+        GlobalNames  % Iterate over all globally registered names
     ).
+
+
+
 %Funzione ausiliaria per rimpiazzare un elemento in una lista al valore di indice dato
 replace_nth(Index, NewVal, List) ->
     {Left, [_|Right]} = lists:split(Index-1, List),
