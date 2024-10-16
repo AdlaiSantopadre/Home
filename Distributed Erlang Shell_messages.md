@@ -94,10 +94,6 @@ distributed_spreadsheet:set(my_dspreadsheet1, 1, 3, 4, #{key => value}).
 %% List of integers
 distributed_spreadsheet:set(my_dspreadsheet1, 1, 2, 3, [1, 2, 3, 4]).
 
-
-
-
-
 distributed_spreadsheet:get(my_dspreadsheet1,1,2,3).
 distributed_spreadsheet:get(my_dspreadsheet1,1,1,2,2000).
 distributed_spreadsheet:get(my_dspreadsheet1,2,2,2).
@@ -107,6 +103,4 @@ distributed_spreadsheet:get(my_dspreadsheet1,2,2,2).
 Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
 
 distributed_spreadsheet:to_csv("my_spreadsheet.csv",my_dspreadsheet1,5000).
-
-
 
