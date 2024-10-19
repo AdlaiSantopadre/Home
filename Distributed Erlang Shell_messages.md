@@ -100,7 +100,5 @@ distributed_spreadsheet:get(my_dspreadsheet1,2,2,2).
 
 ## gestione persistenza
 
-Tabs = [    [1, 2, 3],    [4, undef, "hello"],    [true, false, undefined]].
-
 distributed_spreadsheet:to_csv("my_spreadsheet.csv",my_dspreadsheet1,5000).
 

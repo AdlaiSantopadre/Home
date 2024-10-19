@@ -38,7 +38,7 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
                 {ok, Pid} ->
                     register_owner(SpreadsheetName, OwnerPid),
                     {ok, Pid};
-                Error -> Error
+                Error -> Error 
             end;
         _ ->
             {error, already_exists}
@@ -267,13 +267,20 @@ init(Args) ->
         % Case when initializing a new spreadsheet (e.g., from new/1 or new/4)
         {Name, Owner, N, M, K, LastModified} ->
             FileName = atom_to_list(Name) ++ ".csv",  %% Convert atom to string
-            %% Try to load from CSV, and if not found, fall back to fresh initialization
-            case file:read_file(FileName) of
-                {ok, _Data} ->
+            %% Try to open the CSV file, and if not found, fall back to fresh initialization
+            case file:open(FileName, [read, {encoding, utf8}]) of
+                {ok, File} ->
                     io:format("Restoring spreadsheet from CSV file for ~p~n", [FileName]),
-                    %% Parse the CSV file and restore state (you should implement parse_csv logic here)
-                    {ok, RestoredState} = parse_csv(FileName),
-                    {ok, RestoredState};
+                    %% Parse the CSV file and restore state
+                    case parse_csv(File) of
+                        {ok, RestoredState} ->
+                            file:close(File),
+                            {ok, RestoredState};
+                        {error, Reason} ->
+                            file:close(File),
+                            io:format("Error parsing CSV file: ~p~n", [Reason]),
+                            {stop, {init_failed, Reason}}
+                    end;
                 {error, _Reason} ->
                     io:format("No CSV found. Starting new spreadsheet for ~p~n", [Name]),
                     %% Fresh initialization if CSV doesn't exist
@@ -282,12 +289,13 @@ init(Args) ->
                     State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
                     {ok, State}
             end;
-        
+
         % Catch-all clause for invalid or unexpected arguments
         _ ->
             io:format("Invalid init arguments: ~p~n", [Args]),
             {stop, {init_failed, function_clause}, Args}
     end.
+
 
 %%%%%%%%%%% Handle synchronous calls
 
@@ -699,36 +707,32 @@ format_cell(Cell) ->
         false -> "unsupported"
     end.
 %% Parse the spreadsheet data and metadata from the CSV file
-%% Parse the spreadsheet data and metadata from the CSV file
-%% Parse the spreadsheet data and metadata from the CSV file
-%% Parse the spreadsheet data and metadata from the CSV file
 parse_csv(File) ->
     % Read the first line (Spreadsheet Name)
     case io:get_line(File, '') of
         "Spreadsheet Name: " ++ SpreadsheetNameLine ->
-            SpreadsheetName = string:strip(SpreadsheetNameLine, both, $\n),
+            SpreadsheetName = string:trim(SpreadsheetNameLine, both, $\n),
+            io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
 
             % Read the owner line
             case io:get_line(File, '') of
                 "Owner: " ++ OwnerLine ->
-                    Owner = string:strip(OwnerLine, both, $\n),
-
+                    Owner = string:trim(OwnerLine, both, $\n),
+                    io:format("Extracted Owner PID: ~p~n", [Owner]),
                     % Read the access policies line
                     case io:get_line(File, '') of
                         "Access Policies: " ++ AccessPoliciesString ->
+                            % Parse access policies as a valid Erlang term
                             case parse_term_from_string(AccessPoliciesString) of
                                 {ok, AccessPoliciesStringTerm} ->
                                     case parse_access_policies(AccessPoliciesStringTerm) of
                                         {ok, AccessPolicies} ->
-
                                             % Read the last modified line
                                             case io:get_line(File, '') of
                                                 "Last Modified: " ++ LastModifiedString ->
                                                     % Parse the last modified timestamp as a human-readable string
                                                     case parse_datetime(LastModifiedString) of
-                                                        {error, Reason} ->
-                                                            {error, Reason};
-                                                        LastModifiedTuple ->
+                                                        {ok, LastModifiedTuple} ->
                                                             % Load the tabs (spreadsheet data)
                                                             Tabs = load_tabs_from_csv(File),
                                                             % Return the constructed spreadsheet state
@@ -738,7 +742,8 @@ parse_csv(File) ->
                                                                 owner = list_to_pid(Owner),
                                                                 access_policies = AccessPolicies,
                                                                 last_modified = LastModifiedTuple
-                                                            }}
+                                                            }};
+                                                        {error, Reason} -> {error, Reason}
                                                     end;
                                                 _ -> {error, invalid_last_modified}
                                             end;
@@ -846,10 +851,13 @@ register_owner(SpreadsheetName, OwnerPid) ->
     %% Register the owner globally
     case global:register_name({SpreadsheetName, owner}, OwnerPid) of
         yes ->
-            io:format("Owner ~p registered globally for spreadsheet ~p~n", [OwnerPid, SpreadsheetName]),
+            io:format("Owner ~p registered globally for spreadsheet ~p WHITOUT ACTIVATE MONITOR ~n", [OwnerPid, SpreadsheetName]),
             %% Monitor the owner process
             erlang:monitor(process, OwnerPid),
             ok;
+        no ->
+            io:format("Failed to register owner for spreadsheet ~p. Name already taken or another issue occurred.~n", [SpreadsheetName]),
+            {error, registration_failed};
         {error, Reason} ->
             io:format("Failed to register owner for spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {error, Reason}
