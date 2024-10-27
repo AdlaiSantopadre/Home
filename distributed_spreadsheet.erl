@@ -5,7 +5,7 @@
 -export([new/1, new/4,share/2, get/4, get/5, set/5, set/6,
         from_csv/1, to_csv/2, to_csv/3,info/1 ]).
 %% API functions added
--export([restore_owner/1, reassign_owner/2,stop/1]).
+-export([restore_owner/2, reassign_owner/2,stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -45,28 +45,30 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
     end;
 new(_, _, _, _) -> {error, invalid_parameters}.
 
-restore_owner(SpreadsheetName) ->
-    NewOwnerPid = self(),  % Assume the current process (new shell) is the new owner
+
+%restore_owner(SpreadsheetName) ->
+%            AccessPolicies_of_owner = [{{NewOwnerPid},write}],
+%           share(SpreadsheetName,AccessPolicies_of_owner),
+%             erlang:monitor(process, NewOwnerPid),
+%            {ok, NewOwnerPid};
+%        {error, Reason} ->
+  %          io:format("Failed to restore ownership: ~p~n", [Reason]),
+%            {error, Reason}
+%    end.
+
+
+%helper function to restore owner to shell PID value
+restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
     case global:re_register_name({SpreadsheetName, owner}, NewOwnerPid) of
-        ok ->
-            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, NewOwnerPid]),
-            erlang:monitor(process, NewOwnerPid),
-            {ok, NewOwnerPid};
+        yes ->
+            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, NewOwnerPid]),            
+            %share(SpreadsheetName, AccessPolicies_of_owner),
+            erlang:monitor(process, NewOwnerPid),           
+            NewOwnerPid;
         {error, Reason} ->
             io:format("Failed to restore ownership: ~p~n", [Reason]),
             {error, Reason}
     end.
-
-
-%% API function to restore the ownership of the spreadsheet if the current owner shell has crashed
-%restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
-%    case global:whereis_name(SpreadsheetName) of
-%        undefined ->
-%            {error, spreadsheet_not_found};
-%        Pid when is_pid(Pid) ->
-%            %% Use gen_server:call to send a restore_owner request
-%            gen_server:call(Pid, {restore_owner, NewOwnerPid})
-%    end.
 
 
 %% API function to reassign the owner of a spreadsheet
@@ -262,6 +264,7 @@ init(Args) ->
         % Case when restoring directly from a passed-in state (e.g., from_csv/1)
         #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} ->
             io:format("Restoring spreadsheet from provided state for ~p~n", [Name]),
+            %Restoring Owner
             {ok, #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified}};
         
         % Case when initializing a new spreadsheet (e.g., from new/1 or new/4)
@@ -271,9 +274,11 @@ init(Args) ->
             case file:open(FileName, [read, {encoding, utf8}]) of
                 {ok, File} ->
                     io:format("Restoring spreadsheet from CSV file for ~p~n", [FileName]),
+
                     %% Parse the CSV file and restore state
                     case parse_csv(File) of
                         {ok, RestoredState} ->
+                            io:format("Restored State = ~p~n", [RestoredState]),
                             file:close(File),
                             {ok, RestoredState};
                         {error, Reason} ->
@@ -340,6 +345,7 @@ handle_call({share, NewPolicies}, {CallerPid, Alias}, State = #spreadsheet{owner
             %% If not the owner, return an error
             {reply, {error, not_owner}, State}
     end;
+
 %% Handle restore_owner request
 handle_call({restore_owner, NewOwnerPid}, From, State = #spreadsheet{owner = Owner}) ->
     CallerPid = element(1, From),
@@ -517,7 +523,7 @@ handle_info({'DOWN', _Ref, process, OwnerPid, _Reason}, State) ->
     io:format("Owner process ~p has crashed. Waiting for a new shell to take ownership...~n", [OwnerPid]),
     %% The owner process is down, you can trigger manual recovery here
     %% 
-    restore_owner(my_dspreadsheet1),
+    %%restore_owner(my_spreadsheet),
     {noreply, State};
     
 
@@ -546,20 +552,37 @@ create_tab(N, M) ->
 
 % è implementata la List comprehension [Expression || Pattern <- List, Condition]
 update_policies(NewPolicies, ExistingPolicies) ->
-    % Step 1: Filter ExistingPolicies to exclude entries that are already in NewPolicies
+    %% Step 1: Filter ExistingPolicies to exclude entries that:
+    %% - Are already in NewPolicies
+    %% - Refer to a dead process if the entry uses a PID
+    %% - Refer to an invalid or unregistered name if the entry uses an atom
     FilteredExistingPolicies = [
         Policy || 
-        {Proc, _} = Policy <- ExistingPolicies, 
+        {Proc, _} = Policy <- ExistingPolicies,
         not (
+            %% Check if Proc is already in NewPolicies by key
             lists:keymember(Proc, 1, NewPolicies) orelse
-            is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> global:whereis_name(NewProc) == Proc end, NewPolicies) orelse
-            not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == global:whereis_name(Proc) end, NewPolicies)
+            
+            %% Check if Proc is a dead process if it’s a PID
+            (is_pid(Proc) andalso not erlang:is_process_alive(Proc)) orelse
+
+            %% Check if Proc is an invalid or unregistered name if it’s an atom
+            (is_atom(Proc) andalso global:whereis_name(Proc) == undefined) orelse
+            
+            %% Preserve entries where the new policy maps to the same PID
+            (is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> 
+                global:whereis_name(NewProc) == Proc end, NewPolicies)) orelse
+
+            %% Preserve entries where the new policy maps to the same registered name
+            (not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> 
+                NewProc == global:whereis_name(Proc) end, NewPolicies))
         )
     ],
 
-    % Step 2: Return the combined list of NewPolicies and FilteredExistingPolicies
+    %% Step 2: Return the combined list of NewPolicies and FilteredExistingPolicies
     FilteredExistingPolicies ++ NewPolicies.
-    %With this single list comprehension, you can effectively:
+
+    
 
  
 check_access(PidOrName, Policies, RequiredAccess) ->
@@ -709,16 +732,40 @@ format_cell(Cell) ->
 %% Parse the spreadsheet data and metadata from the CSV file
 parse_csv(File) ->
     % Read the first line (Spreadsheet Name)
-    case io:get_line(File, '') of
+    Line1 = io:get_line(File, ''),
+    %io:format("Line1 from CSV file: ~p~n", [Line1]),  %% Debugging to see the raw content
+    % Trim the line before checking
+    case string:trim(Line1, both, "\n") of
         "Spreadsheet Name: " ++ SpreadsheetNameLine ->
-            SpreadsheetName = string:trim(SpreadsheetNameLine, both, $\n),
+            SpreadsheetName = list_to_atom(string:trim(SpreadsheetNameLine, both, "\n")),
             io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
 
             % Read the owner line
             case io:get_line(File, '') of
                 "Owner: " ++ OwnerLine ->
-                    Owner = string:trim(OwnerLine, both, $\n),
-                    io:format("Extracted Owner PID: ~p~n", [Owner]),
+                    Owner = string:trim(OwnerLine, both, "\n"),
+                    io:format("Extracted Saved Owner PID: ~p~n", [Owner]),
+                    
+                    % Restore owner if needed (validate PID)
+                    ResolvedOwner = case is_pid(list_to_pid(Owner)) of
+                        true ->
+                            case erlang:is_process_alive(list_to_pid(Owner)) of   
+                                true -> 
+                                io:format("Il PID proprietario recuperato: ~p è attivo ~n", [Owner]),
+                                list_to_pid(Owner);  % Owner PID is valid
+                                false ->
+                                % Dynamically get the current node name
+                                CurrentNode = node(),
+                                % Fetch the shell PID from the current node
+                                NodeShellPid = rpc:call(CurrentNode, erlang, self, []),
+                                io:format("Owner PID is not alive; reassigning to shell PID on current node (~p): ~p~n", [CurrentNode, NodeShellPid]),
+                                restore_owner(SpreadsheetName, NodeShellPid)
+                                
+
+                            end;
+                        _ -> {error, invalid_owner_line}
+                    end,
+                    
                     % Read the access policies line
                     case io:get_line(File, '') of
                         "Access Policies: " ++ AccessPoliciesString ->
@@ -726,8 +773,9 @@ parse_csv(File) ->
                             case parse_term_from_string(AccessPoliciesString) of
                                 {ok, AccessPoliciesStringTerm} ->
                                     case parse_access_policies(AccessPoliciesStringTerm) of
-                                        {ok, AccessPolicies} ->
-                                            % Read the last modified line
+                                        {ok, AccessPoliciesRetrieved} ->
+                                            NewPolicies = [{ResolvedOwner, write}],
+                                            AccessPolicies = update_policies(NewPolicies, AccessPoliciesRetrieved),% Read the last modified line
                                             case io:get_line(File, '') of
                                                 "Last Modified: " ++ LastModifiedString ->
                                                     % Parse the last modified timestamp as a human-readable string
@@ -735,11 +783,12 @@ parse_csv(File) ->
                                                         {ok, LastModifiedTuple} ->
                                                             % Load the tabs (spreadsheet data)
                                                             Tabs = load_tabs_from_csv(File),
+                                                            io:format("Parsed Tabs: ~p~n", [Tabs]),  % Debugging output
                                                             % Return the constructed spreadsheet state
                                                             {ok, #spreadsheet{
-                                                                name = list_to_atom(SpreadsheetName),
+                                                                name = SpreadsheetName,
                                                                 tabs = Tabs,
-                                                                owner = list_to_pid(Owner),
+                                                                owner = ResolvedOwner,  % Use restored owner
                                                                 access_policies = AccessPolicies,
                                                                 last_modified = LastModifiedTuple
                                                             }};
@@ -765,7 +814,7 @@ load_tabs_from_csv(File) ->
         eof -> [];  % End of file, no more rows
         Line ->
             % Split each line by commas and parse the cells
-            Row = string:tokens(string:strip(Line, both, $\n), ","),
+            Row = string:tokens(string:trim(Line, both, "\n"), ","),
             [parse_row(Row) | load_tabs_from_csv(File)]
     end.
 %% Parse a row (list of cells) into a list of Erlang terms
@@ -774,6 +823,7 @@ parse_row(Row) ->
 
 %% Parse an individual cell, interpreting basic Erlang types
 parse_cell("undef") -> undef;
+parse_cell("") -> [];  % Empty string, treat as empty list
 parse_cell(Value) when is_number(Value) -> list_to_integer(Value);  % If it's a number, convert to integer
 parse_cell(Value) ->
     case catch list_to_atom(Value) of
@@ -837,15 +887,20 @@ write_last_modified_to_csv(File, LastModified) ->
 parse_datetime(String) ->
     case string:tokens(String, " :-") of
         [YearS, MonthS, DayS, HourS, MinuteS, SecondS] ->
-            {{list_to_integer(string:trim(YearS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(MonthS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(DayS, both, [$\s, $\n, $\t]))},
-             {list_to_integer(string:trim(HourS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(MinuteS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(SecondS, both, [$\s, $\n, $\t]))}};
+            %% Trim the tokens and convert them to integers
+            Year = list_to_integer(string:trim(YearS, both, "\n")),
+            Month = list_to_integer(string:trim(MonthS, both, "\n")),
+            Day = list_to_integer(string:trim(DayS, both, "\n")),
+            Hour = list_to_integer(string:trim(HourS, both, "\n")),
+            Minute = list_to_integer(string:trim(MinuteS, both, "\n")),
+            Second = list_to_integer(string:trim(SecondS, both, "\n")),
+
+            %% Return the parsed date and time wrapped in {ok, ...}
+            {ok, {{Year, Month, Day}, {Hour, Minute, Second}}};
         _ ->
             {error, invalid_datetime_format}
     end.
+
 %% Register the owner globally and monitor the owner process
 register_owner(SpreadsheetName, OwnerPid) ->
     %% Register the owner globally
