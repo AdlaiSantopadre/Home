@@ -438,6 +438,7 @@ handle_call({export_to_csv, Filename}, _From, State = #spreadsheet{name = Name, 
                 
             
             write_last_modified_to_csv(File, LastModified),
+            io:format("Tabs structure before exporting: ~p~n", [Tabs]),
             %% Write each tab (as rows) to the file in CSV format
             lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
             
@@ -708,10 +709,14 @@ is_basic_type(_) ->
 %% Save each tab (matrix) to CSV rows
 save_tab_to_csv(File, Tab) ->
     lists:foreach(fun(Row) ->
+        io:format("Processing Row: ~p~n", [Row]),  % Debugging line
         %% Format each row as a CSV line
-        Line = lists:map(fun(Cell) -> format_cell(Cell) end, Row),
+        Line = lists:map(fun(Cell) ->
+                io:format("Processing Cell: ~p~n", [Cell]),  % Debugging line
+                 format_cell(Cell) end, Row),
         %% Join cells with commas and write to file
         io:format(File, "~s~n", [string:join(Line, ",")])
+        
     end, Tab).
 
 %% Format individual cells for CSV output
@@ -803,7 +808,10 @@ load_tabs_from_csv(File) ->
         Line ->
             % Split each line by commas and parse the cells
             Row = string:tokens(string:trim(Line, both, "\n"), ","),
-            [parse_row(Row) | load_tabs_from_csv(File)]
+            io:format("Row: ~p~n", [Row]),  % Debug output
+            ParsedRow = parse_row(Row),
+            io:format("Parsed row: ~p~n", [ParsedRow]),  % Debug output
+            [ParsedRow | load_tabs_from_csv(File)]
     end.
 %% Parse a row (list of cells) into a list of Erlang terms
 parse_row(Row) ->

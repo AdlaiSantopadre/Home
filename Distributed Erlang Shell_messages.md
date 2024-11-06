@@ -91,3 +91,4 @@ distributed_spreadsheet:get(my_spreadsheet,2,2,2).
 
 distributed_spreadsheet:to_csv("my_spreadsheet.csv",my_spreadsheet,5000).
 
+distributed_spreadsheet:from_csv("my_spreadsheet.csv").
