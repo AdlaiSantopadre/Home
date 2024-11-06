@@ -31,15 +31,16 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
             %% Spreadsheet doesn't exist, create it
             LastModified = calendar:universal_time(),
             OwnerPid = self(),  % The shell that created the spreadsheet is the owner
-            Result = gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, OwnerPid, N, M, K, LastModified}, []),
+            gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, OwnerPid, N, M, K, LastModified}, []);
             
             %% Now register the owner globally and monitor the process
-            case Result of
-                {ok, Pid} ->
-                    register_owner(SpreadsheetName, OwnerPid),
-                    {ok, Pid};
-                Error -> Error 
-            end;
+            
+%            case Result of
+%                {ok, Pid} ->
+%                    register_owner(SpreadsheetName, OwnerPid),
+%                    {ok, Pid};
+%                Error -> Error 
+%            end;
         _ ->
             {error, already_exists}
     end;
@@ -57,18 +58,7 @@ new(_, _, _, _) -> {error, invalid_parameters}.
 %    end.
 
 
-%helper function to restore owner to shell PID value
-restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
-    case global:re_register_name({SpreadsheetName, owner}, NewOwnerPid) of
-        yes ->
-            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, NewOwnerPid]),            
-            %share(SpreadsheetName, AccessPolicies_of_owner),
-            erlang:monitor(process, NewOwnerPid),           
-            NewOwnerPid;
-        {error, Reason} ->
-            io:format("Failed to restore ownership: ~p~n", [Reason]),
-            {error, Reason}
-    end.
+
 
 
 %% API function to reassign the owner of a spreadsheet
@@ -115,8 +105,9 @@ from_csv(Filename) ->
     %% Step 1: Open the CSV file and parse metadata (including SpreadsheetName)
     case file:open(Filename, [read]) of
         {ok, File} ->
+            CurrentOwnerPid = self(),
             % Parse the spreadsheet metadata (including name) and tabs
-            case parse_csv(File) of
+            case parse_csv(File,CurrentOwnerPid) of
                 {ok, SpreadsheetState = #spreadsheet{name = SpreadsheetName}} ->
                     file:close(File),
 
@@ -276,7 +267,7 @@ init(Args) ->
                     io:format("Restoring spreadsheet from CSV file for ~p~n", [FileName]),
 
                     %% Parse the CSV file and restore state
-                    case parse_csv(File) of
+                    case parse_csv(File,Owner) of
                         {ok, RestoredState} ->
                             io:format("Restored State = ~p~n", [RestoredState]),
                             file:close(File),
@@ -292,6 +283,7 @@ init(Args) ->
                     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
                     Policies = [{Owner, write}],
                     State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
+                    register_owner(Name, Owner),
                     {ok, State}
             end;
 
@@ -730,7 +722,7 @@ format_cell(Cell) ->
         false -> "unsupported"
     end.
 %% Parse the spreadsheet data and metadata from the CSV file
-parse_csv(File) ->
+parse_csv(File,Owner) ->
     % Read the first line (Spreadsheet Name)
     Line1 = io:get_line(File, ''),
     %io:format("Line1 from CSV file: ~p~n", [Line1]),  %% Debugging to see the raw content
@@ -743,23 +735,19 @@ parse_csv(File) ->
             % Read the owner line
             case io:get_line(File, '') of
                 "Owner: " ++ OwnerLine ->
-                    Owner = string:trim(OwnerLine, both, "\n"),
-                    io:format("Extracted Saved Owner PID: ~p~n", [Owner]),
+                    OwnerSaved = string:trim(OwnerLine, both, "\n"),
+                    io:format("Extracted Saved Owner PID: ~p~n", [OwnerSaved]),
                     
                     % Restore owner if needed (validate PID)
-                    ResolvedOwner = case is_pid(list_to_pid(Owner)) of
+                    ResolvedOwner = case is_pid(list_to_pid(OwnerSaved)) of
                         true ->
-                            case erlang:is_process_alive(list_to_pid(Owner)) of   
+                            case erlang:is_process_alive(list_to_pid(OwnerSaved)) of   
                                 true -> 
-                                io:format("Il PID proprietario recuperato: ~p è attivo ~n", [Owner]),
-                                list_to_pid(Owner);  % Owner PID is valid
+                                io:format("Il PID proprietario recuperato: ~p è attivo ~n", [OwnerSaved]),
+                                list_to_pid(OwnerSaved);  % Owner PID is valid
                                 false ->
-                                % Dynamically get the current node name
-                                CurrentNode = node(),
-                                % Fetch the shell PID from the current node
-                                NodeShellPid = rpc:call(CurrentNode, erlang, self, []),
-                                io:format("Owner PID is not alive; reassigning to shell PID on current node (~p): ~p~n", [CurrentNode, NodeShellPid]),
-                                restore_owner(SpreadsheetName, NodeShellPid)
+                                
+                                restore_owner(SpreadsheetName,Owner)
                                 
 
                             end;
@@ -904,7 +892,7 @@ parse_datetime(String) ->
 %% Register the owner globally and monitor the owner process
 register_owner(SpreadsheetName, OwnerPid) ->
     %% Register the owner globally
-    case global:register_name({SpreadsheetName, owner}, OwnerPid) of
+    case global:register_name(SpreadsheetName, OwnerPid) of
         yes ->
             io:format("Owner ~p registered globally for spreadsheet ~p WHITOUT ACTIVATE MONITOR ~n", [OwnerPid, SpreadsheetName]),
             %% Monitor the owner process
@@ -917,7 +905,24 @@ register_owner(SpreadsheetName, OwnerPid) ->
             io:format("Failed to register owner for spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {error, Reason}
     end.
-
+%helper function to restore owner to shell PID value
+restore_owner(SpreadsheetName,Owner) ->
+    % Dynamically get the current node name
+    %CurrentNode = node(),
+    % Fetch the shell PID from the current node
+    %NodeShellPid = rpc:call(CurrentNode, erlang, self, []),
+    %io:format("Owner PID is not alive; reassigning to shell PID on current node (~p): ~p~n", [CurrentNode, NodeShellPid]),
+    case global:re_register_name({SpreadsheetName, owner}, Owner) of
+        yes ->
+            
+            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, Owner]),            
+            %share(SpreadsheetName, AccessPolicies_of_owner),
+            erlang:monitor(process, Owner),           
+            Owner;
+        {error, Reason} ->
+            io:format("Failed to restore ownership: ~p~n", [Reason]),
+            {error, Reason}
+    end.
 
 
 

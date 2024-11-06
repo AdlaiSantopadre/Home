@@ -50,7 +50,7 @@ distributed_spreadsheet:new(my_spreadsheet).
 observer:start().
 global:whereis_name(my_spreadsheet).
 distributed_spreadsheet:info(my_spreadsheet).
-distributed_spreadsheet:stop(my_spreadsheet). % without Name crash the gen_server
+distributed_spreadsheet:stop(my_spreadsheet). % without Name  the gen_server crashes
 
 ## creazione di due/tre processi distribuiti
 
@@ -68,7 +68,7 @@ AccessPolicies = [{user2, write}, {user3, read}].
 distributed_spreadsheet:share(my_spreadsheet,AccessPolicies).
 
 ## test reassign_owner
-%%
+
 %%NewOwnerPid = spawn(fun() -> receive after infinity -> ok end end).
 
 ## Test scrittura / lettura
