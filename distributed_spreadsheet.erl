@@ -6,7 +6,7 @@
         from_csv/1, to_csv/2, to_csv/3,info/1 ]).
 %% API functions added
 -export([restore_owner/2, reassign_owner/2,stop/1]).
-
+-export([load_tabs_with_markers/2]). %test
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -281,6 +281,7 @@ init(Args) ->
                     io:format("No CSV found. Starting new spreadsheet for ~p~n", [Name]),
                     %% Fresh initialization if CSV doesn't exist
                     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+                    io:format("Tabs : ~p~n", [Tabs]),
                     Policies = [{Owner, write}],
                     State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
                     register_owner(Name, Owner),
@@ -436,11 +437,15 @@ handle_call({export_to_csv, Filename}, _From, State = #spreadsheet{name = Name, 
             %% Convert access policies to a format suitable for CSV (PIDs to strings)
             write_access_policies_to_csv(File, AccessPolicies),
                 
-            
             write_last_modified_to_csv(File, LastModified),
+
             io:format("Tabs structure before exporting: ~p~n", [Tabs]),
             %% Write each tab (as rows) to the file in CSV format
-            lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
+            %% Write each tab with a marker for each
+            lists:foreach(fun({Tab, Index}) ->
+                io:format(File, "Tab: ~p~n", [Index]),
+                save_tab_to_csv(File, Tab)
+            end, lists:zip(Tabs, lists:seq(1, length(Tabs)))),
             
             %% Close the file
             file:close(File),
@@ -535,7 +540,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%% PRIVATE HELPER FUNCTIONS %%%
 
-%% Create a new tab with NxM cells
+%% Create a new tab with NxM cells (VEDI HINTS)
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
 
@@ -775,7 +780,8 @@ parse_csv(File,Owner) ->
                                                     case parse_datetime(LastModifiedString) of
                                                         {ok, LastModifiedTuple} ->
                                                             % Load the tabs (spreadsheet data)
-                                                            Tabs = load_tabs_from_csv(File),
+                                                            %Tabs = load_tabs_from_csv(File),
+                                                             {ok, Tabs} = load_tabs_with_markers(File, []),
                                                             io:format("Parsed Tabs: ~p~n", [Tabs]),  % Debugging output
                                                             % Return the constructed spreadsheet state
                                                             {ok, #spreadsheet{
@@ -800,20 +806,53 @@ parse_csv(File,Owner) ->
         _ -> {error, invalid_spreadsheet_name}
     end.
 
-
-%% Load the tabs (rows) from the CSV file
-load_tabs_from_csv(File) ->
+%load_tabs_from_csv(File) ->
+%    load_tabs_from_csv(File, []).
+load_tabs_with_markers(File, AccTabs) ->
     case io:get_line(File, '') of
-        eof -> [];  % End of file, no more rows
+        eof -> 
+            lists:reverse(AccTabs);  % End of file, return accumulated tabs
+        
         Line ->
-            % Split each line by commas and parse the cells
-            Row = string:tokens(string:trim(Line, both, "\n"), ","),
-            io:format("Row: ~p~n", [Row]),  % Debug output
-            ParsedRow = parse_row(Row),
-            io:format("Parsed row: ~p~n", [ParsedRow]),  % Debug output
-            [ParsedRow | load_tabs_from_csv(File)]
+             %% Trim whitespace and newlines before matching
+            TrimmedLine = string:trim(Line, both, "\n"),
+            case TrimmedLine of
+                "Tab: " ++ _ ->
+                    %% Found a tab marker, start loading the tab
+                    {TabRows, FileAfterTab} = load_single_tab_from_csv(File),
+                    load_tabs_with_markers(FileAfterTab, [TabRows | AccTabs]);
+                _ ->
+                    io:format("Unexpected line format: ~p~n", [TrimmedLine]),
+                    {error, invalid_tab_marker}
+            end
+           
     end.
+load_single_tab_from_csv(File) ->
+    load_rows(File, []).
+%% Helper function to load rows for a single tab
+load_rows(File, AccRows) ->
+    io:format("AccRows: ~p~n", [AccRows]),
+    case io:get_line(File, '') of
+        eof -> {lists:reverse(AccRows), File}; 
+        Line ->
+            TrimmedLine = string:trim(Line, both, "\n"),
+%       Line ->
+%            % Split each line by commas and parse the cells
+%            Row = string:tokens(string:trim(Line, both, "\n"), ","),
+%            io:format("Row: ~p~n", [Row]),  % Debug output
+%            ParsedRow = parse_row(Row),
+%            io:format("Parsed row: ~p~n", [ParsedRow]),  % Debug output
+%           [ParsedRow | load_single_tab_from_csv(File)]
+%    end.
 %% Parse a row (list of cells) into a list of Erlang terms
+        case TrimmedLine of
+                "Tab: " ++ _ -> 
+                    {lists:reverse(AccRows), File};  % Stop reading when next tab is encountered
+                _ ->
+                    Row = string:tokens(TrimmedLine, ","),
+                    load_rows(File, [Row | AccRows])
+            end
+        end.
 parse_row(Row) ->
     lists:map(fun parse_cell/1, Row).
 
@@ -899,7 +938,7 @@ parse_datetime(String) ->
 
 %% Register the owner globally and monitor the owner process
 register_owner(SpreadsheetName, OwnerPid) ->
-    %% Register the owner globally
+    io:format("Try to register OwnerPid ~p globally for spreadsheet ~p  ~n", [OwnerPid, SpreadsheetName]),%% Register the owner globally
     case global:register_name(SpreadsheetName, OwnerPid) of
         yes ->
             io:format("Owner ~p registered globally for spreadsheet ~p WHITOUT ACTIVATE MONITOR ~n", [OwnerPid, SpreadsheetName]),
@@ -907,7 +946,7 @@ register_owner(SpreadsheetName, OwnerPid) ->
             erlang:monitor(process, OwnerPid),
             ok;
         no ->
-            io:format("Failed to register owner for spreadsheet ~p. Name already taken or another issue occurred.~n", [SpreadsheetName]),
+            io:format("Failed to register owner for spreadsheet ~p. Name already taken by spreadsheet.~n", [SpreadsheetName]),
             {error, registration_failed};
         {error, Reason} ->
             io:format("Failed to register owner for spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
