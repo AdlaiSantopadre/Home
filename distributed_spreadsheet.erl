@@ -5,8 +5,8 @@
 -export([new/1, new/4,share/2, get/4, get/5, set/5, set/6,
         from_csv/1, to_csv/2, to_csv/3,info/1 ]).
 %% API functions added
--export([restore_owner/1, reassign_owner/2,stop/1]).
-
+-export([restore_owner/2, reassign_owner/2,stop/1]).
+-export([load_tabs_with_markers/2]). %test
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -29,44 +29,36 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             %% Spreadsheet doesn't exist, create it
-            LastModified = erlang:system_time(),
+            LastModified = calendar:universal_time(),
             OwnerPid = self(),  % The shell that created the spreadsheet is the owner
-            Result = gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, OwnerPid, N, M, K, LastModified}, []),
+            gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, OwnerPid, N, M, K, LastModified}, []);
             
             %% Now register the owner globally and monitor the process
-            case Result of
-                {ok, Pid} ->
-                    register_owner(SpreadsheetName, OwnerPid),
-                    {ok, Pid};
-                Error -> Error
-            end;
+            
+%            case Result of
+%                {ok, Pid} ->
+%                    register_owner(SpreadsheetName, OwnerPid),
+%                    {ok, Pid};
+%                Error -> Error 
+%            end;
         _ ->
             {error, already_exists}
     end;
 new(_, _, _, _) -> {error, invalid_parameters}.
 
-restore_owner(SpreadsheetName) ->
-    NewOwnerPid = self(),  % Assume the current process (new shell) is the new owner
-    case global:re_register_name({SpreadsheetName, owner}, NewOwnerPid) of
-        ok ->
-            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, NewOwnerPid]),
-            erlang:monitor(process, NewOwnerPid),
-            {ok, NewOwnerPid};
-        {error, Reason} ->
-            io:format("Failed to restore ownership: ~p~n", [Reason]),
-            {error, Reason}
-    end.
 
-
-%% API function to restore the ownership of the spreadsheet if the current owner shell has crashed
-%restore_owner(SpreadsheetName, NewOwnerPid) when is_pid(NewOwnerPid) ->
-%    case global:whereis_name(SpreadsheetName) of
-%        undefined ->
-%            {error, spreadsheet_not_found};
-%        Pid when is_pid(Pid) ->
-%            %% Use gen_server:call to send a restore_owner request
-%            gen_server:call(Pid, {restore_owner, NewOwnerPid})
+%restore_owner(SpreadsheetName) ->
+%            AccessPolicies_of_owner = [{{NewOwnerPid},write}],
+%           share(SpreadsheetName,AccessPolicies_of_owner),
+%             erlang:monitor(process, NewOwnerPid),
+%            {ok, NewOwnerPid};
+%        {error, Reason} ->
+  %          io:format("Failed to restore ownership: ~p~n", [Reason]),
+%            {error, Reason}
 %    end.
+
+
+
 
 
 %% API function to reassign the owner of a spreadsheet
@@ -113,8 +105,9 @@ from_csv(Filename) ->
     %% Step 1: Open the CSV file and parse metadata (including SpreadsheetName)
     case file:open(Filename, [read]) of
         {ok, File} ->
+            CurrentOwnerPid = self(),
             % Parse the spreadsheet metadata (including name) and tabs
-            case parse_csv(File) of
+            case parse_csv(File,CurrentOwnerPid) of
                 {ok, SpreadsheetState = #spreadsheet{name = SpreadsheetName}} ->
                     file:close(File),
 
@@ -262,31 +255,45 @@ init(Args) ->
         % Case when restoring directly from a passed-in state (e.g., from_csv/1)
         #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} ->
             io:format("Restoring spreadsheet from provided state for ~p~n", [Name]),
+            %Restoring Owner
             {ok, #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified}};
         
         % Case when initializing a new spreadsheet (e.g., from new/1 or new/4)
         {Name, Owner, N, M, K, LastModified} ->
-            %% Try to load from CSV, and if not found, fall back to fresh initialization
-            case file:read_file(Name ++ ".csv") of
-                {ok, _Data} ->
-                    io:format("Restoring spreadsheet from CSV file for ~p~n", [Name]),
-                    %% Parse the CSV file and restore state (you should implement parse_csv logic here)
-                    {ok, RestoredState} = parse_csv(Name ++ ".csv"),
-                    {ok, RestoredState};
+            FileName = atom_to_list(Name) ++ ".csv",  %% Convert atom to string
+            %% Try to open the CSV file, and if not found, fall back to fresh initialization
+            case file:open(FileName, [read, {encoding, utf8}]) of
+                {ok, File} ->
+                    io:format("Restoring spreadsheet from CSV file for ~p~n", [FileName]),
+
+                    %% Parse the CSV file and restore state
+                    case parse_csv(File,Owner) of
+                        {ok, RestoredState} ->
+                            io:format("Restored State = ~p~n", [RestoredState]),
+                            file:close(File),
+                            {ok, RestoredState};
+                        {error, Reason} ->
+                            file:close(File),
+                            io:format("Error parsing CSV file: ~p~n", [Reason]),
+                            {stop, {init_failed, Reason}}
+                    end;
                 {error, _Reason} ->
                     io:format("No CSV found. Starting new spreadsheet for ~p~n", [Name]),
                     %% Fresh initialization if CSV doesn't exist
                     Tabs = lists:map(fun(_) -> create_tab(N, M) end, lists:seq(1, K)),
+                    io:format("Tabs : ~p~n", [Tabs]),
                     Policies = [{Owner, write}],
                     State = #spreadsheet{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified},
+                    register_owner(Name, Owner),
                     {ok, State}
             end;
-        
+
         % Catch-all clause for invalid or unexpected arguments
         _ ->
             io:format("Invalid init arguments: ~p~n", [Args]),
             {stop, {init_failed, function_clause}, Args}
     end.
+
 
 %%%%%%%%%%% Handle synchronous calls
 
@@ -331,6 +338,7 @@ handle_call({share, NewPolicies}, {CallerPid, Alias}, State = #spreadsheet{owner
             %% If not the owner, return an error
             {reply, {error, not_owner}, State}
     end;
+
 %% Handle restore_owner request
 handle_call({restore_owner, NewOwnerPid}, From, State = #spreadsheet{owner = Owner}) ->
     CallerPid = element(1, From),
@@ -429,10 +437,15 @@ handle_call({export_to_csv, Filename}, _From, State = #spreadsheet{name = Name, 
             %% Convert access policies to a format suitable for CSV (PIDs to strings)
             write_access_policies_to_csv(File, AccessPolicies),
                 
-            
             write_last_modified_to_csv(File, LastModified),
+
+            io:format("Tabs structure before exporting: ~p~n", [Tabs]),
             %% Write each tab (as rows) to the file in CSV format
-            lists:foreach(fun(Tab) -> save_tab_to_csv(File, Tab) end, Tabs),
+            %% Write each tab with a marker for each
+            lists:foreach(fun({Tab, Index}) ->
+                io:format(File, "Tab: ~p~n", [Index]),
+                save_tab_to_csv(File, Tab)
+            end, lists:zip(Tabs, lists:seq(1, length(Tabs)))),
             
             %% Close the file
             file:close(File),
@@ -508,7 +521,7 @@ handle_info({'DOWN', _Ref, process, OwnerPid, _Reason}, State) ->
     io:format("Owner process ~p has crashed. Waiting for a new shell to take ownership...~n", [OwnerPid]),
     %% The owner process is down, you can trigger manual recovery here
     %% 
-    restore_owner(my_dspreadsheet1),
+    %%restore_owner(my_spreadsheet),
     {noreply, State};
     
 
@@ -527,7 +540,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%% PRIVATE HELPER FUNCTIONS %%%
 
-%% Create a new tab with NxM cells
+%% Create a new tab with NxM cells (VEDI HINTS)
 create_tab(N, M) ->
     lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N)).
 
@@ -537,74 +550,109 @@ create_tab(N, M) ->
 
 % è implementata la List comprehension [Expression || Pattern <- List, Condition]
 update_policies(NewPolicies, ExistingPolicies) ->
-    % Step 1: Filter ExistingPolicies to exclude entries that are already in NewPolicies
+    %% Step 1: Filter ExistingPolicies to exclude entries that:
+    %% - Are already in NewPolicies
+    %% - Refer to a dead process if the entry uses a PID
+    %% - Refer to an invalid or unregistered name if the entry uses an atom
     FilteredExistingPolicies = [
         Policy || 
-        {Proc, _} = Policy <- ExistingPolicies, 
+        {Proc, _} = Policy <- ExistingPolicies,
         not (
+            %% Check if Proc is already in NewPolicies by key
             lists:keymember(Proc, 1, NewPolicies) orelse
-            is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> global:whereis_name(NewProc) == Proc end, NewPolicies) orelse
-            not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == global:whereis_name(Proc) end, NewPolicies)
+            
+            %% Check if Proc is a dead process if it’s a PID
+            (is_pid(Proc) andalso not erlang:is_process_alive(Proc)) orelse
+
+            %% Check if Proc is an invalid or unregistered name if it’s an atom
+            (is_atom(Proc) andalso global:whereis_name(Proc) == undefined) orelse
+            
+            %% Preserve entries where the new policy maps to the same PID
+            (is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> 
+                global:whereis_name(NewProc) == Proc end, NewPolicies)) orelse
+
+            %% Preserve entries where the new policy maps to the same registered name
+            (not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> 
+                NewProc == global:whereis_name(Proc) end, NewPolicies))
         )
     ],
 
-    % Step 2: Return the combined list of NewPolicies and FilteredExistingPolicies
+    %% Step 2: Return the combined list of NewPolicies and FilteredExistingPolicies
     FilteredExistingPolicies ++ NewPolicies.
-    %With this single list comprehension, you can effectively:
+
+    
 
  
-% Check if the calling process has the required access (read/write)
-%% Check if the calling process has the required access (read/write)
 check_access(PidOrName, Policies, RequiredAccess) ->
     io:format("Checking if ~p process has ~p access in policies: ~p~n", [PidOrName, RequiredAccess, Policies]),
 
-    %% Resolve PidOrName to both PID and registered name if possible
-    ResolvedPid = case is_pid(PidOrName) of
-                     true -> PidOrName;
-                     false -> global:whereis_name(PidOrName)
-                  end,
+    %% Resolve the globally registered name (if PidOrName is a PID, find its name; otherwise, it's a name)
+    ResolvedNameOrPid = case is_pid(PidOrName) of
+        true -> find_registered_name_or_use_pid(PidOrName);  % Try to find the registered name, fallback to PID
+        false -> PidOrName  % It's already a name (e.g., user2)
+    end,
 
-    %% Check if the resolved PID or registered name has the 'write' access
-    case lists:keyfind(ResolvedPid, 1, Policies) of
-        {ResolvedPid, write} ->
-            io:format("Access granted with superior write access for PID: ~p~n", [ResolvedPid]),
-            ok;  %% If write access is found, return ok immediately
-        _ ->
-            %% Check for access by registered name (if available)
-            case find_registered_name(ResolvedPid) of
-                undefined -> check_read_access(PidOrName, Policies, RequiredAccess);
-                RegisteredName ->
-                    case lists:keyfind(RegisteredName, 1, Policies) of
-                        {RegisteredName, write} ->
-                            io:format("Access granted with superior write access for registered name: ~p~n", [RegisteredName]),
-                            ok;  %% If write access is found by name, return ok immediately
-                        _ -> check_read_access(RegisteredName, Policies, RequiredAccess)
-                    end
-            end
-    end.
+    io:format("Resolved to name or PID: ~p~n", [ResolvedNameOrPid]),
 
-%% Helper function to check for read access
-check_read_access(PidOrName, Policies, RequiredAccess) ->
-    case lists:keyfind(PidOrName, 1, Policies) of
-        {PidOrName, read} when RequiredAccess == read ->
-            io:format("Read access granted for ~p~n", [PidOrName]),
+    %% Check if the resolved name has the required access
+    case lists:keyfind(ResolvedNameOrPid, 1, Policies) of
+        {ResolvedNameOrPid, Access} when Access == RequiredAccess ->
+            %% Exact match found for the required access
+            io:format("Access granted with ~p access for ~p~n", [RequiredAccess, ResolvedNameOrPid]),
             ok;
-        _ -> {error, access_denied}
+        {ResolvedNameOrPid, write} when RequiredAccess == read ->
+            %% Process has superior write access, which implies read access
+            io:format("Superior write access granted for ~p (for read operation)~n", [ResolvedNameOrPid]),
+            ok;
+        %% Fallback: If the registered name is found but does not grant access, check the PID directly
+        _ when is_pid(PidOrName) ->
+            %% Now fallback to checking the original PID directly
+            io:format("Falling back to checking access for the original PID: ~p~n", [PidOrName]),
+            case lists:keyfind(PidOrName, 1, Policies) of
+                {PidOrName, Access} when Access == RequiredAccess ->
+                    io:format("Access granted with ~p access for PID: ~p~n", [RequiredAccess, PidOrName]),
+                    ok;
+                _ ->
+                    io:format("Access denied for PID: ~p~n", [PidOrName]),
+                    {error, access_denied}
+            end;
+
+        %% Fallback for names that are not found in the policies at all
+        _ ->
+            io:format("Access denied for ~p~n", [ResolvedNameOrPid]),
+            {error, access_denied}
     end.
 
-%Funzione ausiliaria di check_access
+
+    %Funzioni ausiliarie di check_access
+find_registered_name_or_use_pid(Pid) ->
+    io:format("Searching for registered name for PID ~p~n", [Pid]),
+    case find_registered_name(Pid) of
+        undefined -> Pid;  % If no registered name is found, use the PID
+        Name -> Name  % If a registered name is found, return it
+    end.
+
+
 %Trova il registered_name di un processo in base al suo PID
+%% Helper function to find the registered name for a PID
 find_registered_name(Pid) ->
-    lists:foldl(  %scorre tutta la lista registered() restituendo Name di Pid se esiste come Pid registrato
+    io:format("Searching for global registered name for PID ~p~n", [Pid]),
+    GlobalNames = global:registered_names(),  % Get all globally registered names
+    lists:foldl(
         fun(Name, Acc) ->
             case global:whereis_name(Name) of
-                Pid when Pid =/= undefined -> Name;  % Return the name if it matches the PID
+                Pid when Pid =/= undefined ->  % If the PID matches, return the global name
+                    io:format("Found global registered name ~p for PID ~p~n", [Name, Pid]),
+                    Name;
                 _ -> Acc  % Otherwise, keep searching
             end
         end,
-        undefined,
-        registered()
+        undefined,  % Initial accumulator
+        GlobalNames  % Iterate over all globally registered names
     ).
+
+
+
 %Funzione ausiliaria per rimpiazzare un elemento in una lista al valore di indice dato
 replace_nth(Index, NewVal, List) ->
     {Left, [_|Right]} = lists:split(Index-1, List),
@@ -666,10 +714,14 @@ is_basic_type(_) ->
 %% Save each tab (matrix) to CSV rows
 save_tab_to_csv(File, Tab) ->
     lists:foreach(fun(Row) ->
+        io:format("Processing Row: ~p~n", [Row]),  % Debugging line
         %% Format each row as a CSV line
-        Line = lists:map(fun(Cell) -> format_cell(Cell) end, Row),
+        Line = lists:map(fun(Cell) ->
+                io:format("Processing Cell: ~p~n", [Cell]),  % Debugging line
+                 format_cell(Cell) end, Row),
         %% Join cells with commas and write to file
         io:format(File, "~s~n", [string:join(Line, ",")])
+        
     end, Tab).
 
 %% Format individual cells for CSV output
@@ -680,46 +732,66 @@ format_cell(Cell) ->
         false -> "unsupported"
     end.
 %% Parse the spreadsheet data and metadata from the CSV file
-%% Parse the spreadsheet data and metadata from the CSV file
-%% Parse the spreadsheet data and metadata from the CSV file
-%% Parse the spreadsheet data and metadata from the CSV file
-parse_csv(File) ->
+parse_csv(File,Owner) ->
     % Read the first line (Spreadsheet Name)
-    case io:get_line(File, '') of
+    Line1 = io:get_line(File, ''),
+    %io:format("Line1 from CSV file: ~p~n", [Line1]),  %% Debugging to see the raw content
+    % Trim the line before checking
+    case string:trim(Line1, both, "\n") of
         "Spreadsheet Name: " ++ SpreadsheetNameLine ->
-            SpreadsheetName = string:strip(SpreadsheetNameLine, both, $\n),
+            SpreadsheetName = list_to_atom(string:trim(SpreadsheetNameLine, both, "\n")),
+            io:format("Extracted Spreadsheet Name: ~p~n", [SpreadsheetName]),
 
             % Read the owner line
             case io:get_line(File, '') of
                 "Owner: " ++ OwnerLine ->
-                    Owner = string:strip(OwnerLine, both, $\n),
+                    OwnerSaved = string:trim(OwnerLine, both, "\n"),
+                    io:format("Extracted Saved Owner PID: ~p~n", [OwnerSaved]),
+                    
+                    % Restore owner if needed (validate PID)
+                    ResolvedOwner = case is_pid(list_to_pid(OwnerSaved)) of
+                        true ->
+                            case erlang:is_process_alive(list_to_pid(OwnerSaved)) of   
+                                true -> 
+                                io:format("Il PID proprietario recuperato: ~p è attivo ~n", [OwnerSaved]),
+                                list_to_pid(OwnerSaved);  % Owner PID is valid
+                                false ->
+                                
+                                restore_owner(SpreadsheetName,Owner)
+                                
 
+                            end;
+                        _ -> {error, invalid_owner_line}
+                    end,
+                    
                     % Read the access policies line
                     case io:get_line(File, '') of
                         "Access Policies: " ++ AccessPoliciesString ->
+                            % Parse access policies as a valid Erlang term
                             case parse_term_from_string(AccessPoliciesString) of
                                 {ok, AccessPoliciesStringTerm} ->
                                     case parse_access_policies(AccessPoliciesStringTerm) of
-                                        {ok, AccessPolicies} ->
-
-                                            % Read the last modified line
+                                        {ok, AccessPoliciesRetrieved} ->
+                                            NewPolicies = [{ResolvedOwner, write}],
+                                            AccessPolicies = update_policies(NewPolicies, AccessPoliciesRetrieved),% Read the last modified line
                                             case io:get_line(File, '') of
                                                 "Last Modified: " ++ LastModifiedString ->
                                                     % Parse the last modified timestamp as a human-readable string
                                                     case parse_datetime(LastModifiedString) of
-                                                        {error, Reason} ->
-                                                            {error, Reason};
-                                                        LastModifiedTuple ->
+                                                        {ok, LastModifiedTuple} ->
                                                             % Load the tabs (spreadsheet data)
-                                                            Tabs = load_tabs_from_csv(File),
+                                                            %Tabs = load_tabs_from_csv(File),
+                                                             {ok, Tabs} = load_tabs_with_markers(File, []),
+                                                            io:format("Parsed Tabs: ~p~n", [Tabs]),  % Debugging output
                                                             % Return the constructed spreadsheet state
                                                             {ok, #spreadsheet{
-                                                                name = list_to_atom(SpreadsheetName),
+                                                                name = SpreadsheetName,
                                                                 tabs = Tabs,
-                                                                owner = list_to_pid(Owner),
+                                                                owner = ResolvedOwner,  % Use restored owner
                                                                 access_policies = AccessPolicies,
                                                                 last_modified = LastModifiedTuple
-                                                            }}
+                                                            }};
+                                                        {error, Reason} -> {error, Reason}
                                                     end;
                                                 _ -> {error, invalid_last_modified}
                                             end;
@@ -734,22 +806,59 @@ parse_csv(File) ->
         _ -> {error, invalid_spreadsheet_name}
     end.
 
-
-%% Load the tabs (rows) from the CSV file
-load_tabs_from_csv(File) ->
+%load_tabs_from_csv(File) ->
+%    load_tabs_from_csv(File, []).
+load_tabs_with_markers(File, AccTabs) ->
     case io:get_line(File, '') of
-        eof -> [];  % End of file, no more rows
+        eof -> 
+            lists:reverse(AccTabs);  % End of file, return accumulated tabs
+        
         Line ->
-            % Split each line by commas and parse the cells
-            Row = string:tokens(string:strip(Line, both, $\n), ","),
-            [parse_row(Row) | load_tabs_from_csv(File)]
+             %% Trim whitespace and newlines before matching
+            TrimmedLine = string:trim(Line, both, "\n"),
+            case TrimmedLine of
+                "Tab: " ++ _ ->
+                    %% Found a tab marker, start loading the tab
+                    {TabRows, FileAfterTab} = load_single_tab_from_csv(File),
+                    load_tabs_with_markers(FileAfterTab, [TabRows | AccTabs]);
+                _ ->
+                    io:format("Unexpected line format: ~p~n", [TrimmedLine]),
+                    {error, invalid_tab_marker}
+            end
+           
     end.
+load_single_tab_from_csv(File) ->
+    load_rows(File, []).
+%% Helper function to load rows for a single tab
+load_rows(File, AccRows) ->
+    io:format("AccRows: ~p~n", [AccRows]),
+    case io:get_line(File, '') of
+        eof -> {lists:reverse(AccRows), File}; 
+        Line ->
+            TrimmedLine = string:trim(Line, both, "\n"),
+%       Line ->
+%            % Split each line by commas and parse the cells
+%            Row = string:tokens(string:trim(Line, both, "\n"), ","),
+%            io:format("Row: ~p~n", [Row]),  % Debug output
+%            ParsedRow = parse_row(Row),
+%            io:format("Parsed row: ~p~n", [ParsedRow]),  % Debug output
+%           [ParsedRow | load_single_tab_from_csv(File)]
+%    end.
 %% Parse a row (list of cells) into a list of Erlang terms
+        case TrimmedLine of
+                "Tab: " ++ _ -> 
+                    {lists:reverse(AccRows), File};  % Stop reading when next tab is encountered
+                _ ->
+                    Row = string:tokens(TrimmedLine, ","),
+                    load_rows(File, [Row | AccRows])
+            end
+        end.
 parse_row(Row) ->
     lists:map(fun parse_cell/1, Row).
 
 %% Parse an individual cell, interpreting basic Erlang types
 parse_cell("undef") -> undef;
+parse_cell("") -> [];  % Empty string, treat as empty list
 parse_cell(Value) when is_number(Value) -> list_to_integer(Value);  % If it's a number, convert to integer
 parse_cell(Value) ->
     case catch list_to_atom(Value) of
@@ -813,29 +922,54 @@ write_last_modified_to_csv(File, LastModified) ->
 parse_datetime(String) ->
     case string:tokens(String, " :-") of
         [YearS, MonthS, DayS, HourS, MinuteS, SecondS] ->
-            {{list_to_integer(string:trim(YearS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(MonthS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(DayS, both, [$\s, $\n, $\t]))},
-             {list_to_integer(string:trim(HourS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(MinuteS, both, [$\s, $\n, $\t])),
-              list_to_integer(string:trim(SecondS, both, [$\s, $\n, $\t]))}};
+            %% Trim the tokens and convert them to integers
+            Year = list_to_integer(string:trim(YearS, both, "\n")),
+            Month = list_to_integer(string:trim(MonthS, both, "\n")),
+            Day = list_to_integer(string:trim(DayS, both, "\n")),
+            Hour = list_to_integer(string:trim(HourS, both, "\n")),
+            Minute = list_to_integer(string:trim(MinuteS, both, "\n")),
+            Second = list_to_integer(string:trim(SecondS, both, "\n")),
+
+            %% Return the parsed date and time wrapped in {ok, ...}
+            {ok, {{Year, Month, Day}, {Hour, Minute, Second}}};
         _ ->
             {error, invalid_datetime_format}
     end.
+
 %% Register the owner globally and monitor the owner process
 register_owner(SpreadsheetName, OwnerPid) ->
-    %% Register the owner globally
-    case global:register_name({SpreadsheetName, owner}, OwnerPid) of
-        ok ->
-            io:format("Owner ~p registered globally for spreadsheet ~p~n", [OwnerPid, SpreadsheetName]),
+    io:format("Try to register OwnerPid ~p globally for spreadsheet ~p  ~n", [OwnerPid, SpreadsheetName]),%% Register the owner globally
+    case global:register_name(SpreadsheetName, OwnerPid) of
+        yes ->
+            io:format("Owner ~p registered globally for spreadsheet ~p WHITOUT ACTIVATE MONITOR ~n", [OwnerPid, SpreadsheetName]),
             %% Monitor the owner process
             erlang:monitor(process, OwnerPid),
             ok;
+        no ->
+            io:format("Failed to register owner for spreadsheet ~p. Name already taken by spreadsheet.~n", [SpreadsheetName]),
+            {error, registration_failed};
         {error, Reason} ->
             io:format("Failed to register owner for spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {error, Reason}
     end.
-
+%helper function to restore owner to shell PID value
+restore_owner(SpreadsheetName,Owner) ->
+    % Dynamically get the current node name
+    %CurrentNode = node(),
+    % Fetch the shell PID from the current node
+    %NodeShellPid = rpc:call(CurrentNode, erlang, self, []),
+    %io:format("Owner PID is not alive; reassigning to shell PID on current node (~p): ~p~n", [CurrentNode, NodeShellPid]),
+    case global:re_register_name({SpreadsheetName, owner}, Owner) of
+        yes ->
+            
+            io:format("Ownership of spreadsheet ~p restored to ~p~n", [SpreadsheetName, Owner]),            
+            %share(SpreadsheetName, AccessPolicies_of_owner),
+            erlang:monitor(process, Owner),           
+            Owner;
+        {error, Reason} ->
+            io:format("Failed to restore ownership: ~p~n", [Reason]),
+            {error, Reason}
+    end.
 
 
 
