@@ -64,6 +64,11 @@ la lista su cui viene applicata la mappatura è quella generata da **lists:seq(1
 
 crea una nuova lista lunga M di elementi il cui valore è undef per cui tale funzione chiamata su lists:seq(1,N) produce attraverso lists:map una matrice come lista di liste.
 
+lists:map(fun(_) -> lists:duplicate(M, undef) end, lists:seq(1, N))
+
+Here, lists:map applies the function fun(_) -> lists:duplicate(M, undef) end N times, creating a new independent list of M undef elements each time.
+Advantage: Each row is a distinct list in memory, *so changes to one row won’t affect others.*
+
 ## Meccanismo di passaggio dei messaggi
 
 Ogni processo in Erlang ha un identificatore unico chiamato PID (Process Identifier). Per inviare un messaggio a un processo, è necessario conoscere il suo PID o avere un nome registrato a cui il PID è associato.
