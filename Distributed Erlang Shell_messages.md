@@ -103,7 +103,8 @@ C:\Users\campus.uniurb.it\Erlang\node2_data
 C:\Users\campus.uniurb.it\Erlang\node3_data 
 % Nota q(). chiude la shell
 
-%in ogni directory avvia un nodo
+%dalla shell **C:\Users\campus.uniurb.it\Erlang>** di windows
+%  avvia un nodoin ogni directory
 erl -sname node1@DESKTOPQ2A2FL7 -setcookie mycookie -mnesia dir '"C:/Users/campus.uniurb.it/Erlang/node1_data"'
 
 erl -sname node2@DESKTOPQ2A2FL7 -setcookie mycookie -mnesia dir '"C:/Users/campus.uniurb.it/Erlang/node2_data"'
@@ -127,6 +128,7 @@ mnesia_setup:setup_mnesia(Nodes).
 
 % nel nodo 1 , 2 e 3
 mnesia:start().
+
 %nei vari nodi
 net_adm:ping('node1@DESKTOPQ2A2FL7').
 net_adm:ping('node2@DESKTOPQ2A2FL7').
