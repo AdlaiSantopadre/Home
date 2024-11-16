@@ -96,15 +96,26 @@ distributed_spreadsheet:from_csv("my_spreadsheet.csv").
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ## AVVIO di un Cluster di  (3) Nodi con Directory di Mnesia separate
-%lavora su tre directory separate
+
+%crea tre directory separate
 C:\Users\campus.uniurb.it\Erlang\node1_data
 C:\Users\campus.uniurb.it\Erlang\node2_data
 C:\Users\campus.uniurb.it\Erlang\node3_data 
 % Nota q(). chiude la shell
 
-erl -sname node1@DESKTOPQ2A2FL7 -setcookie mycookie
-erl -sname node2@DESKTOPQ2A2FL7 -setcookie mycookie
-erl -sname node3@DESKTOPQ2A2FL7 -setcookie mycookie
+%in ogni directory avvia un nodo
+erl -sname node1@DESKTOPQ2A2FL7 -setcookie mycookie -mnesia dir '"C:/Users/campus.uniurb.it/Erlang/node1_data"'
+
+erl -sname node2@DESKTOPQ2A2FL7 -setcookie mycookie -mnesia dir '"C:/Users/campus.uniurb.it/Erlang/node2_data"'
+
+erl -sname node3@DESKTOPQ2A2FL7 -setcookie mycookie -mnesia dir '"C:/Users/campus.uniurb.it/Erlang/node3_data"'
+
+## Comandi per resettare Mnesia
+
+mnesia:stop().
+mnesia:delete_schema([node()]).
+mnesia:delete_schema(['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7']).
+init:stop().
 
 ## Creazione dello Schema Mnesia
 
