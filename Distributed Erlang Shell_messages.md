@@ -92,3 +92,17 @@ distributed_spreadsheet:get(my_spreadsheet,2,2,2).
 distributed_spreadsheet:to_csv("my_spreadsheet.csv",my_spreadsheet,5000).
 
 distributed_spreadsheet:from_csv("my_spreadsheet.csv").
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+## AVVIO di un Cluster di  (3) Nodi
+
+% aprire (tre) terminali separati e su ogni shell rispettivamente avviare  
+
+erl -name node1@DESKTOPQ2A2FL7 -setcookie mycookie
+erl -name node2@DESKTOPQ2A2FL7 -setcookie mycookie
+erl -name node3@DESKTOPQ2A2FL7 -setcookie mycookie
+
+## Creazione dello Schema Mnesia
+
+
