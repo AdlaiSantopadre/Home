@@ -23,6 +23,7 @@ init:stop().
 
 ## Controlla la comunicazione tra i nodi
 
+observer:start().
 
 net_adm:ping('node1@DESKTOPQ2A2FL7').
 net_adm:ping('node2@DESKTOPQ2A2FL7').
