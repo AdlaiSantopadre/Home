@@ -1,4 +1,4 @@
--module(spreadsheet).
+-module(mnesia_spreadsheet). 
 -export([new/4, get/5, set/6, share/2]).
 
 %% Funzione per creare un nuovo spreadsheet con N righe, M colonne e K schede
