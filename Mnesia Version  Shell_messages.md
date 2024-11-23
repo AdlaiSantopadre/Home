@@ -43,3 +43,10 @@ mnesia_setup:setup_mnesia(Nodes, Dirs).
 % per ottenere l`elenco dei nodi connessi esplicitamente a formare  un cluster
 mnesia:system_info(running_db_nodes).
 mnesia:system_info(schema). %verifica se lo schema è attivo in un nodo
+
+## Creare uno spreadsheet distribuito
+
+c(mnesia_spreadsheet).
+mnesia_spreadsheet:new(onespreadsheet).
+
+c(mnesia_spreadsheet).

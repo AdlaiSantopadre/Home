@@ -1,7 +1,16 @@
 -module(mnesia_spreadsheet). 
--export([new/4, get/5, set/6, share/2]).
-
+-export([new/4,new/1, get/5, set/6, share/2]).
+%% Valori di default per righe, colonne e schede introdotti mediante definizione di MACRO
+% -define(MACRO_NAME, ReplacementValue).
+-define(DEFAULT_ROWS, 5).
+-define(DEFAULT_COLS, 10).
+-define(DEFAULT_TABS, 3).
 %% Funzione per creare un nuovo spreadsheet con N righe, M colonne e K schede
+%% Funzione per creare un nuovo spreadsheet con valori di default
+new(SpreadsheetName) ->
+    new(SpreadsheetName, ?DEFAULT_ROWS, ?DEFAULT_COLS, ?DEFAULT_TABS).
+
+
 new(SpreadsheetName, N, M, K) ->
     mnesia:transaction(fun() ->
         case mnesia:read({spreadsheet_data, SpreadsheetName}) of
@@ -15,7 +24,7 @@ init_spreadsheet(Name, N, M, K) ->
     lists:foreach(fun(Tab) ->
         lists:foreach(fun(Row) ->
             lists:foreach(fun(Col) ->
-                mnesia:write({spreadsheet_data, {Name, Tab, Row, Col}, null})
+                mnesia:write({spreadsheet_data, Name, Tab, Row, Col, undef})
             end, lists:seq(1, M))
         end, lists:seq(1, N))
     end, lists:seq(1, K)),
