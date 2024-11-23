@@ -4,6 +4,7 @@
 • La consegna avviene una settimana prima della data dell’esame
 
 # Distributed Spreadsheet
+
 • Un foglio di calcolo è una “matrice” di NxM celle
 • Una cella può contenere 
 • qualsiasi tipo di dato primitivo

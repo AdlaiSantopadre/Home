@@ -5,9 +5,9 @@ REM Imposta la directory di base
 set BASE_DIR=C:\Users\campus.uniurb.it\Erlang
 
 REM Crea le directory per i nodi
-mkdir "%BASE_DIR%\node1"
-mkdir "%BASE_DIR%\node2"
-mkdir "%BASE_DIR%\node3"
+mkdir "%BASE_DIR%\node1_data"
+mkdir "%BASE_DIR%\node2_data"
+mkdir "%BASE_DIR%\node3_data"
 
 REM Imposta il cookie per i nodi
 set COOKIE=mycookie
