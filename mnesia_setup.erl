@@ -1,4 +1,13 @@
--module(mnesia_setup). %Windows SO con shortNames
+-module(mnesia_setup).
+ % v. 2.0 Windows SO con shortNames
+-record(spreadsheet_data, {
+    name,                   % Nome univoco del foglio di calcolo
+    tab,                    % indice di accesso alla tabella 
+    row,                    %indice di accesso alla riga
+    col,                    %indice di accesso alla colonna
+    value                   %valore della cella
+    
+}).
 -export([setup_mnesia/2, create_tables/1]).
 
 setup_mnesia(Nodes, Dirs) ->
@@ -35,13 +44,21 @@ setup_mnesia(Nodes, Dirs) ->
 create_tables(Nodes) ->
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
-        {attributes, [name, tab, row, col, value]},
-        {disc_copies, Nodes}
+        {attributes, record_info(fields, spreadsheet_data)},
+        {disc_copies, Nodes},
+        {index, [tab, row, col]} % Indici per ottimizzare le query
     ]),
     %% Creare la tabella per le politiche di accesso con replica
     mnesia:create_table(access_policies, [
         {attributes, [spreadsheet_name, proc, access]},
         {disc_copies, Nodes}
     ]),
+     % Tabella per i proprietari degli spreadsheet
+    mnesia:create_table(spreadsheet_owners, [
+        {attributes, [spreadsheet_name, owner]},
+        {disc_copies, Nodes}
+    ]),
+    %% Aggiungere indici per migliorare le query
+
     ok.
 

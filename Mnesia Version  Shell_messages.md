@@ -16,9 +16,12 @@ erl -sname node3 -setcookie mycookie
 
 ## Comandi per Eliminare-resettare Mnesia
 
+% sul nodo
 mnesia:stop().
 mnesia:delete_schema([node()]).
-q().  
+q().
+% su tutti i nodi
+mnesia:stop().
 mnesia:delete_schema(['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7']).
 init:stop().
 
@@ -42,11 +45,10 @@ mnesia_setup:setup_mnesia(Nodes, Dirs).
 
 % per ottenere l`elenco dei nodi connessi esplicitamente a formare  un cluster
 mnesia:system_info(running_db_nodes).
-mnesia:system_info(schema). %verifica se lo schema è attivo in un nodo
+mnesia:system_info(). 
 
 ## Creare uno spreadsheet distribuito
 
 c(mnesia_spreadsheet).
-mnesia_spreadsheet:new(onespreadsheet).
+mnesia_spreadsheet:new(spreadsheet_2).
 
-c(mnesia_spreadsheet).

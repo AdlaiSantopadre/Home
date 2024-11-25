@@ -1,36 +1,56 @@
--module(mnesia_spreadsheet). 
--export([new/4,new/1, get/5, set/6, share/2]).
+-module(mnesia_spreadsheet).
+-record(spreadsheet_data, {
+    name,                   % Nome univoco del foglio di calcolo
+    tab,                    % indice di accesso alla tabella 
+    row,                    %indice di accesso alla riga
+    col,                    %indice di accesso alla colonna
+    value                   %valore della cella
+    
+}).
+-export([new/4, new/1, get/5, set/6, share/2,init/4]).
 %% Valori di default per righe, colonne e schede introdotti mediante definizione di MACRO
 % -define(MACRO_NAME, ReplacementValue).
 -define(DEFAULT_ROWS, 5).
 -define(DEFAULT_COLS, 10).
 -define(DEFAULT_TABS, 3).
-%% Funzione per creare un nuovo spreadsheet con N righe, M colonne e K schede
+
 %% Funzione per creare un nuovo spreadsheet con valori di default
 new(SpreadsheetName) ->
     new(SpreadsheetName, ?DEFAULT_ROWS, ?DEFAULT_COLS, ?DEFAULT_TABS).
 
+%% Funzione per creare un nuovo spreadsheet con N righe, M colonne e K schede
+
 
 new(SpreadsheetName, N, M, K) ->
     mnesia:transaction(fun() ->
-        case mnesia:read({spreadsheet_data, SpreadsheetName}) of
+        case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
             [] -> 
-                init_spreadsheet(SpreadsheetName, N, M, K);
+                % Inserisce l'owner dello spreadsheet
+                %PROSSIMAMENTE REGISTRARE IL PID E SCRIVERE IL global name
+                mnesia:write({spreadsheet_owners, SpreadsheetName, self()}),
+                init(SpreadsheetName, N, M, K);
             _ -> {error, already_exists}
         end
     end).
+init(Name, N, M, K) ->
+    % Genera tutti i record per lo spreadsheet
+    Records = generate_records(Name, N, M, K),
+    io:format("Generati ~p record per lo spreadsheet ~p~n", [length(Records), Name]),
+    % Inserisce tutti i record con una transazione Mnesia
+    mnesia:transaction(fun() ->
+        
+        lists:foreach(fun(Record) ->io:format("Inserisco record: ~p~n", [Record]), 
+        mnesia:write(Record) end, Records)
+    end),
+    {ok, Name}.    
+generate_records(Name, N, M, K) ->
+    % Genera una lista di tutti i record #spreadsheet_data
+    [#spreadsheet_data{name = Name, tab = Tab, row = Row, col = Col, value = undef}
+     || Tab <- lists:seq(1, K),
+        Row <- lists:seq(1, N),
+        Col <- lists:seq(1, M)].    
 
-init_spreadsheet(Name, N, M, K) ->
-    lists:foreach(fun(Tab) ->
-        lists:foreach(fun(Row) ->
-            lists:foreach(fun(Col) ->
-                mnesia:write({spreadsheet_data, Name, Tab, Row, Col, undef})
-            end, lists:seq(1, M))
-        end, lists:seq(1, N))
-    end, lists:seq(1, K)),
-    {ok, Name}.
-
-%% Funzione get/6 per leggere una cella
+%% Funzione get/5 per leggere una cella
 get(Spreadsheet, Tab, I, J, Timeout) ->
     Fun = fun() ->
         case mnesia:read({spreadsheet_data, {Spreadsheet, Tab, I, J}}) of
