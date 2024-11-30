@@ -51,7 +51,7 @@ get(Spreadsheet, Tab, I, J, Timeout) ->
     Fun = fun() ->
         case mnesia:read({spreadsheet_data, {Spreadsheet, Tab, I, J}}) of
             [] -> undef;
-            [{_, _, _, _, Value}] -> Value
+            [#spreadsheet_data{value = Val}] -> Val
         end
     end,
     case mnesia:transaction(Fun, Timeout) of
@@ -59,27 +59,21 @@ get(Spreadsheet, Tab, I, J, Timeout) ->
         {aborted, _Reason} -> timeout
     end.
 
-%% Funzione set/6 per scrivere una cella
+%% Funzione set/6 per scrivere una cella passando attraverso il gateway
 set(Spreadsheet, Tab, I, J, Value, Timeout) ->
-    Fun = fun() ->
-        mnesia:write({spreadsheet_data, {Spreadsheet, Tab, I, J}, Value})
-    end,
-    case mnesia:transaction(Fun, Timeout) of
-        {atomic, ok} -> true;
-        {aborted, _Reason} -> timeout
+    case spreadsheet_gateway:validate_access(Spreadsheet, self(), write) of
+        ok ->
+            Fun = fun() ->
+                mnesia:write(#spreadsheet_data{name = Spreadsheet, tab = Tab, row = I, col = J, value = Value})
+            end,
+            case mnesia:transaction(Fun, Timeout) of
+                {atomic, ok} -> true;
+                {aborted, _Reason} -> timeout
+            end;
+        Error -> Error
     end.
+
 
 %% Funzione share/2 per gestire le politiche di accesso
 share(Spreadsheet, AccessPolicies) ->
-    Fun = fun() ->
-        % Rimuovi le vecchie politiche
-        mnesia:delete({access_policies, Spreadsheet}),
-        % Inserisci le nuove politiche
-        lists:foreach(fun({Proc, Access}) ->
-            mnesia:write({access_policies, {Spreadsheet, Proc, Access}})
-        end, AccessPolicies)
-    end,
-    case mnesia:transaction(Fun) of
-        {atomic, ok} -> ok;
-        {aborted, Reason} -> {error, Reason}
-    end.
+    spreadsheet_gateway:modify_access(Spreadsheet, AccessPolicies).

@@ -58,4 +58,16 @@ observer:start().
 c(mnesia_spreadsheet).
 mnesia_spreadsheet:new(spreadsheet_2).
 
-%Consulta le tabelle su observer->Applications->Mnesia->Table viewe
+%Consulta le tabelle su observer->Applications->Mnesia->Table viewer
+
+## TEST DELLE API
+
+### da node 1
+
+%%avviare il gateway
+c(spreadsheet_gateway).
+spreadsheet_gateway:start_link().
+
+%lettura di una cella
+mnesia_spreadsheet:get(spreadsheet_2, 2, 1, 1, 5000).
+
