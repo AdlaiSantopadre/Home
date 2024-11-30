@@ -1,13 +1,8 @@
 -module(mnesia_spreadsheet).
--record(spreadsheet_data, {
-    name,                   % Nome univoco del foglio di calcolo
-    tab,                    % indice di accesso alla tabella 
-    row,                    %indice di accesso alla riga
-    col,                    %indice di accesso alla colonna
-    value                   %valore della cella
-    
-}).
+
 -export([new/4, new/1, get/5, set/6, share/2,init/4]).
+-include("spreadsheet_data.hrl").
+
 %% Valori di default per righe, colonne e schede introdotti mediante definizione di MACRO
 % -define(MACRO_NAME, ReplacementValue).
 -define(DEFAULT_ROWS, 5).
@@ -22,6 +17,7 @@ new(SpreadsheetName) ->
 
 
 new(SpreadsheetName, N, M, K) ->
+    
     mnesia:transaction(fun() ->
         case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
             [] -> 

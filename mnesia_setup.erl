@@ -1,15 +1,7 @@
--module(mnesia_setup).
- % v. 2.0 Windows SO con shortNames
--record(spreadsheet_data, {
-    name,                   % Nome univoco del foglio di calcolo
-    tab,                    % indice di accesso alla tabella 
-    row,                    %indice di accesso alla riga
-    col,                    %indice di accesso alla colonna
-    value                   %valore della cella
-    
-}).
--export([setup_mnesia/2, create_tables/1]).
+-module(mnesia_setup). % v. 2.1 Windows SO con shortNames 
 
+-export([setup_mnesia/2, create_tables/1,mnesia_start/1]).
+-include("spreadsheet_data.hrl").
 setup_mnesia(Nodes, Dirs) ->
     %% Imposta la directory di Mnesia per ogni nodo
     lists:zipwith(fun(Node, Dir) -> 
@@ -45,6 +37,7 @@ create_tables(Nodes) ->
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
         {attributes, record_info(fields, spreadsheet_data)},
+        {type, bag}, 
         {disc_copies, Nodes},
         {index, [tab, row, col]} % Indici per ottimizzare le query
     ]),
@@ -61,4 +54,11 @@ create_tables(Nodes) ->
     %% Aggiungere indici per migliorare le query
 
     ok.
+mnesia_start(Nodes) ->
+    lists:foreach(fun(Node) ->
+            rpc:call(Node, mnesia, start, [])
+        end, Nodes),
+    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners], 20000).
+
+    
 
