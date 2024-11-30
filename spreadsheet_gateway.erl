@@ -1,18 +1,19 @@
 -module(spreadsheet_gateway).
 -behaviour(gen_server).
 
--export([start_link/0, validate_access/3, modify_access/2]).
+-export([start_link/0, validate_access/3, modify_access/2,stop/1]).
 %% gen_server callbacks
--export([init/1, handle_call/3,handle_cast/2]).
+-export([init/1, handle_call/3,handle_cast/2,terminate/2]).
 
 % Avvio del gen_server
 start_link() ->
-    gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, spreadsheet_gateway}, ?MODULE, [], []).
 
 % Inizializzazione
 init([]) ->
     {ok, #{}}.
-
+stop(SpreadsheetName) ->
+    gen_server:cast({global, SpreadsheetName}, stop).
 % Validazione dell'accesso
 validate_access(SpreadsheetName, Proc, Action) ->
     gen_server:call(?MODULE, {validate_access, SpreadsheetName, Proc, Action}).
@@ -41,7 +42,10 @@ handle_call({modify_access, SpreadsheetName, AccessPolicies}, _From, State) ->
 handle_cast(stop, State) ->
     io:format("Stopping the gen_server process~n"),
     {stop, normal, State}.
-    
+%% Clean up when the process stops
+terminate(_Reason, _State) ->
+    ok.
+
 % Controlla se il processo è il proprietario dello spreadsheet
 check_owner(SpreadsheetName, Proc) ->
     case mnesia:transaction(fun() ->

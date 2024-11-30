@@ -64,10 +64,13 @@ mnesia_spreadsheet:new(spreadsheet_2).
 
 ### da node 1
 
-%%avviare il gateway
-c(spreadsheet_gateway).
-spreadsheet_gateway:start_link().
-
 %lettura di una cella
 mnesia_spreadsheet:get(spreadsheet_2, 2, 1, 1, 5000).
 
+## Test del Gateway
+
+c(spreadsheet_gateway).
+%%avviare il gateway
+spreadsheet_gateway:start_link().
+%% supponendo di aver inizializzato spreadsheet_2
+spreadsheet_gateway:modify_access(spreadsheet_2, [{some_proc, read}, {self(), write}]).
