@@ -21,10 +21,13 @@ new(SpreadsheetName, N, M, K) ->
     mnesia:transaction(fun() ->
         case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
             [] -> 
-                % Inserisce l'owner dello spreadsheet
-                %PROSSIMAMENTE REGISTRARE IL PID E SCRIVERE IL global name
+                init(SpreadsheetName, N, M, K),
+                % Registra il nome globale per il processo creatore
+                global:register_name({spreadsheet_owner, SpreadsheetName}, self()),
+                
+                % Salva il nome globale nella tabella spreadsheet_owners
                 mnesia:write({spreadsheet_owners, SpreadsheetName, self()}),
-                init(SpreadsheetName, N, M, K);
+                {ok, SpreadsheetName};
             _ -> {error, already_exists}
         end
     end).

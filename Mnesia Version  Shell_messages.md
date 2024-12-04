@@ -55,22 +55,34 @@ observer:start().
 
 ## Creare uno spreadsheet distribuito
 
-c(mnesia_spreadsheet).
-mnesia_spreadsheet:new(spreadsheet_2).
-
+c(distributed_spreadsheet).
+distributed_spreadsheet:new(my_spreadsheet).
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
+
+## Utilità che cancella tutti i dati di una tabella
+
+c(delete_spreadsheet).
+%% verifica che sia necessario rd(spreadsheet_data, {name, tab, row, col, value}).
+delete_spreadsheet:delete_spreadsheet(my_spreadsheet_2).
+%% alla fine  cancella il nome globale registrato !!
+
 
 ## TEST DELLE API
 
-### da node 1
-
-%lettura di una cella
-mnesia_spreadsheet:get(spreadsheet_2, 2, 1, 1, 5000).
 
 ## Test del Gateway
+
+
+
 
 c(spreadsheet_gateway).
 %%avviare il gateway
 spreadsheet_gateway:start_link().
+%%controlla il processo se necessario
+global:registered_names().
+global:whereis_name(spreadsheet_gateway).
+process_info(global:whereis_name(spreadsheet_gateway)).
 %% supponendo di aver inizializzato spreadsheet_2
-spreadsheet_gateway:modify_access(spreadsheet_2, [{some_proc, read}, {self(), write}]).
+AccessPolicies = [{self(), write}, {some_other_proc, read}].
+
+spreadsheet_gateway:modify_access(spreadsheet_2, [{self(), write}]).
