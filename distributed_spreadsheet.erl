@@ -73,11 +73,11 @@ init(Args) ->
             % Inserisce tutti i record con una transazione Mnesia
             case mnesia:transaction(fun() ->
         
-                lists:foreach(fun(Record) ->
-                io:format("Inserisco record: ~p~n", [Record]), 
-                mnesia:write(Record) end, Records),
+                lists:foreach(fun(Record) -> io:format("Inserisco record: ~p~n", [Record]),
+                                             mnesia:write(Record) end, Records),
+                
                 %% Save owner information
-                mnesia:write({spreadsheet_owners, SpreadsheetName, self()})
+                mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
             end) of
                 {atomic, ok} ->
                     %% Register owner globally
