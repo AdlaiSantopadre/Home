@@ -1,7 +1,9 @@
 -module(mnesia_setup). % v. 3.1 Windows SO con shortNames  + distribuzione del codice compilato
 
 -export([setup_mnesia/2, create_tables/1, mnesia_start/1, distribute_modules/2]).
+
 -include("spreadsheet_data.hrl").
+-include("spreadsheet_owners.hrl").
 setup_mnesia(Nodes, Dirs) ->
     %% Imposta la directory di Mnesia per ogni nodo
     lists:zipwith(fun(Node, Dir) -> 
@@ -69,7 +71,7 @@ create_tables(Nodes) ->
         ]),
     %% Tabella per i proprietari degli spreadsheet
         mnesia:create_table(spreadsheet_owners, [
-            {attributes, [spreadsheet_name, owner]},
+            {attributes, record_info(fields,spreadsheet_owners)},
             {disc_copies, Nodes}
         ]),
     %% Aggiungere indici per migliorare le query
