@@ -8,6 +8,7 @@
 
 %% Include the record definition
 -include("spreadsheet_data.hrl").
+-include("spreadsheet_owners.hrl").
 
 %%% API FUNCTIONS %%%
 

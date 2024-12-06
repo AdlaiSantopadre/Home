@@ -2,6 +2,7 @@
 
 -export([new/4, new/1, get/5, set/6, share/2,init/4]).
 -include("spreadsheet_data.hrl").
+-include("spreadsheet_owners.hrl").
 
 %% Valori di default per righe, colonne e schede introdotti mediante definizione di MACRO
 % -define(MACRO_NAME, ReplacementValue).
