@@ -89,10 +89,11 @@ init(Args) ->
                     
 %                    case register_owner(SpreadsheetName, OwnerPid) of
 %                         ok ->
-                            io:format("Spreadsheet ~p initialized successfully.~n", [SpreadsheetName]),
-                            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}},
                             %% Monitor the owner process
-                            erlang:monitor(process, OwnerPid);
+                            erlang:monitor(process, OwnerPid),
+                            io:format("Spreadsheet ~p initialized successfully.~n", [SpreadsheetName]),
+                            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
+                            
 %                        {error, Reason} ->
 %                            io:format("Failed to register owner: ~p~n", [Reason]),
 %                            {stop, Reason}

@@ -15,8 +15,10 @@ mnesia:delete_schema(['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DES
 init:stop().
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-e avviare 
+e avviare
 erl -sname node_test -setcookie mycookie
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %in alternativa crea tre directory separate
 C:\Users\campus.uniurb.it\Erlang\node1_data
@@ -73,15 +75,15 @@ delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 
 ## Test del gen_server
 
-self().
-c(distribute_spreadsheet).
+%%dal nodo test
+c(distributed_spreadsheet).
 Nodes = ['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet].
 mnesia_setup:distribute_modules(Nodes, Modules).
 
 %% individua la path del codice .beam caricato
 
-
+self().
 %% avviare il gen_server con un nome = novedicembre globale che mi determina 
 %% global:registered_names().     %%[{novedicembre,owner},novedicembre]
 distributed_spreadsheet:new(novedicembre).
