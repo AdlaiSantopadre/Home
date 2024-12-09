@@ -4,6 +4,8 @@
 
 -include("spreadsheet_data.hrl").
 -include("spreadsheet_owners.hrl").
+-include("access_policies.hrl").
+
 setup_mnesia(Nodes, Dirs) ->
     %% Imposta la directory di Mnesia per ogni nodo
     lists:zipwith(fun(Node, Dir) -> 
@@ -66,7 +68,7 @@ create_tables(Nodes) ->
         ]),
     %% Creare la tabella per le politiche di accesso con replica
         mnesia:create_table(access_policies, [
-            {attributes, [spreadsheet_name, proc, access]},
+            {attributes, record_info(fields,access_policies)},
             {disc_copies, Nodes}
         ]),
     %% Tabella per i proprietari degli spreadsheet

@@ -15,7 +15,8 @@ mnesia:delete_schema(['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DES
 init:stop().
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-
+e avviare 
+erl -sname node_test -setcookie mycookie
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %in alternativa crea tre directory separate
 C:\Users\campus.uniurb.it\Erlang\node1_data
@@ -25,6 +26,7 @@ C:\Users\campus.uniurb.it\Erlang\node3_data
 erl -sname node1 -setcookie mycookie
 erl -sname node2 -setcookie mycookie
 erl -sname node3 -setcookie mycookie
+erl -sname node_test -setcookie mycookie
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ## COMPILARE mnesia_setup
@@ -60,10 +62,10 @@ mnesia:system_info().
 mnesia_setup:mnesia_start(Nodes).
 observer:start().
 
-## Creare uno spreadsheet distribuito
+## CREARE uno spreadsheet distribuito
 
 c(distributed_spreadsheet).
-code:which(distributed_spreadsheet).  %% individua la path del codice .beam caricato
+
 
 distributed_spreadsheet:new(my_spreadsheet).
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
@@ -72,7 +74,7 @@ distributed_spreadsheet:new(my_spreadsheet).
 
 c(delete_spreadsheet).
 delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
-%% OSS:alla fine  cancella il nome globale registrato !!
+%% OSS:alla fine devi cancellare il nome globale registrato !!
 
 
 ## TEST DELLE API
@@ -83,17 +85,29 @@ c(distribute_spreadsheet).
 Nodes = ['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet].
 mnesia_setup:distribute_modules(Nodes, Modules).
+  %% individua la path del codice .beam caricato
 
 
-
-
-%%avviare il gateway
-spreadsheet_gateway:start_link().
+%% avviare il gen_server con un nome = novedicembre globale che mi determina 
+%% global:registered_names().     %%[{novedicembre,owner},novedicembre]
+distributed_spreadsheet:new(novedicembre).
 %%controlla il processo se necessario
 global:registered_names().
-global:whereis_name(spreadsheet_gateway).
-process_info(global:whereis_name(spreadsheet_gateway)).
-%% supponendo di aver inizializzato spreadsheet_2
-AccessPolicies = [{self(), write}, {some_other_proc, read}].
+global:whereis_name(novedicembre).
+process_info(global:whereis_name(novedicembre)).
+%%arrestare gen_server
 
-spreadsheet_gateway:modify_access(spreadsheet_2, [{self(), write}]).
+%% supponendo di aver inizializzato novedicembre
+
+distributed_spreadsheet:share(novedicembre, [{self(), write}]).
+
+**NOTA:questa funzione, lanciata da node1 non gestisce il caso in cui per debug o errore novedicembre non è più un nome registrato**
+
+
+&& da rivedere
+## Aggiornamento del codice di gen_server a caldo - Hot Code upgrade
+
+Pid = global:whereis_name(novedicembre).
+erlang:is_process_alive(Pid).
+sys:change_code(Pid, distributed_spreadsheet, undefined, []).
+f(Pid). 
