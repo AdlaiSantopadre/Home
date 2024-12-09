@@ -25,19 +25,19 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
             OwnerPid = self(),  % The shell that created the spreadsheet is the owner
             %% Spreadsheet doesn't exist, create it
             case gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, N, M, K, OwnerPid}, []) of
-            {ok, Pid} ->
-                io:format("Spreadsheet ~p created with PID ~p~n", [SpreadsheetName, Pid]),
-                {ok, Pid};
-            Error ->
+                {ok, Pid} ->
+                    io:format("Spreadsheet ~p created with PID ~p~n", [SpreadsheetName, Pid]),
+                    {ok, Pid};
+                Error ->
                     io:format("Failed to start spreadsheet process: ~p~n", [Error]),
                     Error
             end;
-             _ ->
+         _ ->
             {error, already_exists}
     end.
                      
                
-%helper function
+%helper function no more needed
 register_owner(SpreadsheetName, OwnerPid) ->
     case global:whereis_name({SpreadsheetName, owner}) of
         undefined ->
@@ -50,7 +50,7 @@ register_owner(SpreadsheetName, OwnerPid) ->
                                 mnesia:write(#spreadsheet_owners{name = {SpreadsheetName,owner}, owner = OwnerPid})
                     end),         
                     %% Monitor the owner process
-                    erlang:monitor(process, OwnerPid),
+                    %%erlang:monitor(process, OwnerPid),
                     ok;
                 no ->
                     io:format("Failed to register owner: name already registered for spreadsheet ~p~n", [SpreadsheetName]),
@@ -79,21 +79,24 @@ init(Args) ->
             case mnesia:transaction(fun() ->
         
                 lists:foreach(fun(Record) -> io:format("Inserisco record: ~p~n", [Record]),
-                                             mnesia:write(Record) end, Records)
+                                             mnesia:write(Record) end, Records),
                 %% Save owner information
-                %%mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
+                mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                io:format("Inserisco record in spreadsheet_owners: ~p,~p~n", [SpreadsheetName,OwnerPid])
             end) of
                 {atomic, ok} ->
                     %% Register owner globally
                     
-                    case register_owner(SpreadsheetName, OwnerPid) of
-                         ok ->
+%                    case register_owner(SpreadsheetName, OwnerPid) of
+%                         ok ->
                             io:format("Spreadsheet ~p initialized successfully.~n", [SpreadsheetName]),
-                            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
-                        {error, Reason} ->
-                            io:format("Failed to register owner: ~p~n", [Reason]),
-                            {stop, Reason}
-                    end;
+                            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}},
+                            %% Monitor the owner process
+                            erlang:monitor(process, OwnerPid);
+%                        {error, Reason} ->
+%                            io:format("Failed to register owner: ~p~n", [Reason]),
+%                            {stop, Reason}
+%                    end;
                 {aborted, Reason} ->
                     io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
                     {stop, Reason}

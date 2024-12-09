@@ -19,7 +19,7 @@ REM Avvia il nodo 2 in una nuova finestra di PowerShell
 start powershell -NoExit -Command "& erl -sname node2@DESKTOPQ2A2FL7 -setcookie %COOKIE% "
 
 REM Avvia il nodo 3 in una nuova finestra di PowerShell
-start powershell -NoExit -Command "& erl -name node3@DESKTOPQ2A2FL7 -setcookie %COOKIE%" 
+start powershell -NoExit -Command "& erl -sname node3@DESKTOPQ2A2FL7 -setcookie %COOKIE%" 
 
 echo I nodi sono stati avviati.
 Pause

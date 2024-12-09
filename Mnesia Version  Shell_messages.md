@@ -61,31 +61,25 @@ mnesia:system_info().
 
 mnesia_setup:mnesia_start(Nodes).
 observer:start().
-
-## CREARE uno spreadsheet distribuito
-
-c(distributed_spreadsheet).
-
-
-distributed_spreadsheet:new(my_spreadsheet).
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 
-## Utilità per cancellare  i dati di una tabella
+### Utilità per cancellare  i dati di una tabella
 
 c(delete_spreadsheet).
 delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 %% OSS:alla fine devi cancellare il nome globale registrato !!
 
-
 ## TEST DELLE API
 
 ## Test del gen_server
 
+self().
 c(distribute_spreadsheet).
 Nodes = ['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet].
 mnesia_setup:distribute_modules(Nodes, Modules).
-  %% individua la path del codice .beam caricato
+
+%% individua la path del codice .beam caricato
 
 
 %% avviare il gen_server con un nome = novedicembre globale che mi determina 
