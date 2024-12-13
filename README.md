@@ -10,12 +10,12 @@
 • qualsiasi tipo di dato primitivo
 • Il valore undef
 
-Intefaccia 1/4 
+Intefaccia 1/4
 Il modulo spreadsheet deve contenere almeno le seguenti funzioni: 
 new(name) -> spreadsheet | {error,reason} 
 • Crea un nuovo foglio di nome “name” di dimensioni NxM di K tab (schede) 
-• assegna il processo creatore come proprietario del foglio 
-• I parametri N, M, K  sono default nel modulo 
+• assegna il processo creatore come proprietario del foglio
+• I parametri N, M, K  sono default nel modulo
 
 
 
@@ -23,7 +23,7 @@ new(name, N, M, K) -> spreadsheet | {error,reason} • Crea un nuovo foglio di n
 • Ogni tab ha dimensioni NxM 
 • assegna il processo creatore come proprietario del foglio
 
-share(spreadsheet, AccessPolicies) -> bool 
+share(spreadsheet, AccessPolicies) -> **bool**
 Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
  AccessPolicies è una lista di {Proc,AP} dove 
  • Proc è un Pid/reg_name • AP = read | write 

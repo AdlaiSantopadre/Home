@@ -79,7 +79,7 @@ delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 ## TEST DELLE API
 
 NOTA per testare da shell, includere prima il comando di registrazione dei record
-ES rr("spreadsheet_owners.hrl").
+ES rr("records.hrl").
 
 ## distribuzione del codice del gen_server
 

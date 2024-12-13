@@ -156,20 +156,43 @@ handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) 
             {reply, {error, Reason}, State}
     end.
 
-update_access_policies(SpreadsheetName, AccessPolicies) ->
+update_access_policies(SpreadsheetName, NewPolicies) ->
     mnesia:transaction(fun() ->
-        %% Rimuovi tutte le politiche esistenti per lo spreadsheet
+        %% Step 1: Recupera le politiche esistenti per lo spreadsheet
+        ExistingPolicies = [
+            {Policy#access_policies.proc, Policy#access_policies.access}
+            || Policy <- mnesia:match_object(access_policies,{access_policies,name = SpreadsheetName, '_','_'})
+        ],
+        % è implementata la List comprehension [Expression || Pattern <- List, Condition]
+        %% Step 2: Filtra le politiche esistenti per escludere i duplicati
+        FilteredExistingPolicies = [
+            Policy || 
+            {Proc, _} = Policy <- ExistingPolicies, 
+            not (
+                lists:keymember(Proc, 1, NewPolicies) orelse
+                is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> global:whereis_name(NewProc) == Proc end, NewPolicies) orelse
+                not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == global:whereis_name(Proc) end, NewPolicies)
+            )
+        ],
+
+        %% Step 3: Combina le politiche filtrate con le nuove politiche
+        UpdatedPolicies = FilteredExistingPolicies ++ NewPolicies,
+
+        %% Step 4: Rimuovi le vecchie politiche dalla tabella
         mnesia:delete({access_policies, SpreadsheetName}),
-        %% Inserisci le nuove politiche
+
+        %% Step 5: Inserisci le politiche aggiornate nella tabella
         lists:foreach(fun({Proc, Access}) ->
             mnesia:write(#access_policies{
-                name = SpreadsheetName,
+                spreadsheet_name = SpreadsheetName,
                 proc = Proc,
                 access = Access
             })
-        end, AccessPolicies),
+        end, UpdatedPolicies),
+
         ok
     end).
+
 
 %% Callback per aggiornamento a caldo
 code_change(OldVsn, State, _Extra) ->
