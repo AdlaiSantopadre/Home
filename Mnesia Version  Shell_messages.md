@@ -9,7 +9,7 @@ mnesia:stop().
 mnesia:delete_schema([node()]).
 q().
 
-% su tutti i nodi dal nodo1
+% per tutti i nodi dal nodo1
 mnesia:stop().
 mnesia:delete_schema(['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7']).
 init:stop().
@@ -55,9 +55,14 @@ mnesia_setup:setup_mnesia(Nodes, Dirs).
 
 mnesia_setup:create_tables(Nodes).
 
+## messaggi di diagnosi su Mnesia 
+
 % per ottenere l'elenco dei nodi connessi esplicitamente a formare  un cluster
 mnesia:system_info(running_db_nodes).
 mnesia:system_info().
+mnesia:system_info(tables).
+mnesia:table_info(spreadsheet_data, all).
+mnesia:table_info(spreadsheet_owners, all)
 
 ### Avvio di mnesia db
 
@@ -73,7 +78,10 @@ delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 
 ## TEST DELLE API
 
-## Test del gen_server
+NOTA per testare da shell, includere prima il comando di registrazione dei record
+ES rr("spreadsheet_owners.hrl").
+
+## distribuzione del codice del gen_server
 
 %%dal nodo test
 c(distributed_spreadsheet).
@@ -82,28 +90,29 @@ Modules = [distributed_spreadsheet].
 mnesia_setup:distribute_modules(Nodes, Modules).
 
 %% individua la path del codice .beam caricato
+code:which(distributed_spreadsheet).
 
 self().
-%% avviare il gen_server con un nome = novedicembre globale che mi determina 
-%% global:registered_names().     %%[{novedicembre,owner},novedicembre]
-distributed_spreadsheet:new(novedicembre).
+%% avviare il gen_server con un nome = dodicidicembre globale che mi determina 
+%% global:registered_names().     %%[{dodicidicembre,owner},dodicidicembre]
+distributed_spreadsheet:new(dodicidicembre).
 %%controlla il processo se necessario
 global:registered_names().
-global:whereis_name(novedicembre).
-process_info(global:whereis_name(novedicembre)).
+global:whereis_name(dodicidicembre).
+process_info(global:whereis_name(dodicidicembre)).
 %%arrestare gen_server
 
-%% supponendo di aver inizializzato novedicembre
+%% supponendo di aver inizializzato dodicidicembre
 
-distributed_spreadsheet:share(novedicembre, [{self(), write}]).
+distributed_spreadsheet:share(dodicidicembre, [{self(), write}]).
 
-**NOTA:questa funzione, lanciata da node1 non gestisce il caso in cui per debug o errore novedicembre non è più un nome registrato**
+**NOTA:questa funzione, lanciata da node1 non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
 
 
 && da rivedere
 ## Aggiornamento del codice di gen_server a caldo - Hot Code upgrade
 
-Pid = global:whereis_name(novedicembre).
+Pid = global:whereis_name(dodicidicembre).
 erlang:is_process_alive(Pid).
 sys:change_code(Pid, distributed_spreadsheet, undefined, []).
 f(Pid). 

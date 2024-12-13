@@ -123,17 +123,17 @@ case global:whereis_name(SpreadsheetName) of
             {error, spreadsheet_not_found};  % If the process is not found
 
         Pid when is_pid(Pid) ->
-            gen_server:call({global, SpreadsheetName}, {share, ottodicembre, [{self(), write}]})
+            gen_server:call({global, SpreadsheetName}, {share, SpreadsheetName, [{self(), write}]})
 end.
 
 %%% gen_server CALLBACKS %%%
 %% Handle the 'share' request in the gen_server
 
 handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) ->
-    io:format("Received share/2 for spreadsheet ~p from Pid ~p , Alias ~p  ~n", [SpreadsheetName, FromPid, _Alias]),
+    io:format("Received share/2 for spreadsheet ~p from Pid ~p ~n", [SpreadsheetName, FromPid]),
     %% Verifica se il chiamante è il proprietario dello spreadsheet
     case mnesia:transaction(fun() ->
-        case mnesia:read(#spreadsheet_owners{name = SpreadsheetName}) of
+        case mnesia:read({spreadsheet_owners,SpreadsheetName}) of
             [#spreadsheet_owners{owner = FromPid}] -> ok;
             _ -> {error, unauthorized}
         end
@@ -141,7 +141,7 @@ handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) 
         {atomic, ok} ->
             %% Se autorizzato, aggiorna le politiche di accesso
             case update_access_policies(SpreadsheetName, AccessPolicies) of
-                ok ->
+                {atomic, ok} ->
                     io:format("Access policies for ~p updated successfully.~n", [SpreadsheetName]),
                     {reply, ok, State};
                 {error, Reason} ->
