@@ -63,6 +63,9 @@ mnesia:system_info().
 mnesia:system_info(tables).
 mnesia:table_info(spreadsheet_data, all).
 mnesia:table_info(spreadsheet_owners, all)
+%cancellare una tabella e ricrearla
+mnesia:delete_table(Table).
+mensia:create_table(....)
 
 ### Avvio di mnesia db
 

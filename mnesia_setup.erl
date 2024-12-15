@@ -69,6 +69,7 @@ create_tables(Nodes) ->
     %% Creare la tabella per le politiche di accesso con replica
         mnesia:create_table(access_policies, [
             {attributes, record_info(fields,access_policies)},
+            {type, bag}, 
             {disc_copies, Nodes}
         ]),
     %% Tabella per i proprietari degli spreadsheet
