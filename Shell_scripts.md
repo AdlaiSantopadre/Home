@@ -11,7 +11,7 @@ q().
 
 % per tutti i nodi dal nodo1
 mnesia:stop().
-mnesia:delete_schema(['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7']).
+mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
 init:stop().
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
@@ -21,13 +21,13 @@ erl -sname node_test -setcookie mycookie
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %in alternativa crea tre directory separate
-C:\Users\campus.uniurb.it\Erlang\node1_data
-C:\Users\campus.uniurb.it\Erlang\node2_data
-C:\Users\campus.uniurb.it\Erlang\node3_data
+C:\Users\campus.uniurb.it\Erlang\Alice_data
+C:\Users\campus.uniurb.it\Erlang\Bob_data
+C:\Users\campus.uniurb.it\Erlang\Charlie_data
 %e in ogni directory avvia un nodo
-erl -sname node1 -setcookie mycookie
-erl -sname node2 -setcookie mycookie
-erl -sname node3 -setcookie mycookie
+erl -sname Alice -setcookie mycookie
+erl -sname Bob -setcookie mycookie
+erl -sname Charlie -setcookie mycookie
 erl -sname node_test -setcookie mycookie
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -40,14 +40,14 @@ c(mnesia_setup).
 
 ### Controlla la comunicazione tra i nodi
 
-net_adm:ping('node1@DESKTOPQ2A2FL7').
-net_adm:ping('node2@DESKTOPQ2A2FL7').
-net_adm:ping('node3@DESKTOPQ2A2FL7').
+net_adm:ping('Alice@DESKTOPQ2A2FL7').
+net_adm:ping('Bob@DESKTOPQ2A2FL7').
+net_adm:ping('Charlie@DESKTOPQ2A2FL7').
 %% **dal nodo1**
-Nodes = ['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7'].
-Dirs = ["C:/Users/campus.uniurb.it/Erlang/node1_data",
-        "C:/Users/campus.uniurb.it/Erlang/node2_data",
-        "C:/Users/campus.uniurb.it/Erlang/node3_data"].
+Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
+        "C:/Users/campus.uniurb.it/Erlang/Bob_data",
+        "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
 
@@ -84,19 +84,28 @@ delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 NOTA per testare da shell, includere prima il comando di registrazione dei record
 ES rr("records.hrl").
 
-## distribuzione del codice del gen_server
+## distribuzione del codice del gen_server e del codice del supervisor
 
 %%dal nodo test
 c(distributed_spreadsheet).
-Nodes = ['node1@DESKTOPQ2A2FL7', 'node2@DESKTOPQ2A2FL7', 'node3@DESKTOPQ2A2FL7'].
-Modules = [distributed_spreadsheet].
+c(spreadsheet_supervisor).
+Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+Modules = [distributed_spreadsheet,spreadsheet_supervisor].
 mnesia_setup:distribute_modules(Nodes, Modules).
 
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).
 
+## Avvio del supervisore su tutti i nodi
+
+%% dal nodo Alice
+spreadsheet_supervisor:start_link().
+rpc:call('Bob@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
+rpc:call('Charlie@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 self().
-%% avviare il gen_server con un nome = dodicidicembre globale che mi determina 
+
+
+%% avviare il gen_server con un nome = quindicidicembre globale che mi determina
 %% global:registered_names().     %%[{dodicidicembre,owner},dodicidicembre]
 distributed_spreadsheet:new(dodicidicembre).
 %%controlla il processo se necessario
@@ -105,11 +114,12 @@ global:whereis_name(dodicidicembre).
 process_info(global:whereis_name(dodicidicembre)).
 %%arrestare gen_server
 
-%% supponendo di aver inizializzato dodicidicembre
+%% supponendo di aver inizializzato dodicidicembre e di aver registrato i nodi con nomi globali
+%% global:register_name(Bob_read_policy, self()).
 
 distributed_spreadsheet:share(dodicidicembre, [{self(), write}]).
 
-**NOTA:questa funzione, lanciata da node1 non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
+**NOTA:questa funzione, lanciata da Alice non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
 
 
 && da rivedere

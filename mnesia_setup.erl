@@ -2,9 +2,8 @@
 
 -export([setup_mnesia/2, create_tables/1, mnesia_start/1, distribute_modules/2]).
 
--include("spreadsheet_data.hrl").
--include("spreadsheet_owners.hrl").
--include("access_policies.hrl").
+-include("records.hrl").
+
 
 setup_mnesia(Nodes, Dirs) ->
     %% Imposta la directory di Mnesia per ogni nodo
@@ -36,7 +35,7 @@ setup_mnesia(Nodes, Dirs) ->
     end, Nodes).
     
     
-    %% Distribuisci i moduli specificati su tutti i nodi
+%% Distribuisci i moduli specificati su tutti i nodi
 distribute_modules(Nodes, Modules) ->
     lists:foreach(fun(Module) ->
         lists:foreach(fun(Node) ->
