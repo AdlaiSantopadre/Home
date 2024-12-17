@@ -43,7 +43,7 @@ c(mnesia_setup).
 net_adm:ping('Alice@DESKTOPQ2A2FL7').
 net_adm:ping('Bob@DESKTOPQ2A2FL7').
 net_adm:ping('Charlie@DESKTOPQ2A2FL7').
-%% **dal nodo1**
+%% **dal nodo Alice**
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Bob_data",
@@ -96,10 +96,18 @@ mnesia_setup:distribute_modules(Nodes, Modules).
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).
 
+## TEST del supervisore sul nodo Alice
+
+spreadsheet_supervisor:start_link().
+spreadsheet_supervisor:add_spreadsheet(quindicinovembre, 3, 4, 2, self()).
+supervisor:which_children(spreadsheet_supervisor).
+
 ## Avvio del supervisore su tutti i nodi
 
 %% dal nodo Alice
-spreadsheet_supervisor:start_link().
+ [rpc:call(Node, spreadsheet_supervisor, start_link, []) || Node <- Nodes].
+%% oppure
+
 rpc:call('Bob@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 rpc:call('Charlie@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 self().

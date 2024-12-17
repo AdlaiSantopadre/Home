@@ -15,5 +15,6 @@
     proc,                  % pid o registered name del processo
     access                  % accesso read o write
 }).
+-record(state, {owners = []}). % Lista di tuple {SpreadsheetName, OwnerPid, Ref}
 
 

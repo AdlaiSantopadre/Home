@@ -7,7 +7,7 @@ set BASE_DIR=C:\Users\campus.uniurb.it\Erlang
 REM Crea le directory per i nodi
 mkdir "%BASE_DIR%\Alice_data"
 mkdir "%BASE_DIR%\Bob_data"
-mkdir "%BASE_DIR%\Charles_data"
+mkdir "%BASE_DIR%\Charlie_data"
 
 REM Imposta il cookie per i nodi
 set COOKIE=mycookie
@@ -19,7 +19,7 @@ REM Avvia il nodo 2 in una nuova finestra di PowerShell
 start powershell -NoExit -Command "& erl -sname Bob@DESKTOPQ2A2FL7 -setcookie %COOKIE% "
 
 REM Avvia il nodo 3 in una nuova finestra di PowerShell
-start powershell -NoExit -Command "& erl -sname Charles@DESKTOPQ2A2FL7 -setcookie %COOKIE%" 
+start powershell -NoExit -Command "& erl -sname Charlie@DESKTOPQ2A2FL7 -setcookie %COOKIE%" 
 
 echo I nodi sono stati avviati.
 Pause

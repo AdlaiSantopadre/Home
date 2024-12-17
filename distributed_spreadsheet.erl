@@ -1,25 +1,25 @@
 -module(distributed_spreadsheet). % gen_server with Mnesia 
 -behaviour(gen_server).
+
 %% API functions exported from assignement
--export([new/1, new/4, share/2,start_link/1]). %  ,get/4, get/5, set/5, set/6,from_csv/1, to_csv/2, to_csv/3,info/1
+-export([new/1, new/4, share/2, start_link/1]). %  ,get/4, get/5, set/5, set/6,from_csv/1, to_csv/2, to_csv/3,info/1
 %% Helper functions
--export([update_access_policies/2]).        
+-export([update_access_policies/2]).  
+
 %% gen_server callbacks
--export([init/1, handle_call/3,terminate/2]).%, handle_cast/2,   
+-export([init/1, handle_call/3,terminate/2]).%, handle_info/2,   
 
 %% Include the record definition
 -include("records.hrl").
 
 %%% API FUNCTIONS %%%
 
-share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies)->
-case global:whereis_name(SpreadsheetName) of
-        undefined ->
-            {error, spreadsheet_not_found};  % If the process is not found
 
-        Pid when is_pid(Pid) ->
-            gen_server:call({global, SpreadsheetName}, {share, SpreadsheetName, [{self(), write}]})
-end.
+
+%% Avvia il gen_server
+start_link([SpreadsheetName, N, M, K,OwnerPid]) ->
+    gen_server:start_link({local, SpreadsheetName}, ?MODULE, {SpreadsheetName, N, M, K,OwnerPid}, []).
+
 %% Crea uno spreadsheet con valori di default
 new(Name) ->
     N = 3,  % Default N (numero di righe)
@@ -38,43 +38,50 @@ new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K), 
             io:format("Failed to create spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {error, Reason}
     end.
-%% Avvia il gen_server
-start_link([SpreadsheetName, N, M, K,OwnerPid]) ->
-    gen_server:start_link({local, SpreadsheetName}, ?MODULE, {SpreadsheetName, N, M, K,OwnerPid}, []).
+%% Condivide lo spreadsheet (include  una lista di politiche)
+share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies)->
+case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};  % If the process is not found
 
+        Pid when is_pid(Pid) ->
+            gen_server:call({global, SpreadsheetName}, {share, SpreadsheetName, [{self(), write}]})
+end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% gen_server CALLBACKS %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 %% Inizializza il gen_server
 init({SpreadsheetName, N, M, K, OwnerPid}) ->
     io:format("Initializing spreadsheet ~p with owner ~p~n", [SpreadsheetName, OwnerPid]),
+    % Monitora il proprietario
+    Ref = erlang:monitor(process, OwnerPid),
     case mnesia:transaction(fun() ->
+    
         case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
             [] -> %% Nuova Creazione
                 io:format("No existing data for spreadsheet ~p. Initializing records.~n", [SpreadsheetName]),
                 Records = generate_records(SpreadsheetName, N, M, K),
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
                 mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-                {new, ok};
+                {ok, Ref};
             [#spreadsheet_owners{owner = ExistingOwner}] -> %% Riavvio
                 io:format("Found existing owner ~p for spreadsheet ~p.~n", [ExistingOwner, SpreadsheetName]),
-                {existing, ExistingOwner}
+                {ok, Ref}
         end
     end) of
-        {atomic, {new, ok}} ->
-            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
-        {atomic, {existing, ExistingOwner}} ->
-            % gestito nel supervisore Ref = erlang:monitor(process, ExistingOwner),
-            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
+        {atomic, {ok, Ref}} ->
+            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid,monitor_ref => Ref}};
+        
         {aborted, Reason} ->
             io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {stop, Reason}
     end.
 
+%% Gestisce la condivisione dello spreadsheet
 
-
-
-
-%% Handle the 'share' request in the gen_server
 handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) ->
     io:format("Received share/2 for spreadsheet ~p from Pid ~p ~n", [SpreadsheetName, FromPid]),
     %% Verifica se il chiamante è il proprietario dello spreadsheet
@@ -102,7 +109,25 @@ handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) 
             {reply, {error, Reason}, State}
     end.
 
+%% Gestisce i messaggi di terminazione del proprietario
+handle_info({'DOWN', Ref, process, OwnerPid, Reason}, State = #{name := SpreadsheetName, monitor_ref := Ref}) ->
+    io:format("Owner process ~p terminated for spreadsheet ~p: ~p~n", [OwnerPid, SpreadsheetName, Reason]),
+    % Reagisci alla terminazione: aggiorna Mnesia e stoppa il worker
+    mnesia:transaction(fun() ->
+        mnesia:delete({spreadsheet_owners, SpreadsheetName})
+    end),
+    {stop, normal, State};
+handle_info(Msg, State) ->
+    io:format("Unhandled message: ~p~n", [Msg]),
+    {noreply, State}.
 
+%% Terminazione del worker
+terminate(Reason, State) ->
+    io:format("Terminating spreadsheet ~p with reason: ~p~n", [maps:get(name, State), Reason]),
+    ok.
+%%%%%%%%%%%%%%%%%%%%%%%%
+%%% HELPER FUNCTIONS %%%
+%%%%%%%%%%%%%%%%%%%%%%%%
 update_access_policies(SpreadsheetName, NewPolicies) ->
     mnesia:transaction(fun() ->
         %% Step 1: Recupera le politiche esistenti
@@ -142,10 +167,7 @@ update_access_policies(SpreadsheetName, NewPolicies) ->
         ok
     end).
 
-%% Terminazione del gen_server
-terminate(Reason, State) ->
-    io:format("Terminating spreadsheet ~p with reason: ~p and state: ~p~n", [State#state.name, Reason, State]),
-    ok.
+
 
 
 %helper functions %%
