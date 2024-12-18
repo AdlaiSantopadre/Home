@@ -43,6 +43,9 @@ c(mnesia_setup).
 net_adm:ping('Alice@DESKTOPQ2A2FL7').
 net_adm:ping('Bob@DESKTOPQ2A2FL7').
 net_adm:ping('Charlie@DESKTOPQ2A2FL7').
+
+### setup e creazione delle tabelle
+
 %% **dal nodo Alice**
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
@@ -50,8 +53,6 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
-
-### creazione delle tabelle
 
 mnesia_setup:create_tables(Nodes).
 
@@ -67,7 +68,7 @@ mnesia:table_info(spreadsheet_owners, all)
 mnesia:delete_table(Table).
 mensia:create_table(....)
 
-### Avvio di mnesia db
+### Avvio di mnesia db se non avviato da setup
 
 mnesia_setup:mnesia_start(Nodes).
 observer:start().
@@ -79,16 +80,13 @@ c(delete_spreadsheet).
 delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 %% OSS:alla fine devi cancellare il nome globale registrato !!
 
-## TEST DELLE API
 
-NOTA per testare da shell, includere prima il comando di registrazione dei record
-ES rr("records.hrl").
 
 ## distribuzione del codice del gen_server e del codice del supervisor
 
 %%dal nodo test
 c(distributed_spreadsheet).
-c(spreadsheet_supervisor).
+c(spreadsheet_supervisor). 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet,spreadsheet_supervisor].
 mnesia_setup:distribute_modules(Nodes, Modules).
@@ -98,9 +96,10 @@ code:which(distributed_spreadsheet).
 
 ## TEST del supervisore sul nodo Alice
 
-spreadsheet_supervisor:start_link().
+spreadsheet_supervisor:start_link().  %% per uscire exit(whereis(spreadsheet_supervisor), shutdown).
 spreadsheet_supervisor:add_spreadsheet(quindicinovembre, 3, 4, 2, self()).
 supervisor:which_children(spreadsheet_supervisor).
+global:whereis_name(quindicinovembre).
 
 ## Avvio del supervisore su tutti i nodi
 
@@ -112,6 +111,10 @@ rpc:call('Bob@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 rpc:call('Charlie@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 self().
 
+## TEST DELLE API
+
+NOTA per testare da shell, includere prima il comando di registrazione dei record
+ES rr("records.hrl").
 
 %% avviare il gen_server con un nome = quindicidicembre globale che mi determina
 %% global:registered_names().     %%[{dodicidicembre,owner},dodicidicembre]
@@ -129,11 +132,3 @@ distributed_spreadsheet:share(dodicidicembre, [{self(), write}]).
 
 **NOTA:questa funzione, lanciata da Alice non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
 
-
-&& da rivedere
-## Aggiornamento del codice di gen_server a caldo - Hot Code upgrade
-
-Pid = global:whereis_name(dodicidicembre).
-erlang:is_process_alive(Pid).
-sys:change_code(Pid, distributed_spreadsheet, undefined, []).
-f(Pid). 
