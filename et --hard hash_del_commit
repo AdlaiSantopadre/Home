@@ -1,0 +1,637 @@
+[33mcommit e4b35f23481423ca0d7010bba9e090d2082c5793[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Dec 18 13:58:57 2024 +0100
+
+    Studio architettura server supervisore
+
+[33mcommit 1c1a736d8c7d330c0a8c6ec2fd44bd8cd5f5f931[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Dec 17 11:42:00 2024 +0100
+
+    Spostamento della gestione del proprietario nel gen_server
+
+[33mcommit e6fd8a4800a5348606a2344adf22ee79e18a8c52[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Dec 16 16:44:24 2024 +0100
+
+    spreadsheet_supervisor and distributed_spreadsheet:before debugging
+
+[33mcommit 686d38a9284a1072b883b70b5f76ebb3899643cf[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Dec 15 06:52:59 2024 +0100
+
+    debug update_access_policies
+
+[33mcommit a63d8e71b9abe0912344d0b32820e30c4dbb10eb[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Dec 13 20:41:13 2024 +0100
+
+    accorpamento dei record records.hrl
+
+[33mcommit ec1f721d9db89a120c77129ee8d4a7c4d0815321[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Dec 13 19:36:58 2024 +0100
+
+    share/2
+
+[33mcommit 005d834294c432a400a6edf2443e4103de398324[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Dec 9 21:08:04 2024 +0100
+
+    Init/1 debug .. shell_messages debug
+
+[33mcommit 7361646a59d3f7267e59e92adbebc8ca5b20062a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Dec 9 20:26:36 2024 +0100
+
+    error in setup_nodes.bat
+
+[33mcommit 2d10c8d24c3d7d52c0b7520dd62331a52d7f07d5[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Dec 9 19:42:03 2024 +0100
+
+    record access_policies
+
+[33mcommit 415d96ab8c1387e0154c5d3ff99a694e4ae276f2[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Dec 6 17:31:50 2024 +0100
+
+                    mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
+
+[33mcommit 485e901ca13015f7edd1070ecf60c4aa15cfaadc[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Dec 6 17:03:55 2024 +0100
+
+    -include("spreadsheet_owners.hrl").
+
+[33mcommit d17dd278126823865ffbfca73645dbacb63eba76[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Dec 6 17:01:57 2024 +0100
+
+    Included record spreadsheet_owners
+
+[33mcommit faad4858081f85fb347397e07e115e94f6d73ca6[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Dec 6 10:39:58 2024 +0100
+
+    Riavvio di Mnesia - correzione dei messaggi da passare alla shell
+
+[33mcommit f1621b93ec912a74aa8a9d6377ab8f2357c1ab75[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Dec 4 18:47:49 2024 +0100
+
+    Aggiunta di modulo delete_spreadsheet, inizio implementazione distributed_spreadsheet
+
+[33mcommit 27126d65b600aff2183ec4d4bf3f401030b16a6a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 30 14:19:55 2024 +0100
+
+    local registration of spreadsheet.gateway
+
+[33mcommit aeacf9ba92d3ae6b6f61f118d6bfa53c58297736[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 30 13:28:23 2024 +0100
+
+    spreadsheet_gateway più test lettura
+
+[33mcommit ee51d5e008b8ed960c48a9ce3e4b553d242b31df[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 30 09:57:33 2024 +0100
+
+    spredsheet_data {type,bag}
+
+[33mcommit 5fb1b11cc6c3bc4e2079d60e498139560d46fa9a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Nov 25 21:29:02 2024 +0100
+
+    modified:   Erlang_Practice/Mnesia.nonode@nohost/LATEST.LOG
+
+[33mcommit 8c55e7176a9e2073f0984fe11f22ebd4897ec783[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Nov 25 21:28:55 2024 +0100
+
+    Tentativi di includere  #spreadsheet.data
+
+[33mcommit 1597741d51826ee2d833157147baefc877525929[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 23 18:29:21 2024 +0100
+
+    test new(onespreadsheet)
+
+[33mcommit 54cc11f7b4818401b910f198aad056b0a0212bd3[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 23 17:37:00 2024 +0100
+
+    reordered repository
+
+[33mcommit 0cdea7667d616605c49f05b9832df825ae6750f5[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Nov 19 20:30:22 2024 +0100
+
+    setup_nodes.bat
+
+[33mcommit 9d560c24f9b63f7a72c346bd09f12f04544aa83b[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Nov 19 20:22:54 2024 +0100
+
+    setup_nodes.bat powershell
+
+[33mcommit ca373e2003c5c38f8884a7456d84d29ae97f646a[m
+Merge: 55c706d c05c382
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Nov 18 19:26:17 2024 +0100
+
+    Merge branch 'main' of https://github.com/AdlaiSantopadre/Home
+
+[33mcommit 55c706d4c030b7b563cb98e7e052cd1ce86f15da[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Nov 18 19:20:08 2024 +0100
+
+    Reordered Repository
+
+[33mcommit c05c38241291df0de31cf674849228543641d923[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 16 13:42:14 2024 +0100
+
+    nn
+
+[33mcommit 00cc204fbbb9b974d2eea717fb421f6fd50573fd[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 16 13:17:51 2024 +0100
+
+    setup
+
+[33mcommit ab2efab32cffe9e9b4af7194d89d0d095096d1e5[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 16 13:06:28 2024 +0100
+
+    setup
+
+[33mcommit 44f3c3262396ff73140ca8e52a5a28f89aed9a18[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 16 12:41:24 2024 +0100
+
+    create 3 directory
+
+[33mcommit 749b2f3102f0dd746c5bc1ce32c92028b620f4c2[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 16 12:38:34 2024 +0100
+
+    più cartelle
+
+[33mcommit 08239b745527c5555cacf6bb4b61d60df37f2339[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Nov 16 10:26:34 2024 +0100
+
+    mnesia_setup
+
+[33mcommit 7b01c8c069acff678ca7484dbd1cf37e545a3380[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Thu Nov 14 20:03:45 2024 +0100
+
+[33mcommit d96f1b33ee4bf458f6501a11686a0a5634269481[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Nov 13 20:41:41 2024 +0100
+
+     no way
+
+[33mcommit 427723389c3846e847b3ad2fb013791a2b8db779[m
+Merge: b289a89 0181926
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Nov 12 11:56:08 2024 +0100
+
+    Merge branch 'main' of https://github.com/AdlaiSantopadre/Home
+    exit
+    
+    ok
+
+[33mcommit b289a89f3576a4c6ab2b9e175e11e4045896f142[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Nov 12 11:47:42 2024 +0100
+
+    distributed_processes_utility.beam
+    
+    redo
+
+[33mcommit 0181926b46c3ef691b227fca6b18144c3512be01[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Nov 12 11:40:33 2024 +0100
+
+    Updated from fork local
+
+[33mcommit 35a936329068ce8c114a3754e538abc2f693879a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Nov 12 11:40:31 2024 +0100
+
+    Updated from fork local
+
+[33mcommit 9c2c0b2a11a43dd2bd8819045dbd417e48d11b7a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Oct 18 17:21:48 2024 +0200
+
+    new file:   distributed_processes_utility.erl
+    ver 2.0
+
+[33mcommit 3492605a8f75f9d9c8e1c47aa1a962002e362a8b[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Oct 18 17:17:27 2024 +0200
+
+    Upd ver 1.8 distributed_spreadsheet
+
+[33mcommit 19abeb1b4f7fb1935bc1726a6102a49e74dcc5b3[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Oct 7 18:24:00 2024 +0200
+
+    distributed_spreadsheet ver.1.5
+
+[33mcommit aa3e9516ac9755d29ce8f43af8fadac09638af5c[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 28 20:35:20 2024 +0200
+
+    spresdsheet.hrl -> spreadsheet.hrl
+
+[33mcommit 2f9dd2b46cd28e556752f0e888415c436955e7de[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 28 20:34:03 2024 +0200
+
+    spresdsheet.hrl
+
+[33mcommit d1b4cee8e9e256c2ecf6651fa4d4ea862dab4ce4[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 28 20:29:54 2024 +0200
+
+    moving to distributed
+
+[33mcommit 4b122f0933dd785800aa014a416c272f306f7b71[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 24 22:06:47 2024 +0200
+
+    ver 5.8 record with timestamp
+
+[33mcommit 03c05b2f555420dfcfe0326c0ba3eb25e3025796[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 24 20:06:59 2024 +0200
+
+    modified:   spreadsheet.beam
+
+[33mcommit 3b01010121521c9ba5ecb336eb4e8efaaaa9d245[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 24 20:04:32 2024 +0200
+
+    info/1
+    modified:   spreadsheet.erl
+
+[33mcommit 95bdb0ca0b435db524f005cfd2800fd6f0bfcd2e[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 24 12:08:27 2024 +0200
+
+    minor
+
+[33mcommit 612ca0356cf8d0e5f7d6d9c32b18fe9762e25caa[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 15 20:13:30 2024 +0200
+
+    Colab/TrackManutenzioni.ipynb
+
+[33mcommit a8ba5656630698e9ba14515e5b01ff7a8e637c9a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 15 19:54:56 2024 +0200
+
+    ver 4.2
+
+[33mcommit 95dcf98aad4f07ba06d58258cb8a4a7f731d5a05[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 15 19:53:01 2024 +0200
+
+    modified:   spreadsheet.erl
+
+[33mcommit 3cc04a4e0c01317d8f2cc60abf597726d6edaf40[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 15 19:48:24 2024 +0200
+
+    renamed:    Project/spreadsheet.ipynb -> Colab/OLDspreadsheet.ipynb
+
+[33mcommit a92a8632ca08a8b638ab5d43a86266f0520de348[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 15 19:46:50 2024 +0200
+
+    deleted:    Project/TrackManutenzioni.ipynb
+
+[33mcommit ff63974684159560cb0c49f0f38c9843eb09ce77[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 20:23:45 2024 +0200
+
+    renamed:    spreadsheet.ipynb -> Project/spreadsheet.ipynb
+
+[33mcommit 2acb29c767970174a1e44b173ed2af3c9d05295b[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 20:22:10 2024 +0200
+
+    new file:   spreadsheet.ipynb
+
+[33mcommit f03ee128fc89d5ee7d27530c3e2b0b381eef8f8d[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 20:16:23 2024 +0200
+
+    deleted:    Project/spreadsheet.ipynb
+
+[33mcommit 588668b59e1ebc30eeff228ae0ca24c1d969872e[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 20:14:08 2024 +0200
+
+    renamed:    MYSCRIPT.md -> Shell_messages.md
+
+[33mcommit 7e32c75db599723ef81c7ae1050f482a280c45d2[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 20:10:38 2024 +0200
+
+    modified:   Hints.md
+
+[33mcommit 02b4f5a04f5d6a94593053f6bddd7a4b130d3dbc[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 20:07:00 2024 +0200
+
+    %ver..4.0
+
+[33mcommit 2697df3f85c62d35f91da8add32144a1bcf33332[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 14 12:57:25 2024 +0200
+
+    debugging from_csv
+
+[33mcommit 2e86fc86d9bf6177e502cec0d58a16a5b52ada75[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Thu Sep 12 14:41:49 2024 +0200
+
+    %ver..3.2  new/1 e new/4 to_csv/2 e from_csv1
+
+[33mcommit 95c9a04a5b7b047e0ec6f158fa948e7c533b87f9[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Thu Sep 12 13:17:29 2024 +0200
+
+    Finished writing to CSV: "my_spreadsheet.csv"
+
+[33mcommit 404e75ad32962109711adfe854986973cb6070c4[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 21:36:10 2024 +0200
+
+    debugging di to_csv/1
+
+[33mcommit f58bc5feb84e1507dbb76a6fd507bcf90df29329[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 19:39:09 2024 +0200
+
+    to_csv/2
+
+[33mcommit f9c384b5328432d0cd4e13ff0a8b1b7aec7e77dd[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 19:23:44 2024 +0200
+
+    update
+
+[33mcommit f954d1f4fd15fdc0022f4c60119a30ef85cfd8a4[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 18:55:02 2024 +0200
+
+    restored last spreadsheet.ipynb
+
+[33mcommit d84792891c3d4575715b816ae16e0c3eff445dfe[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 18:37:40 2024 +0200
+
+    Revert "Merge branch 'main' of https://github.com/AdlaiSantopadre/Home"
+    
+    This reverts commit 573bf2344c8766ceae9d9a7cd1f27dc26f4012c7, reversing
+    changes made to 4b3b48a0a74b2af8aafd2f9eb8a1efd84c3c9d33.
+
+[33mcommit 573bf2344c8766ceae9d9a7cd1f27dc26f4012c7[m
+Merge: 4b3b48a fb02cb7
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 18:36:51 2024 +0200
+
+    Merge branch 'main' of https://github.com/AdlaiSantopadre/Home
+
+[33mcommit fb02cb76de04e056f9a488fa8b6069245efa9f51[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 18:34:46 2024 +0200
+
+    revert
+
+[33mcommit 4b3b48a0a74b2af8aafd2f9eb8a1efd84c3c9d33[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 18:32:21 2024 +0200
+
+    Revert "agiornamento spreadsheet su colab"
+    
+    This reverts commit cf271ddabaeb458370a0da79f7ed590cbfb3ad47.
+
+[33mcommit 0e2cd2f6169c6d56d35535ea8d23ebf64cbc8baf[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 17:40:30 2024 +0200
+
+[33mcommit 25dac1000a17784f194de796ce5d4c68e43354e7[m
+Merge: a4d9450 229f630
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 17:38:13 2024 +0200
+
+    Merge branch 'main' of https://github.com/AdlaiSantopadre/Home
+
+[33mcommit a4d94500d7bd735d41c1fa71894a84d6629a37f2[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 17:27:56 2024 +0200
+
+    persistenza
+
+[33mcommit 229f630cbd92d5e123c76767383220397e00d338[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 15:18:23 2024 +0200
+
+    Update spreadsheet.ipynb
+
+[33mcommit cf271ddabaeb458370a0da79f7ed590cbfb3ad47[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Wed Sep 11 15:04:28 2024 +0200
+
+    agiornamento spreadsheet su colab
+
+[33mcommit fe141559c190964a877f06fdb65f9553b9abd821[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 10 18:55:11 2024 +0200
+
+    Aggiunta funzioni (policy access)
+
+[33mcommit 0898098333975e0173cf8358dcd2c4816712862c[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 10 18:08:02 2024 +0200
+
+    debugging
+
+[33mcommit acbff50c8beea6dfa97c6cb01e21845e8fc47146[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 8 15:55:50 2024 +0200
+
+    Update spreadsheet.ipynb
+
+[33mcommit 88d1b302ece0e2745a0353ce7a971e1160361e01[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 8 15:54:09 2024 +0200
+
+    Update spreadsheet.ipynb
+
+[33mcommit 0966d8e5b1859ee1c7ccfe965bc2e443d54530d5[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Sep 8 15:50:59 2024 +0200
+
+    Creazione di un file di commento passo passo alla implementazione del progetto in Erlang
+
+[33mcommit 913a35a715b932f50a0349c544c2d15e8a7ce9ec[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 7 13:38:12 2024 +0200
+
+    Error in process <0.130.0> with exit value:
+    {undef,[{spreadsheet,loop,[my_spreadsheet,<0.128.0>,10,10,1],[]}]}
+
+[33mcommit 0a124c518b94223a5cffc4dd35f015dd193c3711[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 7 13:37:12 2024 +0200
+
+    Con errore Error in process <0.130.0> with exit value:
+    {undef,[{spreadsheet,loop,[my_spreadsheet,<0.128.0>,10,10,1],[]}]}
+
+[33mcommit f2b4262c71aede38c2abaa5951425f86e5bdae9b[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 7 12:42:23 2024 +0200
+
+    Separazione del processo  loop/1 che gestisce lo stato dal processo che genera lo spreadsheet e ne è proprietario, controllandone le politiche di accesso
+
+[33mcommit d3cfce809c06f239ca1b9aa132754e4dcf355339[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Sep 7 11:41:38 2024 +0200
+
+    Aggiunta funzione per rimuovere autorizzazioni a un processo specifico
+
+[33mcommit 9f2f0dfc9395be3cf82124e2723cc836441bd67a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Sep 6 21:15:53 2024 +0200
+
+    debugging su spreadsheet.erl
+
+[33mcommit c54d476bb253b2ca1038c5eeaca97c99d9e03c36[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Sep 6 20:01:42 2024 +0200
+
+    aggiunta del campo access_policies e della funzion
+    e share/2 per gestire da parte del proprietario le
+    politiche di accesso di ogni processo
+
+[33mcommit 550361d08a95e60a36efbc96780031ec646f7f69[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Sep 6 19:23:14 2024 +0200
+
+    MYSCRIPT contiene listati per i test di shell
+
+[33mcommit 877d18e7ec14845d120f831f0c0fc76a79201398[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Sep 6 12:19:44 2024 +0200
+
+    minor diffs
+
+[33mcommit cabe39f16cd0added9b909726b767bb8de970194[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Thu Sep 5 06:47:46 2024 +0200
+
+    Update spreadsheet.erl
+
+[33mcommit 0911e08e3f2e971bbc4a4fbd46e9d28b013912b4[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 3 16:47:24 2024 +0200
+
+    Create spreadsheet1.1.0.erl
+
+[33mcommit d147126565f7ec5f881e4b4b5661d9d2466d77d7[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Tue Sep 3 16:18:09 2024 +0200
+
+    Update README.md
+
+[33mcommit 82f9a3dd8870d5c44a240f30641f6521fc74e9f8[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Sep 2 20:19:43 2024 +0200
+
+    Rename TrackManutenzioni.ipynb to TrackManutenzioni.ipynb
+
+[33mcommit 9929ee813feada2fdb3214f6446b42461146a215[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Sep 2 20:12:53 2024 +0200
+
+    Delete TrackManutenzioni.ipynb
+
+[33mcommit d24b09ccb3be2d67f9d52c7707464a5722e5b054[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Sep 2 20:00:59 2024 +0200
+
+    Creato con Colab
+
+[33mcommit 7eba934f2961ee2ea44513c018ff06cc12dba266[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Sep 2 19:59:01 2024 +0200
+
+    Creato con Colab
+
+[33mcommit a59cf564e0b771b08668f26fe556ba311554894e[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Mon Sep 2 19:54:15 2024 +0200
+
+    re-order
+
+[33mcommit 5c2ad08139f814facf734ec9331a23bde00ee876[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sat Aug 31 10:58:27 2024 +0200
+
+    Organize
+
+[33mcommit 3a4a28ca342d72cd2fe68dba7611f4b3896282cb[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Aug 30 15:08:15 2024 +0200
+
+    Rename abs.beam to abs.beam
+
+[33mcommit 0030a1495fe61c7def403f7cc800db759b355c0a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Aug 30 15:03:37 2024 +0200
+
+    Rename abs.beam to Exercises/abs.beam
+
+[33mcommit 01490480a571b546f72b857b30297873d62c36cb[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Aug 30 15:00:59 2024 +0200
+
+    Rename TrackManutenzioni.ipynb to Project/TrackManutenzioni.ipynb
+
+[33mcommit 13e81d23eff7f0fa466ae19f00901a620afeda9e[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Aug 30 14:57:07 2024 +0200
+
+    Create gitkeep.
+    
+    Exercises folder
+
+[33mcommit 0b6941e1af45b82ba29f0a4338c8a17185142685[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Fri Aug 30 14:50:01 2024 +0200
+
+    Creato con Colab
+
+[33mcommit dd808729d6bcb1f2d1cc4fe2f581021c7515225a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Aug 25 12:56:17 2024 +0200
+
+    Add files via upload
+    
+    Tutta la cartella di moduli di esercitazione alla data del 25 Agosto 2024
+
+[33mcommit 7bf2a8875865daa76139206d131c7f1a512f8c5a[m
+Author: Adlai さ ん <126016337+AdlaiSantopadre@users.noreply.github.com>
+Date:   Sun Aug 25 12:48:53 2024 +0200
+
+    Create README.md
