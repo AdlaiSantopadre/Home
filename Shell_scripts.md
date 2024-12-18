@@ -106,7 +106,7 @@ global:whereis_name(quindicinovembre).
 %% dal nodo Alice
  [rpc:call(Node, spreadsheet_supervisor, start_link, []) || Node <- Nodes].
 %% oppure
-
+rpc:call('Alice@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 rpc:call('Bob@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 rpc:call('Charlie@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
 self().
