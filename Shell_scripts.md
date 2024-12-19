@@ -86,7 +86,8 @@ delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
 
 %%dal nodo test
 c(distributed_spreadsheet).
-c(spreadsheet_supervisor). 
+c(spreadsheet_supervisor).
+ 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet,spreadsheet_supervisor].
 mnesia_setup:distribute_modules(Nodes, Modules).
@@ -96,10 +97,20 @@ code:which(distributed_spreadsheet).
 
 ## TEST del supervisore sul nodo Alice
 
-spreadsheet_supervisor:start_link().  %% per uscire exit(whereis(spreadsheet_supervisor), shutdown).
-spreadsheet_supervisor:add_spreadsheet(quindicinovembre, 3, 4, 2, self()).
+distributed_spreadsheet:new(diciottodicembre, 3, 4, 2).
+whereis(supervisor). % Controlla il supervisore locale
+global:whereis_name(diciottodicembre). % Controlla il gen_server globale
 supervisor:which_children(spreadsheet_supervisor).
-global:whereis_name(quindicinovembre).
+
+### fallimento del supervisor
+
+exit(whereis(supervisor), kill).
+global:whereis_name(diciottodicembre). % Deve restituire `undefined`
+
+### fallimento dello spreadsheet
+
+distributed_spreadsheet:new(diciottodicembre, 3, 4, 2).
+exit(global:whereis_name(diciottodicembre), kill).
 
 ## Avvio del supervisore su tutti i nodi
 
