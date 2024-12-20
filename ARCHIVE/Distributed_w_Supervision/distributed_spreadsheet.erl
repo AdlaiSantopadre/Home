@@ -13,14 +13,14 @@ new(SpreadsheetName, N, M, K) ->
     case whereis(SpreadsheetName) of
         undefined ->
             %% Avvia un nuovo supervisore
-            case spreadsheet_supervisor:start_supervisor({SpreadsheetName, N, M, K, self()}) of
-                {ok, _SupervisorPid} ->
-                    io:format("Spreadsheet ~p and its supervisor started successfully.~n", [SpreadsheetName]),
-                    {ok, SpreadsheetName};
-                {error, Reason} ->
-                    io:format("Failed to start supervisor for ~p: ~p~n", [SpreadsheetName, Reason]),
-                    {error, Reason}
-            end;
+             root_supervisor:start_spreadsheet(SpreadsheetName, N, M, K) ;
+ %               {ok, _SupervisorPid} ->
+  %                  io:format("Spreadsheet ~p and its supervisor started successfully.~n", [SpreadsheetName]),
+   %                 {ok, SpreadsheetName};
+    %            {error, Reason} ->
+     %               io:format("Failed to start supervisor for ~p: ~p~n", [SpreadsheetName, Reason]),
+      %              {error, Reason}
+       %     end;
         _Pid ->
             %% Se il supervisore esiste già, restituisci errore
             io:format("Spreadsheet ~p already exists.~n", [SpreadsheetName]),
