@@ -9,19 +9,22 @@
 
 %% API per creare uno spreadsheet
 new(SpreadsheetName, N, M, K) ->
-    %% Avvia il supervisore specifico
-    case supervisor:start_child(app_sup, {SpreadsheetName, N, M, K, self()}) of
-        {ok, _SupervisorPid} ->
-            io:format("Spreadsheet ~p created successfully.~n", [SpreadsheetName]),
-            {ok, SpreadsheetName};
+    %% Invio richiesta ad app_sup per creare il supervisore specifico
+    Args= {SpreadsheetName, N, M, K,self()}, 
+    case spreadsheet_supervisor:start_spreadsheet(Args) of
+        {ok, Pid} ->
+            io:format("Spreadsheet ~p started successfully with PID ~p~n", [SpreadsheetName, Pid]),
+            {ok, Pid};
         {error, Reason} ->
-            io:format("Failed to create spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
+            io:format("Failed to start spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {error, Reason}
     end.
 
 %% Avvia il gen_server
-start_link({SpreadsheetName, N, M, K, OwnerPid}) ->
-    gen_server:start_link({global, SpreadsheetName}, ?MODULE, {SpreadsheetName, N, M, K, OwnerPid}, []).
+start_link(Args) ->
+    io:format("Starting distributed_spreadsheet with args: ~p~n", [Args]),
+    {SpreadsheetName, _, _, _, _} = Args,
+    gen_server:start_link({global, SpreadsheetName}, ?MODULE, Args, []).
 
 %% Callbacks
 init({SpreadsheetName, N, M, K, OwnerPid}) ->

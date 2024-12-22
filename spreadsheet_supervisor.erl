@@ -2,21 +2,38 @@
 -behaviour(supervisor).
 
 %% API & Callbacks
--export([start_link/0, start_link/1, init/1]).
+-export([init/1,start_link/0, start_spreadsheet/1, terminate_spreadsheet/1, which_children/0]).
 
-%% Start without parameters
-start_link() ->
-    %% Use a default name for general supervision
+%% Avvia il supervisore per i  gen_server
+start_link() ->    
     supervisor:start_link({local, spreadsheet_sup}, ?MODULE, []).
 
+%% API per avviare dinamicamente un figlio
+start_spreadsheet(Args) ->
+    %% Avvia un nuovo figlio per lo spreadsheet
+    io:format("Passing params to start_child: ~p~n", [Args]),
+    supervisor:start_child(spreadsheet_sup, [Args]).
 
-start_link({SpreadsheetName, N, M, K, OwnerPid}) ->
-    %% Nome del supervisore derivato dallo SpreadsheetName
-    SupervisorName = list_to_atom("supervisore_" ++ atom_to_list(SpreadsheetName)),
-    io:format("Supervisor name is ~p~n",[SupervisorName]),
-    supervisor:start_link({local, SupervisorName}, ?MODULE, {SpreadsheetName, N, M, K, OwnerPid}).
+%% API per terminare un figlio
+terminate_spreadsheet(SpreadsheetName) ->
+    case whereis(SpreadsheetName) of
+        undefined ->
+            io:format("Spreadsheet ~p not found~n", [SpreadsheetName]),
+            {error, not_found};
+        Pid ->
+            io:format("Terminating spreadsheet ~p with PID ~p~n", [SpreadsheetName, Pid]),
+            exit(Pid, kill),
+            ok
+    end.
 
-%% Supervisor initialization
+%% API per elencare i figli
+which_children() ->
+    supervisor:which_children(spreadsheet_sup).
+
+
+
+
+%% Inizializzazione del supervisore
 init([]) ->
     %% Default setup for the app_sup context
     {ok, {
@@ -29,18 +46,18 @@ init([]) ->
              worker,
              [distributed_spreadsheet]}
         ]
-    }};
-init({SpreadsheetName, N, M, K, OwnerPid}) ->
-    %% Specialized setup for SpreadsheetName
-    io:format("Initializing supervisor for spreadsheet ~p~n", [SpreadsheetName]),
-    {ok, {
-        {simple_one_for_one, 10, 60},
-        [
-            {spreadsheet_worker,
-             {distributed_spreadsheet, start_link, [{SpreadsheetName, N, M, K, OwnerPid}]},
-             transient,
-             5000,
-             worker,
-             [distributed_spreadsheet]}
-        ]
     }}.
+%init({SpreadsheetName, N, M, K, OwnerPid}) ->
+%    %% Specialized setup for SpreadsheetName
+%    io:format("Initializing supervisor for spreadsheet ~p~n", [SpreadsheetName]),
+%    {ok, {
+%        {simple_one_for_one, 10, 60},
+%        [
+%            {spreadsheet_worker,
+%             {distributed_spreadsheet, start_link, [{SpreadsheetName, N, M, K, OwnerPid}]},
+%             transient,
+%             5000,
+%             worker,
+%             [distributed_spreadsheet]}
+%        ]
+%    }}.

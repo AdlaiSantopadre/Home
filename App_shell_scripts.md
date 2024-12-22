@@ -45,74 +45,34 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
 mnesia_setup:create_tables(Nodes). %integrare nella precedente funzione
+observer:start().
 
 ### Avvio di mnesia db se non avviato da setup
 
 mnesia_setup:mnesia_start(Nodes).
-observer:start().
+
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 application:which_applications().
 
 ## Avvio della APP 
+
 && dal nodo Alice
-
 application:start(my_app).
+supervisor:which_children(app_sup).
+>>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
+supervisor:which_children(spreadsheet_sup).
+>>ritorna []
+
+## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
+
+f(Args).
+Args= {venticinque, 4, 3, 2,self()}.
+%% distributed_spreadsheet:start_link(Args).
+spreadsheet_supervisor:start_spreadsheet(Args).
+supervisor:start_child(spreadsheet_sup, [Args]).
+distributed_spreadsheet:new(venticinque, 3, 4, 2).
 
 
-### arrestare ed eliminare lo schema di Mnesia
-
-% su ogni nodo
-mnesia:stop().
-mnesia:delete_schema([node()]).
-q().
-
-% per tutti i nodi dal nodo1
-mnesia:stop().
-mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
-init:stop().
-
-% da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-e avviare
-erl -sname node_test -setcookie mycookie
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%in alternativa crea tre directory separate
-C:\Users\campus.uniurb.it\Erlang\Alice_data
-C:\Users\campus.uniurb.it\Erlang\Bob_data
-C:\Users\campus.uniurb.it\Erlang\Charlie_data
-%e in ogni directory avvia un nodo
-erl -sname Alice -setcookie mycookie
-erl -sname Bob -setcookie mycookie
-erl -sname Charlie -setcookie mycookie
-erl -sname node_test -setcookie mycookie
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-## messaggi di diagnosi su Mnesia 
-
-% per ottenere l'elenco dei nodi connessi esplicitamente a formare  un cluster
-mnesia:system_info(running_db_nodes).
-mnesia:system_info().
-mnesia:system_info(tables).
-mnesia:table_info(spreadsheet_data, all).
-mnesia:table_info(spreadsheet_owners, all)
-%cancellare una tabella e ricrearla
-mnesia:delete_table(Table).
-mensia:create_table(....)
-
-### Utilità per cancellare  i dati di una tabella
-
-c(delete_spreadsheet).
-delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
-%% OSS:alla fine devi cancellare il nome globale registrato !!
-
-
-
-
-
-## TEST del supervisore sul nodo Alice
-
-distributed_spreadsheet:new(diciottodicembre, 3, 4, 2).
 whereis(supervisor). % Controlla il supervisore locale
 global:whereis_name(diciottodicembre). % Controlla il gen_server globale
 supervisor:which_children(spreadsheet_supervisor).
@@ -158,3 +118,46 @@ distributed_spreadsheet:share(dodicidicembre, [{self(), write}]).
 
 **NOTA:questa funzione, lanciata da Alice non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+### arrestare ed eliminare lo schema di Mnesia
+
+% su ogni nodo
+mnesia:stop().
+mnesia:delete_schema([node()]).
+q().
+
+% per tutti i nodi dal nodo1
+mnesia:stop().
+mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
+init:stop().
+
+%%%
+%in alternativa crea tre directory separate
+C:\Users\campus.uniurb.it\Erlang\Alice_data
+C:\Users\campus.uniurb.it\Erlang\Bob_data
+C:\Users\campus.uniurb.it\Erlang\Charlie_data
+%e in ogni directory avvia un nodo
+erl -sname Alice -setcookie mycookie
+erl -sname Bob -setcookie mycookie
+erl -sname Charlie -setcookie mycookie
+erl -sname node_test -setcookie mycookie
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+## messaggi di diagnosi su Mnesia
+
+% per ottenere l'elenco dei nodi connessi esplicitamente a formare  un cluster
+mnesia:system_info(running_db_nodes).
+mnesia:system_info().
+mnesia:system_info(tables).
+mnesia:table_info(spreadsheet_data, all).
+mnesia:table_info(spreadsheet_owners, all)
+%cancellare una tabella e ricrearla
+mnesia:delete_table(Table).
+mensia:create_table(....)
+
+### Utilità per cancellare  i dati di una tabella
+
+c(delete_spreadsheet).
+delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
+%% OSS:alla fine devi cancellare il nome globale registrato !!
