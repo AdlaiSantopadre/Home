@@ -1,11 +1,14 @@
--module(distributed_spreadsheet).
+-module(distributed_spreadsheet). % gen_server with Mnesia
 -behaviour(gen_server).
 
 %% API
 -export([start_link/1, new/4]).
 %% Callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+%% Include the record definitions
+-include("records.hrl").
 
+%%% API FUNCTIONS %%%
 
 %% API per creare uno spreadsheet
 new(SpreadsheetName, N, M, K) ->
@@ -26,10 +29,34 @@ start_link(Args) ->
     {SpreadsheetName, _, _, _, _} = Args,
     gen_server:start_link({global, SpreadsheetName}, ?MODULE, Args, []).
 
-%% Callbacks
+%% Inizializza il processo spreadsheet distribuito
 init({SpreadsheetName, N, M, K, OwnerPid}) ->
     io:format("Initializing spreadsheet ~p with owner ~p~n", [SpreadsheetName, OwnerPid]),
-    {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}}.
+%%
+    case mnesia:transaction(fun() ->
+        case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
+            [] -> %% New spreadsheet creation
+                io:format("No existing data for spreadsheet ~p. Initializing records.~n", [SpreadsheetName]),
+                Records = generate_records(SpreadsheetName, N, M, K),
+                lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
+                mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                {new, ok};
+            [#spreadsheet_owners{owner = ExistingOwner}] -> %% Restart case
+                io:format("Found existing owner ~p for spreadsheet ~p.~n", [ExistingOwner, SpreadsheetName]),
+                {existing, ExistingOwner}
+        end
+    end) of
+        {atomic, {new, ok}} ->
+            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}}; %% OK
+        {atomic, {existing, ExistingOwner}} ->
+            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
+        {aborted, Reason} ->
+            io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
+            {stop, Reason}
+    end.
+
+
+%%% gen_server CALLBACKS %%%
 
 terminate(Reason, State) ->
     io:format("Terminating spreadsheet ~p with reason: ~p~n", [maps:get(name, State), Reason]),
@@ -45,3 +72,13 @@ handle_info(_Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% FUNZIONI AUSILIARIE
+
+%%genera tutti i record necessari per rappresentare lo spreadsheet. Usa list comprehensions per creare i record.
+generate_records(Name, N, M, K) ->
+    [#spreadsheet_data{name = Name, tab = Tab, row = Row, col = Col, value = undef}
+     || Tab <- lists:seq(1, K),
+        Row <- lists:seq(1, N),
+        Col <- lists:seq(1, M)].
+
