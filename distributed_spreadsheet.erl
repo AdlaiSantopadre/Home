@@ -13,7 +13,8 @@
 %% API per creare uno spreadsheet
 new(SpreadsheetName, N, M, K) ->
     %% Invio richiesta ad app_sup per creare il supervisore specifico
-    Args= {SpreadsheetName, N, M, K,self()}, 
+    OwnerPid= application_controller:get_master(my_app),
+    Args= {SpreadsheetName, N, M, K,OwnerPid}, 
     case spreadsheet_supervisor:start_spreadsheet(Args) of
         {ok, Pid} ->
             io:format("Spreadsheet ~p started successfully with PID ~p~n", [SpreadsheetName, Pid]),
@@ -41,9 +42,9 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
                 mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
                 {new, ok};
-            [#spreadsheet_owners{owner = ExistingOwner}] -> %% Restart case
-                io:format("Found existing owner ~p for spreadsheet ~p.~n", [ExistingOwner, SpreadsheetName]),
-                {existing, ExistingOwner}
+            [#spreadsheet_owners{owner = OwnerPid}] -> %% Restart case
+                io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName]),
+                {existing, OwnerPid}
         end
     end) of
         {atomic, {new, ok}} ->

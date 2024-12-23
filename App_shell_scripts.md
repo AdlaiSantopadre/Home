@@ -54,8 +54,9 @@ mnesia_setup:mnesia_start(Nodes).
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 application:which_applications().
 
-## Avvio della APP 
+## Avvio della APP
 
+%%al prossimo riavvio controllare se serve un comando per inizializzare app_sup
 && dal nodo Alice
 application:start(my_app).
 supervisor:which_children(app_sup).
@@ -66,36 +67,26 @@ supervisor:which_children(spreadsheet_sup).
 ## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
 
 f(Args).
-Args= {venticinque, 4, 3, 2,self()}.
+Args= {ventiquattrodicembre, 4, 3, 2,self()}.
 %% distributed_spreadsheet:start_link(Args).
 spreadsheet_supervisor:start_spreadsheet(Args).
 supervisor:start_child(spreadsheet_sup, [Args]).
-distributed_spreadsheet:new(venticinque, 3, 4, 2).
+**distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**
+supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
+global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
+whereis(spreadsheet_sup). % Controlla il supervisore locale
+**exit(global:whereis_name(ventiquattrodicembre), kill).**
 
-
-whereis(supervisor). % Controlla il supervisore locale
-global:whereis_name(diciottodicembre). % Controlla il gen_server globale
-supervisor:which_children(spreadsheet_supervisor).
 
 ### fallimento del supervisor
 
 exit(whereis(supervisor), kill).
-global:whereis_name(diciottodicembre). % Deve restituire `undefined`
+global:whereis_name(ventiquattrodicembre). % Deve restituire `undefined`
 
 ### fallimento dello spreadsheet
 
-distributed_spreadsheet:new(diciottodicembre, 3, 4, 2).
-exit(global:whereis_name(diciottodicembre), kill).
+exit(global:whereis_name(ventiquattrodicembre), kill).
 
-## Avvio del supervisore su tutti i nodi
-
-%% dal nodo Alice
- [rpc:call(Node, spreadsheet_supervisor, start_link, []) || Node <- Nodes].
-%% oppure
-rpc:call('Alice@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
-rpc:call('Bob@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
-rpc:call('Charlie@DESKTOPQ2A2FL7', spreadsheet_supervisor, start_link, []).
-self().
 
 ## TEST DELLE API
 
