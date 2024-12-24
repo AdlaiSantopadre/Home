@@ -33,6 +33,17 @@ mnesia_setup:distribute_modules(Nodes, Modules).
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).
 
+## Avvio della APP
+
+**mnesia_setup:start_application(Nodes).**
+%%al prossimo riavvio controllare se serve un comando per inizializzare app_sup
+&& dal nodo Alice
+application:start(my_app).
+supervisor:which_children(app_sup).
+>>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
+supervisor:which_children(spreadsheet_sup).
+>>ritorna []
+
 ## ESEGUIRE mnesia_setup
 
 ### setup e creazione delle tabelle
@@ -54,15 +65,7 @@ mnesia_setup:mnesia_start(Nodes).
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 application:which_applications().
 
-## Avvio della APP
 
-%%al prossimo riavvio controllare se serve un comando per inizializzare app_sup
-&& dal nodo Alice
-application:start(my_app).
-supervisor:which_children(app_sup).
->>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
-supervisor:which_children(spreadsheet_sup).
->>ritorna []
 
 ## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
 
@@ -75,17 +78,20 @@ supervisor:start_child(spreadsheet_sup, [Args]).
 supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
 global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
 whereis(spreadsheet_sup). % Controlla il supervisore locale
-**exit(global:whereis_name(ventiquattrodicembre), kill).**
 
 
-### fallimento del supervisor
+### fallimento del distributed_sup
 
-exit(whereis(supervisor), kill).
-global:whereis_name(ventiquattrodicembre). % Deve restituire `undefined`
+%%da testare
 
 ### fallimento dello spreadsheet
 
-exit(global:whereis_name(ventiquattrodicembre), kill).
+**exit(global:whereis_name(ventiquattrodicembre), kill).**
+
+## Fallimento del NODO ALice
+
+rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
+
 
 
 ## TEST DELLE API

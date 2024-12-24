@@ -1,6 +1,6 @@
--module(mnesia_setup). % v. 3.1 Windows SO con shortNames  + distribuzione del codice compilato
+-module(mnesia_setup). % v. 4.1 Windows SO con shortNames  + distribuzione del codice compilato 
 
--export([setup_mnesia/2, create_tables/1, mnesia_start/1, distribute_modules/2]).
+-export([setup_mnesia/2, create_tables/1, mnesia_start/1, distribute_modules/2,start_application/1]).
 
 -include("records.hrl").
 
@@ -84,6 +84,12 @@ mnesia_start(Nodes) ->
             rpc:call(Node, mnesia, start, [])
         end, Nodes),
     mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners], 20000).
+
+%% Avvia my_app su tutti i nodi
+start_application(Nodes) ->
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, application, start, [my_app])
+    end, Nodes).
 
     
 
