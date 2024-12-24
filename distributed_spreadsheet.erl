@@ -1,8 +1,9 @@
 -module(distributed_spreadsheet). % gen_server with Mnesia
 -behaviour(gen_server).
-
+%% API functions exported from assignement
+-export([new/1, new/4, share/2]).%, start_spreadsheet/0
 %% API
--export([start_link/1, new/4]).
+-export([start_link/1]).
 %% Callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 %% Include the record definitions
@@ -10,7 +11,14 @@
 
 %%% API FUNCTIONS %%%
 
-%% API per creare uno spreadsheet
+%% Crea uno spreadsheet con valori di default
+new(Name) ->
+    N = 3,  % Default N (numero di righe)
+    M = 4,  % Default M (numero di colonne)
+    K = 2,   % Default K (numero di tab)
+    new(Name, N, M, K).
+
+%% Crea uno spreadsheet con parametri specifici
 new(SpreadsheetName, N, M, K) ->
     %% Invio richiesta ad app_sup per creare il supervisore specifico
     OwnerPid= application_controller:get_master(my_app),
