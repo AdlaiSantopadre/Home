@@ -24,16 +24,13 @@ setup_mnesia(Nodes, Dirs) ->
     %% Crea lo schema sui nodi specificati
     mnesia:create_schema(Nodes),
 
-    %% Avvia Mnesia su tutti i nodi
-    %%lists:foreach(fun(Node) ->
-    %%    rpc:call(Node, mnesia, start, [])
-    %%end, Nodes),
-
     %% Cambia la copia dello schema su disco  %%verifica se necesssario..
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, change_table_copy_type, [schema, Node, disc_copies])
     end, Nodes),
     
+    
+
     %%create_tables(Nodes) ->
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
@@ -58,8 +55,11 @@ setup_mnesia(Nodes, Dirs) ->
     lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
         end, Nodes),
-    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners], 20000).
-
+    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners], 20000),
+    %% Avvia Mnesia su tutti i nodi
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, mnesia, start, [])
+    end, Nodes).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Avvia my_app su tutti i nodi
 start_application(Nodes) ->
