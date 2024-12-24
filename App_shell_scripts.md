@@ -3,8 +3,9 @@
 ## Setup ambiente
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-Non serve **Aggiornato per  salvare nella directory di lavoro di ogni nodo sys.config**
-%aggiungere al
+%% **Aggiornato per NON salvare nella directory di lavoro di ogni nodo sys.config**
+%aggiungere al cluster
+erl -sname node_test -setcookie mycookie
 
 ## Compilare i moduli
 
@@ -12,6 +13,7 @@ c(app_sup).
 c(distributed_spreadsheet).
 c(spreadsheet_supervisor).
 c(my_app).
+c(mnesia_setup).
 
 ## COMPILARE mnesia_setup
 
@@ -24,24 +26,13 @@ net_adm:ping('Alice@DESKTOPQ2A2FL7').
 net_adm:ping('Bob@DESKTOPQ2A2FL7').
 net_adm:ping('Charlie@DESKTOPQ2A2FL7').
 
-## distribuzione del codice
+## distribuzione del codice APPLICATION OTP
 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup].
 mnesia_setup:distribute_modules(Nodes, Modules).
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).
-
-## Avvio della APP
-
-**mnesia_setup:start_application(Nodes).**
-%%al prossimo riavvio controllare se serve un comando per inizializzare app_sup
-&& dal nodo Alice
-application:start(my_app).
-supervisor:which_children(app_sup).
->>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
-supervisor:which_children(spreadsheet_sup).
->>ritorna []
 
 ## ESEGUIRE mnesia_setup
 
@@ -54,13 +45,28 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
-mnesia_setup:create_tables(Nodes). %integrare nella precedente funzione
+mnesia_setup:create_tables(Nodes). %se lo integro in setup_mnesia/2 non crea le tabelle
+observer:start()
+
+## Avvio della APP da nodo1
+
+code:add_patha("C:/Users/campus.uniurb.it/Erlang/"). %%vediamo se serve per my.app.app
+Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+mnesia_setup:start_application(Nodes).
 observer:start().
+%% comando per inizializzare app_sup è in my.app.erl
+&& dal nodo Alice
+%% application:start(my_app).
+supervisor:which_children(app_sup).
+>>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
+supervisor:which_children(spreadsheet_sup).
+>>ritorna []
+
+
 
 ### Avvio di mnesia db se non avviato da setup
 
 mnesia_setup:mnesia_start(Nodes).
-
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 application:which_applications().
 
@@ -73,6 +79,7 @@ Args= {ventiquattrodicembre, 4, 3, 2,self()}.
 %% distributed_spreadsheet:start_link(Args).
 spreadsheet_supervisor:start_spreadsheet(Args).
 supervisor:start_child(spreadsheet_sup, [Args]).
+distributed_spreadsheet:new(ventiquattrodicembre).
 **distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**
 supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
 global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
@@ -98,21 +105,19 @@ rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
 NOTA per testare da shell, includere prima il comando di registrazione dei record
 ES rr("records.hrl").
 
-%% avviare il gen_server con un nome = quindicidicembre globale che mi determina
-%% global:registered_names().     %%[{dodicidicembre,owner},dodicidicembre]
-distributed_spreadsheet:new(dodicidicembre).
 %%controlla il processo se necessario
-global:registered_names().
-global:whereis_name(dodicidicembre).
-process_info(global:whereis_name(dodicidicembre)).
+
+process_info(global:whereis_name(ventiquattrodicembre)).
 %%arrestare gen_server
 
-%% supponendo di aver inizializzato dodicidicembre e di aver registrato i nodi con nomi globali
-%% global:register_name(Bob_read_policy, self()).
+%% supponendo di aver inizializzato ventiquattrodicembre e di aver registrato i nodi con nomi globali
+OwnerPid =application_controller:get_master(my_app).
+AlicePid= OwnerPid.
+BobPid = application_controller:get_master(my_app).
 
-distributed_spreadsheet:share(dodicidicembre, [{self(), write}]).
+distributed_spreadsheet:share(ventiquattrodicembre, [{OwnerPid, write}]).
 
-**NOTA:questa funzione, lanciata da Alice non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

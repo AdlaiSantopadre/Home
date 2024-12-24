@@ -38,7 +38,8 @@ case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};  % If the process is not found
         Pid when is_pid(Pid) ->
-            gen_server:call({global, SpreadsheetName}, {share, SpreadsheetName, [{self(), write}]})
+            MasterPid= application_controller:get_master(my_app),
+            gen_server:call({global, SpreadsheetName}, {share, SpreadsheetName, [{MasterPid, write}]})
 end.
 
 
