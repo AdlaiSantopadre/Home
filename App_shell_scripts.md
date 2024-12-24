@@ -4,8 +4,7 @@
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
 Non serve **Aggiornato per  salvare nella directory di lavoro di ogni nodo sys.config**
-%aggiungere al cluster
-erl -sname node_test -setcookie mycookie
+%aggiungere al
 
 ## Compilare i moduli
 
