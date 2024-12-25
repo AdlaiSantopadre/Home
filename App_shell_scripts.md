@@ -34,7 +34,7 @@ mnesia_setup:distribute_modules(Nodes, Modules).
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).
 
-## ESEGUIRE mnesia_setup
+## ESEGUIRE mnesia_setup 
 
 ### setup e creazione delle tabelle
 
@@ -48,14 +48,18 @@ mnesia_setup:setup_mnesia(Nodes, Dirs).
 mnesia_setup:create_tables(Nodes). %se lo integro in setup_mnesia/2 non crea le tabelle
 observer:start()
 
-## Avvio della APP da nodo1
+## Avvio della APP da nodo Alice
 
-code:add_patha("C:/Users/campus.uniurb.it/Erlang/"). %%vediamo se serve per my.app.app
+**code:add_patha("C:/Users/campus.uniurb.it/Erlang/").** %% controlla se serve per leggere my.app.app
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-mnesia_setup:start_application(Nodes).
+mnesia_setup:start_application(Nodes).    %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
 observer:start().
-%% comando per inizializzare app_sup è in my.app.erl
-&& dal nodo Alice
+%Consulta le tabelle su observer->Applications->Mnesia->Table viewer
+application:which_applications().
+SpreadsheetNane = ventiquattrodicembre.
+mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
+
+%% dal nodo Alice
 %% application:start(my_app).
 supervisor:which_children(app_sup).
 >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
@@ -63,12 +67,6 @@ supervisor:which_children(spreadsheet_sup).
 >>ritorna []
 
 
-
-### Avvio di mnesia db se non avviato da setup
-
-mnesia_setup:mnesia_start(Nodes).
-%Consulta le tabelle su observer->Applications->Mnesia->Table viewer
-application:which_applications().
 
 
 

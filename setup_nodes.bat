@@ -1,10 +1,7 @@
 REM Imposta la directory di base
 set BASE_DIR=C:\Users\campus.uniurb.it\Erlang
 
-REM Imposta il percorso del file sys.config
-
-
-REM Crea le directory per i nodi e copia sys.config in ciascuna
+REM Crea le directory per i nodi 
 mkdir "%BASE_DIR%\Alice_data"
 
 
