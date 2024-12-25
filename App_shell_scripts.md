@@ -66,10 +66,6 @@ supervisor:which_children(app_sup).
 supervisor:which_children(spreadsheet_sup).
 >>ritorna []
 
-
-
-
-
 ## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
 
 f(Args).
@@ -82,38 +78,32 @@ distributed_spreadsheet:new(ventiquattrodicembre).
 supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
 global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
 whereis(spreadsheet_sup). % Controlla il supervisore locale
-
-c(init_cluster_policies).
 %% per deregistrare un nome **global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).**
+
+### Test fallimento dello spreadsheet
+
+**exit(global:whereis_name(ventiquattrodicembre), kill).**
 
 ### fallimento del distributed_sup
 
 %%da testare
 
-### fallimento dello spreadsheet
-
-**exit(global:whereis_name(ventiquattrodicembre), kill).**
-
 ## Fallimento del NODO ALice
 
 rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
 
-
-
-## TEST DELLE API
+### TEST DELLE API
 
 NOTA per testare da shell, includere prima il comando di registrazione dei record
 ES rr("records.hrl").
 
-%%controlla il processo se necessario
-
+%% x controllare il processo spreadsheet,se necessario
 process_info(global:whereis_name(ventiquattrodicembre)).
-%%arrestare gen_server
 
-%% supponendo di aver inizializzato ventiquattrodicembre e di aver registrato i nodi con nomi globali
-OwnerPid =application_controller:get_master(my_app).
-AlicePid= OwnerPid.
-BobPid = application_controller:get_master(my_app).
+## Test Share(SpreadsheetName,Access_policies)
+
+%% supponendo di aver inizializzato ventiquattrodicembre e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
+[{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 
 distributed_spreadsheet:share(ventiquattrodicembre, [{OwnerPid, write}]).
 
