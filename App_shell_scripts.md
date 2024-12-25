@@ -85,6 +85,8 @@ supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,
 global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
 whereis(spreadsheet_sup). % Controlla il supervisore locale
 
+c(init_cluster_policies).
+%% per deregistrare un nome **global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).**
 
 ### fallimento del distributed_sup
 
