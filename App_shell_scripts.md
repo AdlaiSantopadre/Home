@@ -104,8 +104,8 @@ process_info(global:whereis_name(ventiquattrodicembre)).
 
 %% supponendo di aver inizializzato ventiquattrodicembre e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
 [{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
-
-distributed_spreadsheet:share(ventiquattrodicembre, [{OwnerPid, write}]).
+%% test funzione ausiliaria 
+distributed_spreadsheet:update_access_policies(ventiquattrodicembre, [{<0.422.0>, write},{<0.141.0>,read}]).
 
 
 

@@ -3,7 +3,7 @@
 %% API functions exported from assignement
 -export([new/1, new/4, share/2]).%, start_spreadsheet/0
 %% API
--export([start_link/1]).
+-export([start_link/1,update_access_policies/3]).
 %% Callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 %% Include the record definitions
@@ -101,8 +101,13 @@ handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) 
         end
     end) of
         {atomic, ok} ->
-            %% Se autorizzato, aggiorna le politiche di accesso
-            case update_access_policies(SpreadsheetName, AccessPolicies) of
+             %% Step 1: Recupera le politiche esistenti
+            ExistingPolicies = [
+                {Policy#access_policies.proc, Policy#access_policies.access}
+                || Policy <- mnesia:match_object(#access_policies{name = SpreadsheetName, proc = '_', access = '_'})
+            ],
+            io:format("Existing Policies: ~p~n", [ExistingPolicies]),
+            case update_access_policies(SpreadsheetName, AccessPolicies,ExistingPolicies) of
                 {atomic, ok} ->
                     io:format("Access policies for ~p updated successfully.~n", [SpreadsheetName]),
                     {reply, ok, State};
@@ -141,43 +146,39 @@ generate_records(Name, N, M, K) ->
         Row <- lists:seq(1, N),
         Col <- lists:seq(1, M)].
 
-update_access_policies(SpreadsheetName, NewPolicies) ->
+update_access_policies(SpreadsheetName, ExistingPolicies, NewPolicies) ->
+    %% Preelabora NewPolicies per creare una mappa di PID e nomi globali
+    ResolvedNewPolicies = resolve_policies(NewPolicies),
+
+    %% Filtra le ExistingPolicies
+    FilteredExistingPolicies = lists:filter(fun({Proc, _}) ->
+        %% Risolvi Proc in ExistingPolicies
+        case resolve_to_global_or_pid(Proc) of
+            {ok, ResolvedProc} -> 
+                %% Mantieni solo se ResolvedProc è presente in ResolvedNewPolicies
+                maps:is_key(ResolvedProc, ResolvedNewPolicies);
+            _ -> false
+        end
+    end, ExistingPolicies),
+
+    %% Combina le politiche filtrate con NewPolicies
+    UpdatedPolicies = FilteredExistingPolicies ++ NewPolicies,
+
+    %% Aggiorna la tabella Mnesia
     mnesia:transaction(fun() ->
-        %% Step 1: Recupera le politiche esistenti
-        ExistingPolicies = [
-            {Policy#access_policies.proc, Policy#access_policies.access}
-            || Policy <- mnesia:match_object(#access_policies{name = SpreadsheetName, proc = '_', access = '_'})
-        ],
-        io:format("Existing Policies: ~p~n", [ExistingPolicies]),
-
-        %% Step 2: Filtra duplicati
-        FilteredExistingPolicies = [
-            Policy || 
-            {Proc, _} = Policy <- ExistingPolicies, 
-            not (
-                lists:keymember(Proc, 1, NewPolicies) orelse
-                is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> global:whereis_name(NewProc) == Proc end, NewPolicies) orelse
-                not is_pid(Proc) andalso lists:any(fun({NewProc, _}) -> NewProc == global:whereis_name(Proc) end, NewPolicies)
-            )
-        ],
-        io:format("Filtered Existing Policies: ~p~n", [FilteredExistingPolicies]),
-
-        %% Step 3: Combina le politiche
-        UpdatedPolicies = FilteredExistingPolicies ++ NewPolicies,
-        io:format("Updated Policies: ~p~n", [UpdatedPolicies]),
-
-        
-        %% Step 4: Rimuovi le vecchie politiche dalla tabella
+        %% Rimuovi le vecchie politiche
         mnesia:delete({access_policies, SpreadsheetName}),
-
-        %% Step 5: Inserisci nuove politiche
+        %% Inserisci le nuove politiche
         lists:foreach(fun({Proc, Access}) ->
             Record = #access_policies{name = SpreadsheetName, proc = Proc, access = Access},
             io:format("Inserting Record: ~p~n", [Record]),
             mnesia:write(Record)
         end, UpdatedPolicies),
-
         ok
     end).
 
 
+
+
+            
+            
