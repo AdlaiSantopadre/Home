@@ -7,7 +7,7 @@
 
 %% API functions exported from assignement
 
--export([new/1, new/4, share/2, get/4, get/5]).
+-export([new/1, new/4, share/2, get/4, get/5, set/5, set/6, info/1]).
 %% API
 -export([start_link/1]).
 
@@ -22,12 +22,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Crea uno spreadsheet con valori di default
 new(Name) ->
-    % Default N (numero di righe)
     N = 3,
-    % Default M (numero di colonne)
     M = 4,
-    % Default K (numero di tab)
     K = 2,
+    % Default N (numero di righe), M (numero di colonne), K (numero di tab)
     new(Name, N, M, K).
 
 %% Crea uno spreadsheet con parametri specifici
@@ -36,13 +34,35 @@ new(SpreadsheetName, N, M, K) ->
     OwnerPid = application_controller:get_master(my_app),
     Args = {SpreadsheetName, N, M, K, OwnerPid},
     case spreadsheet_supervisor:start_spreadsheet(Args) of
-        %% Invio richiesta ad app_sup per creare il supervisore specifico
+        %% Invio richiesta a spreadsheet_supervisor per creare il supervisore specifico
         {ok, Pid} ->
             io:format("Spreadsheet ~p started successfully with PID ~p~n", [SpreadsheetName, Pid]),
             {ok, Pid};
         {error, Reason} ->
             io:format("Failed to start spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {error, Reason}
+    end.
+
+%% API function to get information about the spreadsheet
+info(SpreadsheetName) ->
+    %% Step 1: Check if the process is registered globally
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            io:format("Spreadsheet ~p not found globally.~n", [SpreadsheetName]),
+            {error, spreadsheet_not_found};
+        Pid when is_pid(Pid) ->
+            %% Step 2: Check if the process is alive
+            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, Pid]),
+
+            try
+                gen_server:call(get_info, SpreadsheetName)
+            catch
+                Class:Reason ->
+                    io:format("Error calling gen_server:call/2 with Pid: ~p, Reason: ~p, ~p~n", [
+                        Pid, Class, Reason
+                    ]),
+                    {error, {call_failed, Reason}}
+            end
     end.
 %% Permette l'accesso condiviso allo spreadsheet secondo una lista di politiche di accesso
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
@@ -64,7 +84,7 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when
 ->
     case global:whereis_name(SpreadsheetName) of
         undefined ->
-            {error, spreadsheet_not_founded};
+            {error, spreadsheet_not_found};
         Pid when is_pid(Pid) ->
             MasterPid = application_controller:get_master(my_app),
             %% Make a gen_server:call with a timeout
@@ -75,7 +95,33 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when
                 _:_ -> {error, timeout}
             end
     end.
+%% API function to set a value with default timeout (infinity)
+set(SpreadsheetName, TabIndex, I, J, Value) ->
+    set(SpreadsheetName, TabIndex, I, J, Value, infinity).
 
+%% API function to set a value with a custom timeout
+set(SpreadsheetName, TabIndex, I, J, Value, Timeout) when
+    is_integer(TabIndex), is_integer(I), is_integer(J)
+->
+    case global:whereis_name(SpreadsheetName) of
+        undefined ->
+            {error, spreadsheet_not_found};
+        Pid when is_pid(Pid) ->
+            MasterPid = application_controller:get_master(my_app),
+            %% Check if value is a valid Erlang term, dynamically handle all types
+            case validate_value(Value) of
+                ok ->
+                    try
+                        gen_server:call(
+                            Pid, {set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, Timeout
+                        )
+                    catch
+                        _:_ -> {error, timeout}
+                    end;
+                {error, invalid_type} ->
+                    {reply, {error, invalid_type}}
+            end
+    end.
 %% Avvia il gen_server
 start_link(Args) ->
     io:format("Starting distributed_spreadsheet with args: ~p~n", [Args]),
@@ -125,6 +171,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
             io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {stop, Reason}
     end.
+
 % %% Handle the 'share' request in the gen_server
 % handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) ->
 %     io:format("Received share/2 for spreadsheet ~p from Pid ~p ~n", [SpreadsheetName, FromPid]),
@@ -158,14 +205,39 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %             io:format("Transaction failed while verifying ownership for ~p: ~p~n", [SpreadsheetName, Reason]),
 %             {reply, {error, Reason}, State}
 %     end;
+%% Handle the synchronous request to get the spreadsheet's info
+handle_call({get_info, SpreadsheetName}, From, State) ->
+    %CallerPid = element(1, From),
+    %Spreadsheet = #spreadsheet_data{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} = State,
+    io:format("getting info about  ~p~n", [From]),
+    ExistingPolicies = [
+        {Policy#access_policies.proc, Policy#access_policies.access}
+     || Policy <- mnesia:match_object(#access_policies{
+            name = SpreadsheetName, proc = '_', access = '_'
+        })
+    ],
+    %% Split access policies into read and write permissions
+    ReadPermissions = [Proc || {Proc, read} <- ExistingPolicies],
+    WritePermissions = [Proc || {Proc, write} <- ExistingPolicies],
 
+    %% Create the info result map
+    Info = #{
+        name => SpreadsheetName,
+        %          owner => Owner,
+        %          last_modified => LastModified,
+        %          total_tabs => TotalTabs,
+        %          total_cells => TotalCells,
+        read_permissions => ReadPermissions,
+        write_permissions => WritePermissions
+    },
+    {reply, {ok, Info}, State};
 %% Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, From, State) ->
     CallerPid = MasterPid,
     io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
 
     %% Check if the calling process has read access
-    case check_access(CallerPid, read) of
+    case check_access(CallerPid, write) of
         ok ->
             io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p~n", [TabIndex, I, J]),
 
@@ -188,13 +260,38 @@ handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, From, State) ->
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
+%% Handle the 'set' request in the gen_server
+handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, From, State) ->
+    CallerPid = MasterPid,
+    io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [
+        CallerPid, TabIndex, I, J, Value
+    ]),
+
+    %% Check if the calling process has write access
+    case check_access(CallerPid, write) of
+        ok ->
+            case
+                mnesia:transaction(fun() ->
+                    % Aggiorna un record #spreadsheet_data
+                    mnesia:write(#spreadsheet_data{
+                        name = SpreadsheetName, tab = TabIndex, row = I, col = J, value = Value
+                    })
+                end)
+            of
+                {atomic, ok} -> true;
+                {aborted, _Reason} -> timeout
+            end;
+        {error, access_denied} ->
+            io:format("Access denied for process ~p~n", [CallerPid]),
+            {reply, {error, access_denied}, State}
+    end;
 handle_call(_Request, _From, State) ->
     {reply, {error, unsupported_operation}, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -244,5 +341,27 @@ generate_records(Name, N, M, K) ->
 %         ok
 %     end).
 % %%   Verifica della politica di accesso in lettura
-check_access(CallerPid, read) ->
-    io:format("Verifica della politica di accesso in lettura per: ~p~n", [CallerPid]).
+check_access(CallerPid, _) ->
+    io:format("Verifica della politica di accesso in lettura o scrittura per: ~p~n", [CallerPid]).
+
+%% Helper function to validate the type of Value
+validate_value(Value) ->
+    case is_basic_type(Value) of
+        true -> ok;
+        false -> {error, invalid_type}
+    end.
+
+%% Helper function to check for basic types in Erlang
+is_basic_type(Value) when
+    is_integer(Value);
+    is_float(Value);
+    is_atom(Value);
+    is_list(Value);
+    is_tuple(Value);
+    is_map(Value);
+    is_binary(Value);
+    is_pid(Value)
+->
+    true;
+is_basic_type(_) ->
+    false.

@@ -678,7 +678,8 @@ is_basic_type(Value) when is_integer(Value);
                          is_list(Value);
                          is_tuple(Value);
                          is_map(Value);
-                         is_binary(Value) ->
+                         is_binary(Value);
+                         is_pid(Value) ->
     true;
 is_basic_type(_) ->
     false.
