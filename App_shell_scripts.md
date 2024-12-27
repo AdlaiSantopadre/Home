@@ -107,10 +107,13 @@ process_info(global:whereis_name(ventiquattrodicembre)).
 %% test funzione ausiliaria 
 distributed_spreadsheet:update_access_policies(ventiquattrodicembre, [{<0.422.0>, write},{<0.141.0>,read}]).
 
-## Test get(SpreadsheetName, TabIndex, I, J)
+## Test get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
 from node Bob
 distributed_spreadsheet:get(ventiquattrodicembre,2,3,4).
+
+distributed_spreadsheet:set(ventiquattrodicembre,2,3,4, "Hey, Adi").
+CallerPid =application_controller:get_master(my_app).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

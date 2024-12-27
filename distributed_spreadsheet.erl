@@ -12,7 +12,7 @@
 -export([start_link/1]).
 
 %%REMOVE AFTER TEST
-%-export([update_access_policies/3]).
+-export([find_global_name/1,check_access/3]).%update_access_policies/3,
 
 %% Callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -55,7 +55,7 @@ info(SpreadsheetName) ->
             io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, Pid]),
 
             try
-                gen_server:call(get_info, SpreadsheetName)
+                gen_server:call(about, SpreadsheetName)
             catch
                 Class:Reason ->
                     io:format("Error calling gen_server:call/2 with Pid: ~p, Reason: ~p, ~p~n", [
@@ -144,7 +144,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
     case
         mnesia:transaction(fun() ->
             case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
-                %% New spreadsheet creation
+                %% New spreadsheet creation 
                 [] ->
                     io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
                         SpreadsheetName
@@ -206,7 +206,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %             {reply, {error, Reason}, State}
 %     end;
 %% Handle the synchronous request to get the spreadsheet's info
-handle_call({get_info, SpreadsheetName}, From, State) ->
+handle_call({about, SpreadsheetName}, From, State) ->
     %CallerPid = element(1, From),
     %Spreadsheet = #spreadsheet_data{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} = State,
     io:format("getting info about  ~p~n", [From]),
@@ -231,44 +231,52 @@ handle_call({get_info, SpreadsheetName}, From, State) ->
         write_permissions => WritePermissions
     },
     {reply, {ok, Info}, State};
+%%%%%%%%%%%%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
-handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, From, State) ->
+handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, _From, State) ->
     CallerPid = MasterPid,
     io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
 
     %% Check if the calling process has read access
-    case check_access(CallerPid, write) of
+    case check_access(CallerPid,[read],SpreadsheetName) of
         ok ->
             io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p~n", [TabIndex, I, J]),
 
             case
                 mnesia:transaction(fun() ->
                     case
-                        mnesia:read(#spreadsheet_data{
-                            name = SpreadsheetName, tab = TabIndex, row = I, col = J
+                 %   mnesia:match_object(#access_policies{name = SpreadsheetName, proc = '_', access = '_'})
+                        mnesia:match_object(#spreadsheet_data{
+                            name = SpreadsheetName, tab = TabIndex, row = I, col = J,value = '_'
                         })
                     of
-                        undef -> undef;
+                        [undef] -> undef;
                         [#spreadsheet_data{value = Value}] -> Value
+                        
                     end
                 end)
             of
-                {atomic, Value} -> Value;
-                {aborted, _Reason} -> timeout
+                {atomic, Value} -> 
+                    io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p: ~p~n", [TabIndex, I, J, Value]),
+                    {reply, {ok, Value}, State};
+                {aborted, Reason} ->
+                    io:format("Transaction aborted for get request: ~p~n", [Reason]),
+                    {reply, {error, transaction_aborted}, State}
             end;
+                
         {error, access_denied} ->
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
 %% Handle the 'set' request in the gen_server
-handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, From, State) ->
+handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, State) ->
     CallerPid = MasterPid,
     io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [
         CallerPid, TabIndex, I, J, Value
     ]),
 
     %% Check if the calling process has write access
-    case check_access(CallerPid, write) of
+    case check_access(CallerPid, [write], SpreadsheetName) of
         ok ->
             case
                 mnesia:transaction(fun() ->
@@ -291,7 +299,7 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(Info, State) ->
+handle_info(_Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -341,8 +349,26 @@ generate_records(Name, N, M, K) ->
 %         ok
 %     end).
 % %%   Verifica della politica di accesso in lettura
-check_access(CallerPid, _) ->
-    io:format("Verifica della politica di accesso in lettura o scrittura per: ~p~n", [CallerPid]).
+check_access(CallerPid, [RequiredAccess], SpreadsheetName) ->
+    %% Trova il nome globale associato al CallerPid
+    case find_global_name(CallerPid) of
+        undefined ->
+            %% Nessun nome globale trovato
+            {error, access_denied};
+        GlobalName ->
+            %% Controlla se il nome globale ha i permessi richiesti
+            case mnesia:transaction(fun() ->
+                case mnesia:read(#access_policies{name = SpreadsheetName, proc = GlobalName}) of
+                    [#access_policies{access = Access}] when Access =:= RequiredAccess ->
+                        Access;
+                    _ ->
+                        {error, access_denied}
+                end
+            end) of
+                {atomic, Access} -> Access;
+                _ -> {error, access_denied}
+            end
+    end.
 
 %% Helper function to validate the type of Value
 validate_value(Value) ->
@@ -365,3 +391,18 @@ is_basic_type(Value) when
     true;
 is_basic_type(_) ->
     false.
+%% Helper per trovare il nome globale associato a un CallerPid
+find_global_name(CallerPid) ->
+    %% Recupera tutti i nomi globali
+    GlobalNames = global:registered_names(),
+    io:format("Lista dei nomi globali registrati: ~p~n", [GlobalNames]),
+    %% Trova il nome il cui PID corrisponde al CallerPid
+    case lists:filter(fun(Name) ->
+        case global:whereis_name(Name) of
+            CallerPid -> true;
+            _ -> false
+        end
+    end, GlobalNames) of
+        [GlobalName | _] -> GlobalName;  %% Restituisce il primo nome globale trovato
+        [] -> undefined                  %% Nessun nome globale trovato
+    end.
