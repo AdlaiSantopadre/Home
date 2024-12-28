@@ -113,8 +113,10 @@ from node Bob
 distributed_spreadsheet:get(ventiquattrodicembre,2,3,4).
 
 distributed_spreadsheet:set(ventiquattrodicembre,2,3,4, "Hey, Adi").
-CallerPid =application_controller:get_master(my_app).
+distributed_spreadsheet:set(ventiquattrodicembre,2,2,4, atomic).
 
+distributed_spreadsheet:find_global_name(CallerPid).
+distributed_spreadsheet:check_access(CallerPid).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ### arrestare ed eliminare lo schema di Mnesia
@@ -145,6 +147,8 @@ erl -sname node_test -setcookie mycookie
 
 % per ottenere l'elenco dei nodi connessi esplicitamente a formare  un cluster
 mnesia:system_info(running_db_nodes).
+mnesia:table_info(spreadsheet_data, where_to_read).
+%%  verifica dove è replicata la tabella spreadsheet_data
 mnesia:system_info().
 mnesia:system_info(tables).
 mnesia:table_info(spreadsheet_data, all).

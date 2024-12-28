@@ -12,7 +12,9 @@
 -export([start_link/1]).
 
 %%REMOVE AFTER TEST
--export([find_global_name/1,check_access/3]).%update_access_policies/3,
+
+%update_access_policies/3,
+-export([find_global_name/1, check_access/3]).
 
 %% Callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -144,7 +146,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
     case
         mnesia:transaction(fun() ->
             case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
-                %% New spreadsheet creation 
+                %% New spreadsheet creation
                 [] ->
                     io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
                         SpreadsheetName
@@ -231,43 +233,44 @@ handle_call({about, SpreadsheetName}, From, State) ->
         write_permissions => WritePermissions
     },
     {reply, {ok, Info}, State};
-%%%%%%%%%%%%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%HANDLE %%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, _From, State) ->
     CallerPid = MasterPid,
     io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
 
-    %% Check if the calling process has read access
-    case check_access(CallerPid,[read],SpreadsheetName) of
+    %% Check if the calling process has read access (or superior write access)
+    case check_access(CallerPid, [read,write], SpreadsheetName) of
         ok ->
             io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p~n", [TabIndex, I, J]),
 
             case
                 mnesia:transaction(fun() ->
                     case
-                 %   mnesia:match_object(#access_policies{name = SpreadsheetName, proc = '_', access = '_'})
+                        %   mnesia:match_object(#access_policies{name = SpreadsheetName, proc = '_', access = '_'})
                         mnesia:match_object(#spreadsheet_data{
-                            name = SpreadsheetName, tab = TabIndex, row = I, col = J,value = '_'
+                            name = SpreadsheetName, tab = TabIndex, row = I, col = J, value = '_'
                         })
                     of
                         [undef] -> undef;
                         [#spreadsheet_data{value = Value}] -> Value
-                        
                     end
                 end)
             of
-                {atomic, Value} -> 
-                    io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p: ~p~n", [TabIndex, I, J, Value]),
+                {atomic, Value} ->
+                    io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p: ~p~n", [
+                        TabIndex, I, J, Value
+                    ]),
                     {reply, {ok, Value}, State};
                 {aborted, Reason} ->
                     io:format("Transaction aborted for get request: ~p~n", [Reason]),
                     {reply, {error, transaction_aborted}, State}
             end;
-                
         {error, access_denied} ->
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
+%%%%%%%%%%HANDLE %%%%%%%%% SET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Handle the 'set' request in the gen_server
 handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, State) ->
     CallerPid = MasterPid,
@@ -278,21 +281,37 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, Sta
     %% Check if the calling process has write access
     case check_access(CallerPid, [write], SpreadsheetName) of
         ok ->
-            case
-                mnesia:transaction(fun() ->
-                    % Aggiorna un record #spreadsheet_data
-                    mnesia:write(#spreadsheet_data{
-                        name = SpreadsheetName, tab = TabIndex, row = I, col = J, value = Value
-                    })
-                end)
-            of
-                {atomic, ok} -> true;
-                {aborted, _Reason} -> timeout
-            end;
-        {error, access_denied} ->
-            io:format("Access denied for process ~p~n", [CallerPid]),
-            {reply, {error, access_denied}, State}
-    end;
+        
+            case mnesia:transaction(fun() ->
+                %% Recupera il record presente dalla tabella Mnesia
+                mnesia:delete_object(#spreadsheet_data{
+                    name = SpreadsheetName,
+                    tab = TabIndex,
+                    row = I,
+                    col = J
+                }),
+
+   
+                mnesia:write(#spreadsheet_data{
+                    name = SpreadsheetName,
+                    tab = TabIndex,
+                    row = I,
+                    col = J
+                     })
+                 end)
+             of
+                {atomic, ok} ->
+                    io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p: ~p~n", [TabIndex, I, J, Value]),
+                    {reply, {ok, Value}, State};
+                {aborted, Reason} ->
+                    io:format("Transaction aborted for get request: ~p~n", [Reason]),
+                    {reply, {error, transaction_aborted}, State}
+            end;    
+                
+         {error, access_denied} ->
+             io:format("Access denied for process ~p~n", [CallerPid]),
+             {reply, {error, access_denied}, State}
+     end;
 handle_call(_Request, _From, State) ->
     {reply, {error, unsupported_operation}, State}.
 
@@ -308,8 +327,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%% HELPER FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%
 
-%%genera tutti i record necessari per "rappresentare" lo spreadsheet.
-%% usa list comprehensions per creare i record.
+%%genera tutti i record necessari per "rappresentare" lo spreadsheet
+%%usando list comprehensions.
+
 generate_records(Name, N, M, K) ->
     [
         #spreadsheet_data{name = Name, tab = Tab, row = Row, col = Col, value = undef}
@@ -349,27 +369,44 @@ generate_records(Name, N, M, K) ->
 %         ok
 %     end).
 % %%   Verifica della politica di accesso in lettura
-check_access(CallerPid, [RequiredAccess], SpreadsheetName) ->
+check_access(CallerPid, RequiredAccessList, SpreadsheetName) ->
     %% Trova il nome globale associato al CallerPid
     case find_global_name(CallerPid) of
         undefined ->
-            %% Nessun nome globale trovato
+            io:format("nessun nome globale trovato per il chiamante ~p~n", [CallerPid]),
             {error, access_denied};
         GlobalName ->
-            %% Controlla se il nome globale ha i permessi richiesti
-            case mnesia:transaction(fun() ->
-                case mnesia:read(#access_policies{name = SpreadsheetName, proc = GlobalName}) of
-                    [#access_policies{access = Access}] when Access =:= RequiredAccess ->
-                        Access;
-                    _ ->
-                        {error, access_denied}
-                end
-            end) of
-                {atomic, Access} -> Access;
-                _ -> {error, access_denied}
+            io:format("controlla se ~p ha il requisito ~n", [GlobalName]),
+            case
+                mnesia:transaction(fun() ->
+                    %% Pattern per mnesia:match_object/1
+                    Pattern = #access_policies{
+                        name = SpreadsheetName, proc = GlobalName, access = '_'
+                    },
+                    Records = mnesia:match_object(Pattern),
+                    %% Filtra i record con il permesso richiesto
+                    lists:filter(
+                        fun(#access_policies{access = Access}) ->
+                            lists:member(Access, RequiredAccessList)
+                        end,
+                        Records
+                    )
+                end)
+            of
+                {atomic, []} ->
+                    %% Nessun record soddisfa i requisiti
+                    io:format("RequiredAccessList: ~p~n", [RequiredAccessList]),
+                    {error, access_denied};
+                {atomic, MatchingRecords} ->
+                    %% Almeno un record soddisfa i requisiti
+                    io:format("Selezionati questi record: ~p~n", [MatchingRecords]),
+                    ok;
+                {aborted, Reason} ->
+                    %% Transazione abortita
+                    io:format("Transaction aborted in check_access: ~p~n", [Reason]),
+                    {error, transaction_aborted}
             end
     end.
-
 %% Helper function to validate the type of Value
 validate_value(Value) ->
     case is_basic_type(Value) of
@@ -397,12 +434,19 @@ find_global_name(CallerPid) ->
     GlobalNames = global:registered_names(),
     io:format("Lista dei nomi globali registrati: ~p~n", [GlobalNames]),
     %% Trova il nome il cui PID corrisponde al CallerPid
-    case lists:filter(fun(Name) ->
-        case global:whereis_name(Name) of
-            CallerPid -> true;
-            _ -> false
-        end
-    end, GlobalNames) of
-        [GlobalName | _] -> GlobalName;  %% Restituisce il primo nome globale trovato
-        [] -> undefined                  %% Nessun nome globale trovato
+    case
+        lists:filter(
+            fun(Name) ->
+                case global:whereis_name(Name) of
+                    CallerPid -> true;
+                    _ -> false
+                end
+            end,
+            GlobalNames
+        )
+    of
+        %% Restituisce il primo nome globale trovato
+        [GlobalName | _] -> GlobalName;
+        %% Nessun nome globale trovato
+        [] -> undefined
     end.
