@@ -1,6 +1,6 @@
 {application, my_app,[
   {description, "Distributed Spreadsheet Application"},
-  {vsn, "1.0"},
+  {vsn, "1.1"},
   {modules, [my_app, app_sup, spreadsheet_supervisor, distributed_spreadsheet]},
   {registered, [app_sup]},
   {applications, [kernel, stdlib, mnesia ]},  % Dipendenze richieste + mnesia
@@ -9,3 +9,4 @@
   {env, []} 
   %{path, ["ebin"]} %per spostare tutti i file compilati in ebin
  ]}.
+ %%Aggiunta in my_app di logica per i processi critici

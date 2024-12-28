@@ -39,7 +39,8 @@ code:which(distributed_spreadsheet).
 ### setup e creazione delle tabelle
 
 %% **dal nodo Alice**
-Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+Nodes = [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+%%% 'Alice@DESKTOPQ2A2FL7',
 Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Bob_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
@@ -56,7 +57,7 @@ mnesia_setup:start_application(Nodes).    %% NOTA: il comando per inizializzare 
 observer:start().
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 application:which_applications().
-SpreadsheetNane = ventiquattrodicembre.
+SpreadsheetName = ventiquattrodicembre.
 mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
 %% dal nodo Alice
@@ -95,7 +96,7 @@ rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
 ### TEST DELLE API
 
 NOTA per testare da shell, includere prima il comando di registrazione dei record
-ES rr("records.hrl").
+ES **rr("records.hrl").**
 
 %% x controllare il processo spreadsheet,se necessario
 process_info(global:whereis_name(ventiquattrodicembre)).
@@ -145,7 +146,8 @@ erl -sname node_test -setcookie mycookie
 
 ## messaggi di diagnosi su Mnesia
 
-% per ottenere l'elenco dei nodi connessi esplicitamente a formare  un cluster
+% per ottenere l'elenco dei nodi connessi esplicitamente a 
+% formare un cluster
 mnesia:system_info(running_db_nodes).
 mnesia:table_info(spreadsheet_data, where_to_read).
 %%  verifica dove è replicata la tabella spreadsheet_data
@@ -157,8 +159,3 @@ mnesia:table_info(spreadsheet_owners, all)
 mnesia:delete_table(Table).
 mensia:create_table(....)
 
-### Utilità per cancellare  i dati di una tabella
-
-c(delete_spreadsheet).
-delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
-%% OSS:alla fine devi cancellare il nome globale registrato !!

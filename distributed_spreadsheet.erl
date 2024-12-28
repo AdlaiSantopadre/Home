@@ -149,19 +149,24 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
                 %% New spreadsheet creation
                 [] ->
                     io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
-                        SpreadsheetName
-                    ]),
+                        SpreadsheetName]),
+                    
                     Records = generate_records(SpreadsheetName, N, M, K),
                     lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
                     mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                    mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),
                     {new, ok};
                 %% Restart case
-                [#spreadsheet_owners{owner = OwnerPid}] ->
-                    io:format("Found existing owner ~p for spreadsheet ~p.~n", [
-                        OwnerPid, SpreadsheetName
-                    ]),
-                    {existing, OwnerPid}
-            end
+                [#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}] ->
+                    if  ExistingOwner == OwnerPid -> io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName ]);
+                    true -> mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                            io:format("Reassign ownership of spreadsheet ~p to pid ~p .~n", [SpreadsheetName,OwnerPid]), 
+                            mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
+                            %%mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),   
+                    end
+                end    
+
+                    
         end)
     of
         {atomic, {new, ok}} ->

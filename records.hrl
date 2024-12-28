@@ -15,6 +15,13 @@
     proc,                  % pid o registered name del processo
     access                  % accesso read o write
 }).
--record(state, {owners = []}). % Lista di tuple {SpreadsheetName, OwnerPid, Ref}
+-record(spreadsheet_info, {
+    name,       %% Nome dello spreadsheet (univoco)
+    rows,       %% Numero massimo di righe
+    cols,       %% Numero massimo di colonne
+    tabs        %% Numero massimo di schede
+}).
+
+%-record(state, {owners = []}). % Lista di tuple {SpreadsheetName, OwnerPid, Ref}
 
 

@@ -50,7 +50,8 @@ create_tables(Nodes) ->
         {attributes, record_info(fields,spreadsheet_owners)},
         {disc_copies, Nodes}
     ]),
-    %% Aggiungere indici per migliorare le query
+    mnesia:create_table(spreadsheet_info, [{attributes, record_info(fields, spreadsheet_info)},{disc_copies, ['Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']}]),
+%%%%'Alice@DESKTOPQ2A2FL7', 
         
     lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
@@ -103,7 +104,7 @@ init_cluster_policies(Nodes, SpreadsheetName) ->
                     {GlobalName, read}; %tutti i nodo del cluster vengono inseriti con policy read
                 no ->
                     io:format("Failed to register MasterPid ~p: ~n", [MasterPid]),
-                    {error}
+                    {GlobalName,error}
             end;
             undefined ->
                 io:format("Failed to retrieve MasterPid from node ~p~n", [Node]),
