@@ -56,6 +56,7 @@ Requisiti
 
 # Spreadsheet avanzato 
  Prerequisiti: • Aver implementato la parte “semplice” 
+ 
  Aggiungiamo operazioni che modificano la forma del foglio 
  add_row(spreadsheet, tab) -> ok | {err,reason} 
  • Aggiunge una riga in append al tab del foglio name 
@@ -63,7 +64,8 @@ Requisiti
  • Rimuove l’iesima riga del tab del foglio nameSpreadsheet avanzato 2/2 
  Una cella può contenere 
  • qualsiasi tipo di dato primitivo 
- • Il valore undef 
+ • Il valore undef
+  
  • una formula/macro
 Suggerimenti 
 LE FORMULE SONO FUNZIONI LAMBDA 

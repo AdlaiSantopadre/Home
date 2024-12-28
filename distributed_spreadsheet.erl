@@ -140,44 +140,85 @@ terminate(Reason, State) ->
 %%% gen_server CALLBACKS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Inizializza il processo spreadsheet distribuito
+
 init({SpreadsheetName, N, M, K, OwnerPid}) ->
     io:format("Initializing spreadsheet ~p with owner ~p~n", [SpreadsheetName, OwnerPid]),
 
-    case
-        mnesia:transaction(fun() ->
-            case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
-                %% New spreadsheet creation
-                [] ->
-                    io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
-                        SpreadsheetName]),
-                    
-                    Records = generate_records(SpreadsheetName, N, M, K),
-                    lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
-                    mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-                    mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),
-                    {new, ok};
-                %% Restart case
-                [#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}] ->
-                    if  ExistingOwner == OwnerPid -> io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName ]);
-                    true -> mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-                            io:format("Reassign ownership of spreadsheet ~p to pid ~p .~n", [SpreadsheetName,OwnerPid]), 
-                            mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
-                            %%mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),   
-                    end
-                end    
-
-                    
-        end)
-    of
-        {atomic, {new, ok}} ->
-            %% OK
+    %% Controlla se esiste già un proprietario per lo spreadsheet
+    case mnesia:transaction(fun() -> mnesia:read(spreadsheet_owners, SpreadsheetName) end) of
+        {atomic, []} ->
+            %% Creazione di un nuovo spreadsheet
+            io:format("No existing data for spreadsheet ~p. Initializing records.~n", [SpreadsheetName]),
+            Records = generate_records(SpreadsheetName, N, M, K),
+            mnesia:transaction(fun() ->
+                %% Scrive i record e il proprietario
+                lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
+                mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K})
+            end),
             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
-        {atomic, {existing, ExistingOwner}} ->
-            {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
+
+        {atomic, [#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}]} ->
+            %% Caso di ripristino
+            if
+                ExistingOwner == OwnerPid ->
+                    io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName]),
+                    {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
+                true ->
+                    %% Riassegna il proprietario
+                    io:format("Reassigning ownership of spreadsheet ~p to PID ~p~n", [SpreadsheetName, OwnerPid]),
+                    mnesia:transaction(fun() ->
+                        mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}),
+                        mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
+                    end),
+                    {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}}
+            end;
+
         {aborted, Reason} ->
             io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {stop, Reason}
     end.
+
+% init({SpreadsheetName, N, M, K, OwnerPid}) ->
+%     io:format("Initializing spreadsheet ~p with owner ~p~n", [SpreadsheetName, OwnerPid]),
+
+%     case
+%         mnesia:transaction(fun() ->
+%             case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
+%                 %% New spreadsheet creation
+%                 [] ->
+%                     io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
+%                         SpreadsheetName]),
+                    
+%                     Records = generate_records(SpreadsheetName, N, M, K),
+%                     lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
+%                     mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+%                     mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),
+%                     {new, ok};
+%                 %% Restart case
+%                 [#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}] ->
+%                     if  ExistingOwner == OwnerPid -> io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName ]),
+%                     {existing, ExistingOwner};
+%                     true -> mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+%                             io:format("Reassign ownership of spreadsheet ~p to pid ~p .~n", [SpreadsheetName,OwnerPid]), 
+%                             mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+%                             {existing, ExistingOwner}
+%                             %%mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),   
+%                     end
+%                 end    
+
+                    
+%         end)
+%     of
+%         {atomic, {new, ok}} ->
+%             %% OK
+%             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
+%         {atomic, {existing, ExistingOwner}} ->
+%             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
+%         {aborted, Reason} ->
+%             io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
+%             {stop, Reason}
+%     end.
 
 % %% Handle the 'share' request in the gen_server
 % handle_call({share, SpreadsheetName, AccessPolicies}, {FromPid, _Alias}, State) ->
