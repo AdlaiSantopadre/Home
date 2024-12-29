@@ -3,9 +3,11 @@
 ## Setup ambiente
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-%% **Aggiornato per utilizzare sys.config**
+%% **Aggiornato per utilizzaresys.config**
 %aggiungere al cluster
-erl -sname node_test -setcookie mycookie
+erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config 
+sys
+
 
 ## Compilare i moduli
 
@@ -46,8 +48,8 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
-mnesia_setup:create_tables(Nodes). %se lo integro in setup_mnesia/2 non crea le tabelle
-observer:start().
+mnesia_setup:create_tables(Nodes). 
+observer:start().%se lo integro in setup_mnesia/2 non crea le tabelle
 
 ## Avvio della APP da nodo Alice
 
@@ -93,9 +95,10 @@ whereis(spreadsheet_sup). % Controlla il supervisore locale
 
 %%da testare
 
-## Fallimento del NODO ALice
+## Fallimento del NODO Alice, Charlie
 
 rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
+rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, []).
 
 ### TEST DELLE API
 
@@ -138,14 +141,18 @@ init:stop().
 
 %%%
 %in alternativa crea tre directory separate
-C:\Users\campus.uniurb.it\Erlang\Alice_data
+C:\Users\campus.uniurb.it\Erlang\Alice_data 
 C:\Users\campus.uniurb.it\Erlang\Bob_data
 C:\Users\campus.uniurb.it\Erlang\Charlie_data
 %e in ogni directory avvia un nodo
-erl -sname Alice -setcookie mycookie
-erl -sname Bob -setcookie mycookie
-erl -sname Charlie -setcookie mycookie
-erl -sname node_test -setcookie mycookie
+erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
+
+erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
+erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
+
+erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ## messaggi di diagnosi su Mnesia
