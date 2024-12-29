@@ -18,7 +18,6 @@ init:stop().
 e avviare
 erl -sname node_test -setcookie mycookie
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %in alternativa crea tre directory separate
 C:\Users\campus.uniurb.it\Erlang\Alice_data
@@ -33,7 +32,7 @@ erl -sname node_test -setcookie mycookie
 
 ## COMPILARE mnesia_setup
 
-%% **dal nodo1**
+%% **dal nodo Alice**
 c(mnesia_setup).
 
 ## ESEGUIRE mnesia_setup
@@ -68,19 +67,7 @@ mnesia:table_info(spreadsheet_owners, all)
 mnesia:delete_table(Table).
 mensia:create_table(....)
 
-### Avvio di mnesia db se non avviato da setup
-
-mnesia_setup:mnesia_start(Nodes).
-observer:start().
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
-
-### Utilità per cancellare  i dati di una tabella
-
-c(delete_spreadsheet).
-delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
-%% OSS:alla fine devi cancellare il nome globale registrato !!
-
-
 
 ## distribuzione del codice del gen_server e del codice del supervisor
 

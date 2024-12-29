@@ -9,4 +9,3 @@
   {env, []} 
   %{path, ["ebin"]} %per spostare tutti i file compilati in ebin
  ]}.
- %%Aggiunta in my_app di logica per i processi critici

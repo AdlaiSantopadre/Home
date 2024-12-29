@@ -7,7 +7,7 @@
 -export([init/1]).
 
 start_link() ->
-    supervisor:start_link({global, app_sup}, ?MODULE, []).
+    supervisor:start_link({local, app_sup}, ?MODULE, []).
 
 init([]) ->
     {ok, {

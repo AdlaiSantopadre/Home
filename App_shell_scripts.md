@@ -3,7 +3,7 @@
 ## Setup ambiente
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-%% **Aggiornato per NON salvare nella directory di lavoro di ogni nodo sys.config**
+%% **Aggiornato per utilizzare sys.config**
 %aggiungere al cluster
 erl -sname node_test -setcookie mycookie
 
@@ -17,7 +17,7 @@ c(mnesia_setup).
 
 ## COMPILARE mnesia_setup
 
-%% **dal nodo1**
+%% **dal nodo Alice**
 c(mnesia_setup).
 
 ### Controlla la comunicazione tra i nodi
@@ -34,20 +34,20 @@ mnesia_setup:distribute_modules(Nodes, Modules).
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).
 
-## ESEGUIRE mnesia_setup 
+## ESEGUIRE mnesia_setup
 
 ### setup e creazione delle tabelle
 
 %% **dal nodo Alice**
-Nodes = [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-%%% 'Alice@DESKTOPQ2A2FL7',
+Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+
 Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Bob_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
 mnesia_setup:create_tables(Nodes). %se lo integro in setup_mnesia/2 non crea le tabelle
-observer:start()
+observer:start().
 
 ## Avvio della APP da nodo Alice
 
@@ -56,23 +56,27 @@ Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']
 mnesia_setup:start_application(Nodes).    %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
 observer:start().
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
+
 application:which_applications().
 SpreadsheetName = ventiquattrodicembre.
 mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
-%% dal nodo Alice
+%% solo sul nodo Alice
 %% application:start(my_app).
 supervisor:which_children(app_sup).
 >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
 supervisor:which_children(spreadsheet_sup).
 >>ritorna []
+application:which_applications().
+SpreadsheetName = ventiquattrodicembre.
+mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
 ## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
 
-f(Args).
-Args= {ventiquattrodicembre, 4, 3, 2,self()}.
+%%f(Args).
+%%Args= {ventiquattrodicembre, 4, 3, 2,self()}.
 %% distributed_spreadsheet:start_link(Args).
-spreadsheet_supervisor:start_spreadsheet(Args).
+%%spreadsheet_supervisor:start_spreadsheet(Args).
 supervisor:start_child(spreadsheet_sup, [Args]).
 distributed_spreadsheet:new(ventiquattrodicembre).
 **distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**

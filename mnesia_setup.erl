@@ -1,6 +1,6 @@
 -module(mnesia_setup). % v. 4.2 Windows SO con shortNames  + distribuzione del codice compilato 
 %% Record spreadsheet_info
--export([setup_mnesia/2, distribute_modules/2,start_application/1, init_cluster_policies/2]).%, create_tables/1, mnesia_start/1,
+-export([setup_mnesia/2,create_tables/1, distribute_modules/2,start_application/1, init_cluster_policies/2]).%,  mnesia_start/1,
 
 -include("records.hrl").
 
@@ -27,11 +27,11 @@ setup_mnesia(Nodes, Dirs) ->
     %% Cambia la copia dello schema su disco  %%verifica se necesssario..
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, change_table_copy_type, [schema, Node, disc_copies])
-    end, Nodes),
+    end, Nodes).
     
     
 
-%%%%%%%create_tables(Nodes) ->
+create_tables(Nodes) ->
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
         {attributes, record_info(fields, spreadsheet_data)},
