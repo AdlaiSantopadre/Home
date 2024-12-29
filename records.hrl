@@ -19,9 +19,10 @@
     name,       %% Nome dello spreadsheet (univoco)
     rows,       %% Numero massimo di righe
     cols,       %% Numero massimo di colonne
-    tabs        %% Numero massimo di schede
+    tabs,       %% Numero massimo di schede
+    owner       %% pid del possessore    
+
 }).
 
-%-record(state, {owners = []}). % Lista di tuple {SpreadsheetName, OwnerPid, Ref}
 
 

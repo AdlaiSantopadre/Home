@@ -45,7 +45,7 @@ new(SpreadsheetName, N, M, K) ->
             {error, Reason}
     end.
 
-%% API function to get information about the spreadsheet
+%% Permette di avere informazioni susli spreadsheet
 info(SpreadsheetName) ->
     %% Step 1: Check if the process is registered globally
     case global:whereis_name(SpreadsheetName) of
@@ -124,7 +124,7 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) when
                     {reply, {error, invalid_type}}
             end
     end.
-%% Avvia il gen_server
+%% Avvia il gen_server /registra il nome globalmente
 start_link(Args) ->
     io:format("Starting distributed_spreadsheet with args: ~p~n", [Args]),
     {SpreadsheetName, _, _, _, _} = Args,
@@ -140,25 +140,24 @@ terminate(Reason, State) ->
 %%% gen_server CALLBACKS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Inizializza il processo spreadsheet distribuito
-
 init({SpreadsheetName, N, M, K, OwnerPid}) ->
     io:format("Initializing spreadsheet ~p with owner ~p~n", [SpreadsheetName, OwnerPid]),
 
     %% Controlla se esiste già un proprietario per lo spreadsheet
-    case mnesia:transaction(fun() -> mnesia:read(spreadsheet_owners, SpreadsheetName) end) of
+    case mnesia:transaction(fun() -> mnesia:read(spreadsheet_info, SpreadsheetName) end) of
         {atomic, []} ->
             %% Creazione di un nuovo spreadsheet
             io:format("No existing data for spreadsheet ~p. Initializing records.~n", [SpreadsheetName]),
             Records = generate_records(SpreadsheetName, N, M, K),
             mnesia:transaction(fun() ->
-                %% Scrive i record e il proprietario
+                %% Scrive i dati e le info nelle tabelle
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
-                mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-                mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K})
+                %%mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K,owner = OwnerPid})
             end),
             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
 
-        {atomic, [#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}]} ->
+        {atomic, [#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = ExistingOwner}]} ->
             %% Caso di ripristino
             if
                 ExistingOwner == OwnerPid ->
@@ -168,8 +167,8 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
                     %% Riassegna il proprietario
                     io:format("Reassigning ownership of spreadsheet ~p to PID ~p~n", [SpreadsheetName, OwnerPid]),
                     mnesia:transaction(fun() ->
-                        mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}),
-                        mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid})
+                        mnesia:delete_object(#spreadsheet_info{name = SpreadsheetName,rows = N, cols = M, tabs = K, owner = ExistingOwner}),
+                        mnesia:write(#spreadsheet_info{name = SpreadsheetName,rows = N, cols = M, tabs = K, owner = OwnerPid})
                     end),
                     {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}}
             end;
@@ -254,10 +253,17 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %             {reply, {error, Reason}, State}
 %     end;
 %% Handle the synchronous request to get the spreadsheet's info
+%%%%%%%%%%%%%%%%%HANDLE CALL ABOUT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 handle_call({about, SpreadsheetName}, From, State) ->
-    %CallerPid = element(1, From),
-    %Spreadsheet = #spreadsheet_data{name = Name, tabs = Tabs, owner = Owner, access_policies = Policies, last_modified = LastModified} = State,
+    
     io:format("getting info about  ~p~n", [From]),
+    case mnesia:transaction(fun() ->
+                        mnesia:match_object(#spreadsheet_info{name = SpreadsheetName,rows = '_' , cols = '_', tabs = '_', owner = '_'})                        
+                    end) of
+                    {atomic ,[#spreadsheet_info{name=Name, rows = Rows,cols=Cols,tabs=Tabs,owner=Owner}]} ->
+                    %%numero totale delle celle
+                    TotalCells = Rows * Cols,
+    %% Recupera le politiche di accesso dalla tabella access_policies
     ExistingPolicies = [
         {Policy#access_policies.proc, Policy#access_policies.access}
      || Policy <- mnesia:match_object(#access_policies{
@@ -270,15 +276,25 @@ handle_call({about, SpreadsheetName}, From, State) ->
 
     %% Create the info result map
     Info = #{
-        name => SpreadsheetName,
-        %          owner => Owner,
+        name => Name,
+        owner => Owner,
         %          last_modified => LastModified,
-        %          total_tabs => TotalTabs,
-        %          total_cells => TotalCells,
+        total_tabs => Tabs,
+        total_cells => TotalCells,
         read_permissions => ReadPermissions,
         write_permissions => WritePermissions
     },
     {reply, {ok, Info}, State};
+    {atomic, []} ->
+            %% Nessuno spreadsheet trovato
+            {reply, {error, spreadsheet_not_found}, State};
+
+        {aborted, Reason} ->
+            %% Gestisce errori di transazione
+            io:format("Transaction aborted: ~p~n", [Reason]),
+            {reply, {error, transaction_aborted}, State}
+    end;
+
 %%%%%%%%%%HANDLE %%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, _From, State) ->

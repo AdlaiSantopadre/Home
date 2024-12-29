@@ -1,6 +1,6 @@
--module(mnesia_setup). % v. 4.1 Windows SO con shortNames  + distribuzione del codice compilato 
-
--export([setup_mnesia/2, distribute_modules/2,start_application/1, create_tables/1,init_cluster_policies/2]).%,  mnesia_start/1,
+-module(mnesia_setup). % v. 4.2 Windows SO con shortNames  + distribuzione del codice compilato 
+%% Record spreadsheet_info
+-export([setup_mnesia/2, distribute_modules/2,start_application/1, init_cluster_policies/2]).%, create_tables/1, mnesia_start/1,
 
 -include("records.hrl").
 
@@ -27,11 +27,11 @@ setup_mnesia(Nodes, Dirs) ->
     %% Cambia la copia dello schema su disco  %%verifica se necesssario..
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, change_table_copy_type, [schema, Node, disc_copies])
-    end, Nodes).
+    end, Nodes),
     
     
 
-create_tables(Nodes) ->
+%%%%%%%create_tables(Nodes) ->
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
         {attributes, record_info(fields, spreadsheet_data)},
@@ -50,18 +50,22 @@ create_tables(Nodes) ->
         {attributes, record_info(fields,spreadsheet_owners)},
         {disc_copies, Nodes}
     ]),
-    mnesia:create_table(spreadsheet_info, [{attributes, record_info(fields, spreadsheet_info)},{disc_copies, ['Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']}]),
-%%%%'Alice@DESKTOPQ2A2FL7', 
+    %% Tabella metadati degli spreadsheet
+        mnesia:create_table(spreadsheet_info, [
+        {attributes, record_info(fields, spreadsheet_info)},
+        {disc_copies, Nodes}]),
+
         
     lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
         end, Nodes),
-    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners], 20000),
+    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners,spreadsheet_info], 20000),
     
     %% Avvia Mnesia su tutti i nodi
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, start, [])
     end, Nodes).
+    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Avvia my_app su tutti i nodi
@@ -69,7 +73,7 @@ start_application(Nodes) ->
     lists:foreach(fun(Node) ->
         rpc:call(Node, application, start, [my_app])
     end, Nodes).
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Distribuisci i moduli specificati su tutti i nodi
 distribute_modules(Nodes, Modules) ->
     lists:foreach(fun(Module) ->
@@ -88,6 +92,8 @@ distribute_modules(Nodes, Modules) ->
             end
         end, Nodes)
     end, Modules).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% inizializza la tabella con le access policies per ogni nodo del cluster
 init_cluster_policies(Nodes, SpreadsheetName) ->
     %% Recupera il MasterPid per ogni nodo e registra globalmente il nome
     Policies = lists:map(fun(Node) ->
