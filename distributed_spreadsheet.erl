@@ -303,7 +303,7 @@ handle_call({about, SpreadsheetName, MasterPid}, _From, State) ->
                          || Policy <- Policies, Policy#access_policies.access =:= write],
 
         
-                    %% Create the info result map
+                %% Create the info result map
                 Info = #{
                 name => Name,
                 owner => Owner,
