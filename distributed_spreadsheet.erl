@@ -45,8 +45,10 @@ new(SpreadsheetName, N, M, K) ->
             {error, Reason}
     end.
 
-%% Permette di avere informazioni susli spreadsheet
+%% Permette di avere informazioni sugli spreadsheet
 info(SpreadsheetName) ->
+    %% Richiesta del pid del master di my_app
+
     %% Step 1: Check if the process is registered globally
     case global:whereis_name(SpreadsheetName) of
         undefined ->
@@ -54,10 +56,11 @@ info(SpreadsheetName) ->
             {error, spreadsheet_not_found};
         Pid when is_pid(Pid) ->
             %% Step 2: Check if the process is alive
+            OwnerPid = application_controller:get_master(my_app),
             io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, Pid]),
 
             try
-                gen_server:call(about, SpreadsheetName)
+                gen_server:call(Pid, {about, SpreadsheetName, OwnerPid})
             catch
                 Class:Reason ->
                     io:format("Error calling gen_server:call/2 with Pid: ~p, Reason: ~p, ~p~n", [
@@ -147,32 +150,50 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
     case mnesia:transaction(fun() -> mnesia:read(spreadsheet_info, SpreadsheetName) end) of
         {atomic, []} ->
             %% Creazione di un nuovo spreadsheet
-            io:format("No existing data for spreadsheet ~p. Initializing records.~n", [SpreadsheetName]),
+            io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
+                SpreadsheetName
+            ]),
             Records = generate_records(SpreadsheetName, N, M, K),
             mnesia:transaction(fun() ->
                 %% Scrive i dati e le info nelle tabelle
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
                 %%mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-                mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K,owner = OwnerPid})
+                mnesia:write(#spreadsheet_info{
+                    name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
+                })
             end),
             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
-
-        {atomic, [#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = ExistingOwner}]} ->
+        {atomic, [
+            #spreadsheet_info{
+                name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = ExistingOwner
+            }
+        ]} ->
             %% Caso di ripristino
             if
                 ExistingOwner == OwnerPid ->
-                    io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName]),
+                    io:format("Found existing owner ~p for spreadsheet ~p.~n", [
+                        OwnerPid, SpreadsheetName
+                    ]),
                     {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
                 true ->
                     %% Riassegna il proprietario
-                    io:format("Reassigning ownership of spreadsheet ~p to PID ~p~n", [SpreadsheetName, OwnerPid]),
+                    io:format("Reassigning ownership of spreadsheet ~p to PID ~p~n", [
+                        SpreadsheetName, OwnerPid
+                    ]),
                     mnesia:transaction(fun() ->
-                        mnesia:delete_object(#spreadsheet_info{name = SpreadsheetName,rows = N, cols = M, tabs = K, owner = ExistingOwner}),
-                        mnesia:write(#spreadsheet_info{name = SpreadsheetName,rows = N, cols = M, tabs = K, owner = OwnerPid})
+                        mnesia:delete_object(#spreadsheet_info{
+                            name = SpreadsheetName,
+                            rows = N,
+                            cols = M,
+                            tabs = K,
+                            owner = ExistingOwner
+                        }),
+                        mnesia:write(#spreadsheet_info{
+                            name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
+                        })
                     end),
                     {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}}
             end;
-
         {aborted, Reason} ->
             io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
             {stop, Reason}
@@ -188,7 +209,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %                 [] ->
 %                     io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
 %                         SpreadsheetName]),
-                    
+
 %                     Records = generate_records(SpreadsheetName, N, M, K),
 %                     lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
 %                     mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
@@ -199,14 +220,13 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %                     if  ExistingOwner == OwnerPid -> io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName ]),
 %                     {existing, ExistingOwner};
 %                     true -> mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-%                             io:format("Reassign ownership of spreadsheet ~p to pid ~p .~n", [SpreadsheetName,OwnerPid]), 
+%                             io:format("Reassign ownership of spreadsheet ~p to pid ~p .~n", [SpreadsheetName,OwnerPid]),
 %                             mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
 %                             {existing, ExistingOwner}
-%                             %%mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),   
+%                             %%mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),
 %                     end
-%                 end    
+%                 end
 
-                    
 %         end)
 %     of
 %         {atomic, {new, ok}} ->
@@ -254,55 +274,72 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %     end;
 %% Handle the synchronous request to get the spreadsheet's info
 %%%%%%%%%%%%%%%%%HANDLE CALL ABOUT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-handle_call({about, SpreadsheetName}, From, State) ->
-    
-    io:format("getting info about  ~p~n", [From]),
-    case mnesia:transaction(fun() ->
-                        mnesia:match_object(#spreadsheet_info{name = SpreadsheetName,rows = '_' , cols = '_', tabs = '_', owner = '_'})                        
-                    end) of
-                    {atomic ,[#spreadsheet_info{name=Name, rows = Rows,cols=Cols,tabs=Tabs,owner=Owner}]} ->
-                    %%numero totale delle celle
-                    TotalCells = Rows * Cols,
-    %% Recupera le politiche di accesso dalla tabella access_policies
-    ExistingPolicies = [
-        {Policy#access_policies.proc, Policy#access_policies.access}
-     || Policy <- mnesia:match_object(#access_policies{
-            name = SpreadsheetName, proc = '_', access = '_'
-        })
-    ],
-    %% Split access policies into read and write permissions
-    ReadPermissions = [Proc || {Proc, read} <- ExistingPolicies],
-    WritePermissions = [Proc || {Proc, write} <- ExistingPolicies],
+handle_call({about, SpreadsheetName, MasterPid}, _From, State) ->
+    io:format("getting info about  ~p~n", [SpreadsheetName]),
+    case
+        mnesia:transaction(fun() ->
+            mnesia:match_object(#spreadsheet_info{
+                name = SpreadsheetName, rows = '_', cols = '_', tabs = '_', owner = MasterPid
+            })
+        end)
+    of
+        {atomic, [
+            #spreadsheet_info{name = Name, rows = Rows, cols = Cols, tabs = Tabs, owner = Owner}
+        ]} ->
+            %%numero totale delle celle
+            TotalCells = Rows * Cols,
 
-    %% Create the info result map
-    Info = #{
-        name => Name,
-        owner => Owner,
-        %          last_modified => LastModified,
-        total_tabs => Tabs,
-        total_cells => TotalCells,
-        read_permissions => ReadPermissions,
-        write_permissions => WritePermissions
-    },
-    {reply, {ok, Info}, State};
-    {atomic, []} ->
+            %% Recupera le politiche di accesso dalla tabella access_policies
+            
+            case mnesia:transaction(fun() ->
+            mnesia:match_object(#access_policies{name = Name, proc = '_', access = '_'})
+            end) of
+                {atomic, Policies} ->
+                     %% Filtra i permessi
+                    ReadPermissions = [{Policy#access_policies.proc, Policy#access_policies.access}
+                        || Policy <- Policies, Policy#access_policies.access =:= read],
+                        io:format("ReadPermissions: ~p~n", [ReadPermissions]),
+                    WritePermissions = [{Policy#access_policies.proc, Policy#access_policies.access}
+                         || Policy <- Policies, Policy#access_policies.access =:= write],
+
+        
+                    %% Create the info result map
+                Info = #{
+                name => Name,
+                owner => Owner,
+                %last_modified => LastModified,
+                total_tabs => Tabs,
+                total_cells => TotalCells,
+                read_permissions => ReadPermissions,
+                write_permissions => WritePermissions
+                },
+                {reply, {ok, Info},State};
+                {aborted, Reason} ->
+                    io:format("Transaction aborted: ~p~n", [Reason]),
+                    {error, transaction_aborted}
+                end;
+
+
+            
+            
+            
+        
+        {atomic, []} ->
             %% Nessuno spreadsheet trovato
             {reply, {error, spreadsheet_not_found}, State};
-
         {aborted, Reason} ->
             %% Gestisce errori di transazione
             io:format("Transaction aborted: ~p~n", [Reason]),
             {reply, {error, transaction_aborted}, State}
     end;
-
 %%%%%%%%%%HANDLE %%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
+% Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, _From, State) ->
     CallerPid = MasterPid,
     io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
 
     %% Check if the calling process has read access (or superior write access)
-    case check_access(CallerPid, [read,write], SpreadsheetName) of
+    case check_access(CallerPid, [read, write], SpreadsheetName) of
         ok ->
             io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p~n", [TabIndex, I, J]),
 
@@ -343,37 +380,37 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, Sta
     %% Check if the calling process has write access
     case check_access(CallerPid, [write], SpreadsheetName) of
         ok ->
-        
-            case mnesia:transaction(fun() ->
-                %% Recupera il record presente dalla tabella Mnesia
-                mnesia:delete_object(#spreadsheet_data{
-                    name = SpreadsheetName,
-                    tab = TabIndex,
-                    row = I,
-                    col = J
-                }),
+            case
+                mnesia:transaction(fun() ->
+                    %% Recupera il record presente dalla tabella Mnesia
+                    mnesia:delete_object(#spreadsheet_data{
+                        name = SpreadsheetName,
+                        tab = TabIndex,
+                        row = I,
+                        col = J
+                    }),
 
-   
-                mnesia:write(#spreadsheet_data{
-                    name = SpreadsheetName,
-                    tab = TabIndex,
-                    row = I,
-                    col = J
-                     })
-                 end)
-             of
+                    mnesia:write(#spreadsheet_data{
+                        name = SpreadsheetName,
+                        tab = TabIndex,
+                        row = I,
+                        col = J
+                    })
+                end)
+            of
                 {atomic, ok} ->
-                    io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p: ~p~n", [TabIndex, I, J, Value]),
+                    io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p: ~p~n", [
+                        TabIndex, I, J, Value
+                    ]),
                     {reply, {ok, Value}, State};
                 {aborted, Reason} ->
                     io:format("Transaction aborted for get request: ~p~n", [Reason]),
                     {reply, {error, transaction_aborted}, State}
-            end;    
-                
-         {error, access_denied} ->
-             io:format("Access denied for process ~p~n", [CallerPid]),
-             {reply, {error, access_denied}, State}
-     end;
+            end;
+        {error, access_denied} ->
+            io:format("Access denied for process ~p~n", [CallerPid]),
+            {reply, {error, access_denied}, State}
+    end;
 handle_call(_Request, _From, State) ->
     {reply, {error, unsupported_operation}, State}.
 

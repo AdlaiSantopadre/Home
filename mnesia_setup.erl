@@ -22,12 +22,12 @@ setup_mnesia(Nodes, Dirs) ->
     end, Nodes),
 
     %% Crea lo schema sui nodi specificati
-    mnesia:create_schema(Nodes),
-
-    %% Cambia la copia dello schema su disco  %%verifica se necesssario..
-    lists:foreach(fun(Node) ->
-        rpc:call(Node, mnesia, change_table_copy_type, [schema, Node, disc_copies])
-    end, Nodes).
+    mnesia:create_schema(Nodes).
+%%verifica se necessario..
+    % %% Cambia la copia dello schema su disco  
+    % lists:foreach(fun(Node) ->
+    %     rpc:call(Node, mnesia, change_table_copy_type, [schema, Node, disc_copies])
+    % end, Nodes).
     
     
 

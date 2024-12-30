@@ -3,10 +3,10 @@
 ## Setup ambiente
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-%% **Aggiornato per utilizzaresys.config**
+%% **Aggiornato per utilizzare sys.config**
 %aggiungere al cluster
-erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config 
-sys
+erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang 
+
 
 
 ## Compilare i moduli
@@ -48,14 +48,17 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
-mnesia_setup:create_tables(Nodes). 
+%%Attenzione alla crezione delle tabelle
+mnesia_setup:create_tables(Nodes).
 observer:start().%se lo integro in setup_mnesia/2 non crea le tabelle
 
 ## Avvio della APP da nodo Alice
 
-**code:add_patha("C:/Users/campus.uniurb.it/Erlang/").** %% controlla se serve per leggere my.app.app
+%% controlla se serve per leggere my.app.app
+%% **code:add_patha("C:/Users/campus.uniurb.it/Erlang/").**
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-mnesia_setup:start_application(Nodes).    %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
+mnesia_setup:start_application(Nodes).
+ %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
 observer:start().
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 
@@ -79,7 +82,7 @@ mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 %%Args= {ventiquattrodicembre, 4, 3, 2,self()}.
 %% distributed_spreadsheet:start_link(Args).
 %%spreadsheet_supervisor:start_spreadsheet(Args).
-supervisor:start_child(spreadsheet_sup, [Args]).
+%%supervisor:start_child(spreadsheet_sup, [Args]).
 distributed_spreadsheet:new(ventiquattrodicembre).
 **distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**
 supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
@@ -125,6 +128,11 @@ distributed_spreadsheet:set(ventiquattrodicembre,2,2,4, atomic).
 
 distributed_spreadsheet:find_global_name(CallerPid).
 distributed_spreadsheet:check_access(CallerPid).
+
+## Test info(Spreadsheetname)
+
+distributed_spreadsheet:info(ventiquattrodicembre).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ### arrestare ed eliminare lo schema di Mnesia
