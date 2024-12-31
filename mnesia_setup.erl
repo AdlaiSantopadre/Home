@@ -45,11 +45,11 @@ create_tables(Nodes) ->
         {type, bag}, 
         {disc_copies, Nodes}
     ]),
-    %% Tabella per i proprietari degli spreadsheet
-        mnesia:create_table(spreadsheet_owners, [
-        {attributes, record_info(fields,spreadsheet_owners)},
-        {disc_copies, Nodes}
-    ]),
+    % %% Tabella per i proprietari degli spreadsheet
+    %     mnesia:create_table(spreadsheet_owners, [
+    %     {attributes, record_info(fields,spreadsheet_owners)},
+    %     {disc_copies, Nodes}
+    % ]),
     %% Tabella metadati degli spreadsheet
         mnesia:create_table(spreadsheet_info, [
         {attributes, record_info(fields, spreadsheet_info)},

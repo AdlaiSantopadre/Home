@@ -90,18 +90,21 @@ global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
 whereis(spreadsheet_sup). % Controlla il supervisore locale
 %% per deregistrare un nome **global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).**
 
-### Test fallimento dello spreadsheet
-
-**exit(global:whereis_name(ventiquattrodicembre), kill).**
-
-### fallimento del distributed_sup
+### fallimento dello spreadsheet/fallimento del distributed_sup
 
 %%da testare
+distributed_spreadsheet:new(diciottodicembre, 3, 4, 2).
+exit(global:whereis_name(diciottodicembre), kill).
 
 ## Fallimento del NODO Alice, Charlie
 
 rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
 rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, []).
+
+### Ricollegare il nodo Alice al cluster Mnesia
+
+mnesia:start().
+mnesia:change_config(extra_db_nodes, [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
 
 ### TEST DELLE API
 

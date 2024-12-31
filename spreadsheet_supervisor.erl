@@ -5,6 +5,7 @@
 -export([init/1,start_link/0, start_spreadsheet/1, terminate_spreadsheet/1, which_children/0]).
 
 %% Avvia il supervisore per i  gen_server
+
 start_link() ->    
     supervisor:start_link({local, spreadsheet_sup}, ?MODULE, []).
 

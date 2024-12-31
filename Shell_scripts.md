@@ -69,6 +69,14 @@ mensia:create_table(....)
 
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 
+### Utilità per cancellare  i dati di una tabella
+
+c(delete_spreadsheet).
+delete_spreadsheet:delete_spreadsheet(SpreadsheetName).
+%% OSS:alla fine devi cancellare il nome globale registrato !!
+
+
+
 ## distribuzione del codice del gen_server e del codice del supervisor
 
 %%dal nodo test
