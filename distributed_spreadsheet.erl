@@ -1,5 +1,5 @@
 -module(distributed_spreadsheet).
-%% gen_server with Mnesia
+%% gen_server with mnesia
 -behaviour(gen_server).
 
 %% Include the record definitions
@@ -7,7 +7,7 @@
 
 %% API functions exported from assignement
 
--export([new/1, new/4, share/2, get/4, get/5, set/5, set/6, info/1]).
+-export([new/1, new/4, share/2, get/4, get/5, set/5, set/6, info/1, to_csv/3, to_csv/2]).%, from_csv/2
 %% API
 -export([start_link/1]).
 
@@ -45,7 +45,7 @@ new(SpreadsheetName, N, M, K) ->
             {error, Reason}
     end.
 
-%% Permette di avere informazioni sugli spreadsheet
+%% Permette di avere informazioni sugli spreadsheets
 info(SpreadsheetName) ->
     %% Richiesta del pid del master di my_app
 
@@ -127,17 +127,18 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) when
                     {reply, {error, invalid_type}}
             end
     end.
-%%% Esporta i dati dello spreadsheet in un file CSV
-to_csv(SpreadsheetName, Filename, Timeout) ->
-    Gen_server:call({global, SpreadsheetName}, {to_csv, SpreadsheetName, Filename}, Timeout).
 
+%%% Esporta i dati dello spreadsheet in un file CSV
+
+to_csv(SpreadsheetName, Filename) ->
+    to_csv(SpreadsheetName, Filename, infinity).
+
+to_csv(SpreadsheetName, Filename, Timeout) ->
+    gen_server:call({global, SpreadsheetName}, {to_csv, SpreadsheetName, Filename}, Timeout).
 
 %%%% Importa i dati da un file CSV e li inserisce nella tabella spreadsheet_data.
-From_csv(Filename, Timeout) ->
-    Gen_server:call({global, SpreadsheetName}, {from_csv, SpreadsheetName, Filename}, Timeout).
-
-
-
+from_csv(Filename, Timeout) ->
+    gen_server:call({global, SpreadsheetName}, {from_csv, SpreadsheetName, Filename}, Timeout).
 
 %% Avvia il gen_server /registra il nome globalmente
 start_link(Args) ->
@@ -242,7 +243,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
 %         end)
 %     of
 %         {atomic, {new, ok}} ->
-%             %% OK
+%             %% oK
 %             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
 %         {atomic, {existing, ExistingOwner}} ->
 %             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
@@ -302,40 +303,39 @@ handle_call({about, SpreadsheetName, MasterPid}, _From, State) ->
             TotalCells = Rows * Cols,
 
             %% Recupera le politiche di accesso dalla tabella access_policies
-            
-            case mnesia:transaction(fun() ->
-            mnesia:match_object(#access_policies{name = Name, proc = '_', access = '_'})
-            end) of
-                {atomic, Policies} ->
-                     %% Filtra i permessi
-                    ReadPermissions = [{Policy#access_policies.proc, Policy#access_policies.access}
-                        || Policy <- Policies, Policy#access_policies.access =:= read],
-                        io:format("ReadPermissions: ~p~n", [ReadPermissions]),
-                    WritePermissions = [{Policy#access_policies.proc, Policy#access_policies.access}
-                         || Policy <- Policies, Policy#access_policies.access =:= write],
 
-        
-                %% Create the info result map
-                Info = #{
-                name => Name,
-                owner => Owner,
-                %last_modified => LastModified,
-                total_tabs => Tabs,
-                total_cells => TotalCells,
-                read_permissions => ReadPermissions,
-                write_permissions => WritePermissions
-                },
-                {reply, {ok, Info},State};
+            case
+                mnesia:transaction(fun() ->
+                    mnesia:match_object(#access_policies{name = Name, proc = '_', access = '_'})
+                end)
+            of
+                {atomic, Policies} ->
+                    %% Filtra i permessi
+                    ReadPermissions = [
+                        {Policy#access_policies.proc, Policy#access_policies.access}
+                     || Policy <- Policies, Policy#access_policies.access =:= read
+                    ],
+                    io:format("ReadPermissions: ~p~n", [ReadPermissions]),
+                    WritePermissions = [
+                        {Policy#access_policies.proc, Policy#access_policies.access}
+                     || Policy <- Policies, Policy#access_policies.access =:= write
+                    ],
+
+                    %% Create the info result map
+                    Info = #{
+                        name => Name,
+                        owner => Owner,
+                        %last_modified => LastModified,
+                        total_tabs => Tabs,
+                        total_cells => TotalCells,
+                        read_permissions => ReadPermissions,
+                        write_permissions => WritePermissions
+                    },
+                    {reply, {ok, Info}, State};
                 {aborted, Reason} ->
                     io:format("Transaction aborted: ~p~n", [Reason]),
                     {error, transaction_aborted}
-                end;
-
-
-            
-            
-            
-        
+            end;
         {atomic, []} ->
             %% Nessuno spreadsheet trovato
             {reply, {error, spreadsheet_not_found}, State};
@@ -394,7 +394,7 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, Sta
         ok ->
             case
                 mnesia:transaction(fun() ->
-                    %% Recupera il record presente dalla tabella Mnesia
+                    %% Recupera il record presente dalla tabella mnesia
                     mnesia:delete_object(#spreadsheet_data{
                         name = SpreadsheetName,
                         tab = TabIndex,
@@ -423,6 +423,76 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, Sta
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
+%%%%%%%%%%%%%HANDLE CALL TO_CSV%%%%%%%%%%%%%%%%%%%%
+handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
+    %% Verifica che il nome dello spreadsheet sia corretto
+    Name = maps:get(name, State),
+    if
+        Name =:= SpreadsheetName ->
+            %% Legge tutti i record relativi allo spreadsheet
+            case
+                mnesia:transaction(fun() ->
+                    mnesia:match_object(#spreadsheet_data{
+                        name = SpreadsheetName, tab = '_', row = '_', col = '_', value = '_'
+                    })
+                end)
+            of
+                {atomic, Records} ->
+                    %% Scrive i record nel file CSV
+                    case write_to_csv(Filename, Records) of
+                        ok ->
+                            io:format("Spreadsheet ~p exported successfully to ~p~n", [
+                                SpreadsheetName, Filename
+                            ]),
+                            {reply, ok, State};
+                        {error, Reason} ->
+                            io:format("Failed to write CSV for spreadsheet ~p: ~p~n ", [
+                                SpreadsheetName, Reason
+                            ]),
+                            {reply, {error, Reason}, State}
+                    end;
+                {aborted, Reason} ->
+                    io:format("Transaction aborted during export: ~p~n", [Reason]),
+                    {reply, {error, transaction_aborted}, State}
+            end;
+        true ->
+            {reply, {error, spreadsheet_not_found}, State}
+    end;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% handle_call({from_csv, SpreadsheetName, Filename}, _From, State) ->
+%     %% Legge i dati dal file CSV
+%     case read_from_csv(Filename) of
+%         {ok, Records} ->
+%             %% Inserisce i record nella tabella mnesia
+%             case
+%                 mnesia:transaction(fun() ->
+%                     lists:foreach(
+%                         fun({Tab, Row, Col, Value}) ->
+%                             mnesia:write(#spreadsheet_data{
+%                                 name = SpreadsheetName,
+%                                 tab = Tab,
+%                                 row = Row,
+%                                 col = Col,
+%                                 value = Value
+%                             })
+%                         end,
+%                         Records
+%                     )
+%                 end)
+%             of
+%                 {atomic, ok} ->
+%                     io:format("Spreadsheet ~p imported successfully from ~p~n", [
+%                         SpreadsheetName, Filename
+%                     ]),
+%                     {reply, ok, State};
+%                 {aborted, Reason} ->
+%                     io:format("Transaction aborted during import: ~p~n", [Reason]),
+%                     {reply, {error, transaction_aborted}, State}
+%             end;
+%         {error, Reason} ->
+%             io:format("Failed to read CSV from ~p: ~p~n", [Filename, Reason]),
+%             {reply, {error, Reason}, State}
+%     end;
 handle_call(_Request, _From, State) ->
     {reply, {error, unsupported_operation}, State}.
 
@@ -433,117 +503,80 @@ handle_info(_Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-%%%%%%%%%%%%%HANDLE CALL TO_CSV%%%%%%%%%%%%%%%%%%%%
-Handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
-    %% Legge tutti i record relativi allo spreadsheet
-    Case mnesia:transaction(fun() ->
-        Mnesia:match_object(#spreadsheet_data{name = SpreadsheetName, ‘_’, ‘_’, ‘_’, ‘_’})
-    end) of
-        {atomic, Records} ->
-            %% Scrive i record nel file CSV
-            Case write_to_csv(Filename, Records) of
-                Ok ->
-                    Io:format(“Spreadsheet ~p exported successfully to ~p~n”, [SpreadsheetName, Filename]),
-                    {reply, ok, State};
-                {error, Reason} ->
-                    Io:format(“Failed to write CSV for spreadsheet ~p: ~p~n”, [SpreadsheetName, Reason]),
-                    {reply, {error, Reason}, State}
-            end;
-        {aborted, Reason} ->
-            Io:format(“Transaction aborted during export: ~p~n”, [Reason]),
-            {reply, {error, transaction_aborted}, State}
-    end.
 %%%%%%%%%%%%%% Funzione Helper write_to_csv/2%%%%%%%%%%%%%%
-Write_to_csv(Filename, Records) ->
+write_to_csv(Filename, Records) ->
     %% Apre il file in modalità scrittura
-    Case file:open(Filename, [write]) of
+    case file:open(Filename, [write]) of
         {ok, IoDevice} ->
-            %% Scrive l’intestazione
-            %%Scrive il nome dello spreadsheet
-            File:write(IoDevice, “Tab,Row,Col,Value\n”),
-            
-            %% Scrive i record
-            Lists:foreach(fun(#spreadsheet_data{tab = Tab, row = Row, col = Col, value = Value}) ->
-                Line = io_lib:format(“~p,~p,~p,~p\n”, [Tab, Row, Col, Value]),
-                file:write(IoDevice, Line)
-            end, Records),
-            %% Chiude il file
-            File:close(IoDevice),
-            ok;
+            try
+                %% Scrive l'intestazione
+                io:format(IoDevice, "Spreadsheet Name: ~s~n", [Filename]),
+                file:write(IoDevice, "Tab,Row,Col,Value\n"),
+                
+                %% Scrive i record
+                lists:foreach(
+                    fun(#spreadsheet_data{tab = Tab, row = Row, col = Col, value = Value}) ->
+                        %% Genera la linea CSV
+                        Line = io_lib:format("~p,~p,~p,~p\n", [Tab, Row, Col, Value]),
+                        file:write(IoDevice, Line)
+                    end,
+                    Records
+                ),
+                ok
+            after
+                %% Chiude il file in ogni caso
+                file:close(IoDevice)
+            end;
         {error, Reason} ->
             {error, Reason}
     end.
-    
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Handle_call({from_csv, SpreadsheetName, Filename}, _From, State) ->
-    %% Legge i dati dal file CSV
-    Case read_from_csv(Filename) of
-        {ok, Records} ->
-            %% Inserisce i record nella tabella Mnesia
-            Case mnesia:transaction(fun() ->
-                Lists:foreach(fun({Tab, Row, Col, Value}) ->
-                    Mnesia:write(#spreadsheet_data{
-                        Name = SpreadsheetName,
-                        tab = Tab,
-                        row = Row,
-                        col = Col,
-                        value = Value
-                    })
-                End, Records)
-            End) of
-                {atomic, ok} ->
-                    Io:format(“Spreadsheet ~p imported successfully from ~p~n”, [SpreadsheetName, Filename]),
-                    {reply, ok, State};
-                {aborted, Reason} ->
-                    Io:format(“Transaction aborted during import: ~p~n”, [Reason]),
-                    {reply, {error, transaction_aborted}, State}
-            End;
-        {error, Reason} ->
-            Io:format(“Failed to read CSV from ~p: ~p~n”, [Filename, Reason]),
-            {reply, {error, Reason}, State}
-    End.
-%%%%%%Funzione Helper read_from_csv/1
-Legge i dati da un file CSV.
-%%Ottieni SpreadsheetName
 
 
-Read_from_csv(Filename) ->
-    %% Apre il file in modalità lettura
-    Case file:open(Filename, [read]) of
-        {ok, IoDevice} ->
-            %% Legge tutte le righe del file
-            Case io:get_line(IoDevice, “”) of
-                %%Ottieni SpreadsheetName
-                “Tab,Row,Col,Value\n” ->  % Salta l’intestazione
-                    Records = read_csv_lines(IoDevice, []),
-                    file:close(IoDevice),
-                    {ok, Records};
-                _ ->
-                    File:close(IoDevice),
-                    {error, invalid_csv_format}
-            End;
-        {error, Reason} ->
-            {error, Reason}
-    End.
+% %%%%%%Funzione Helper read_from_csv/1
+% Legge i dati da un file CSV.
+% %%Ottieni SpreadsheetName
 
-Read_csv_lines(IoDevice, Acc) ->
-    Case io:get_line(IoDevice, “”) of
-        Eof -> lists:reverse(Acc);
-        Line ->
-            Case string:tokens(Line, “,”) of
-                [TabStr, RowStr, ColStr, ValueStr] ->
-                    %% Converte i valori in numeri e restituisce la lista
-                    Case {list_to_integer(TabStr), list_to_integer(RowStr), list_to_integer(ColStr)} of
-                        {Tab, Row, Col} ->
-                            Read_csv_lines(IoDevice, [{Tab, Row, Col, string:trim(ValueStr)} | Acc]);
-                        _ ->
-                            {error, invalid_csv_format}
-                    End;
-                _ ->
-                    {error, invalid_csv_format}
-            End
-    End.
+% Read_from_csv(Filename) ->
+%     %% Apre il file in modalità lettura
+%     case file:open(Filename, [read]) of
+%         {ok, IoDevice} ->
+%             %% Legge tutte le righe del file
+%             case io:get_line(IoDevice, "") of
+%                 %%Ottieni SpreadsheetName
 
+%                 % Salta l’intestazione
+%                 "Tab,Row,Col,Value\n" ->
+%                     Records = read_csv_lines(IoDevice, []),
+%                     file:close(IoDevice),
+%                     {ok, Records};
+%                 _ ->
+%                     file:close(IoDevice),
+%                     {error, invalid_csv_format}
+%             end;
+%         {error, Reason} ->
+%             {error, Reason}
+%     end.
+
+% Read_csv_lines(IoDevice, Acc) ->
+%     case io:get_line(IoDevice, "") of
+%         Eof ->
+%             lists:reverse(Acc);
+%         Line ->
+%             case string:tokens(Line, ",") of
+%                 [TabStr, RowStr, ColStr, ValueStr] ->
+%                     %% Converte i valori in numeri e restituisce la lista
+%                     case
+%                         {list_to_integer(TabStr), list_to_integer(RowStr), list_to_integer(ColStr)}
+%                     of
+%                         {Tab, Row, Col} ->
+%                             Read_csv_lines(IoDevice, [{Tab, Row, Col, string:trim(ValueStr)} | Acc]);
+%                         _ ->
+%                             {error, invalid_csv_format}
+%                     end;
+%                 _ ->
+%                     {error, invalid_csv_format}
+%             end
+%     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
@@ -578,7 +611,7 @@ generate_records(Name, N, M, K) ->
 %     %% Combina le politiche filtrate con NewPolicies
 %     UpdatedPolicies = FilteredExistingPolicies ++ NewPolicies,
 
-%     %% Aggiorna la tabella Mnesia
+%     %% Aggiorna la tabella mnesia
 %     mnesia:transaction(fun() ->
 %         %% Rimuovi le vecchie politiche
 %         mnesia:delete({access_policies, SpreadsheetName}),
@@ -650,9 +683,6 @@ is_basic_type(Value) when
     true;
 is_basic_type(_) ->
     false.
-%%%%  Importa i dati da un file CSV e li inserisce nella tabella spreadsheet_data.
-From_csv(Filename, Timeout) ->
-    Gen_server:call({global, SpreadsheetName}, {from_csv, SpreadsheetName, Filename}, Timeout).
 
 %% Helper per trovare il nome globale associato a un CallerPid
 find_global_name(CallerPid) ->
