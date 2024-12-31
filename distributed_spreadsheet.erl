@@ -124,6 +124,18 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) when
                     {reply, {error, invalid_type}}
             end
     end.
+%%% Esporta i dati dello spreadsheet in un file CSV
+to_csv(SpreadsheetName, Filename, Timeout) ->
+    Gen_server:call({global, SpreadsheetName}, {to_csv, SpreadsheetName, Filename}, Timeout).
+
+
+%%%% Importa i dati da un file CSV e li inserisce nella tabella spreadsheet_data.
+From_csv(Filename, Timeout) ->
+    Gen_server:call({global, SpreadsheetName}, {from_csv, SpreadsheetName, Filename}, Timeout).
+
+
+
+
 %% Avvia il gen_server /registra il nome globalmente
 start_link(Args) ->
     io:format("Starting distributed_spreadsheet with args: ~p~n", [Args]),
@@ -384,6 +396,117 @@ handle_info(_Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+%%%%%%%%%%%%%HANDLE CALL TO_CSV%%%%%%%%%%%%%%%%%%%%
+Handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
+    %% Legge tutti i record relativi allo spreadsheet
+    Case mnesia:transaction(fun() ->
+        Mnesia:match_object(#spreadsheet_data{name = SpreadsheetName, ‘_’, ‘_’, ‘_’, ‘_’})
+    end) of
+        {atomic, Records} ->
+            %% Scrive i record nel file CSV
+            Case write_to_csv(Filename, Records) of
+                Ok ->
+                    Io:format(“Spreadsheet ~p exported successfully to ~p~n”, [SpreadsheetName, Filename]),
+                    {reply, ok, State};
+                {error, Reason} ->
+                    Io:format(“Failed to write CSV for spreadsheet ~p: ~p~n”, [SpreadsheetName, Reason]),
+                    {reply, {error, Reason}, State}
+            end;
+        {aborted, Reason} ->
+            Io:format(“Transaction aborted during export: ~p~n”, [Reason]),
+            {reply, {error, transaction_aborted}, State}
+    end.
+%%%%%%%%%%%%%% Funzione Helper write_to_csv/2%%%%%%%%%%%%%%
+Write_to_csv(Filename, Records) ->
+    %% Apre il file in modalità scrittura
+    Case file:open(Filename, [write]) of
+        {ok, IoDevice} ->
+            %% Scrive l’intestazione
+            %%Scrive il nome dello spreadsheet
+            File:write(IoDevice, “Tab,Row,Col,Value\n”),
+            
+            %% Scrive i record
+            Lists:foreach(fun(#spreadsheet_data{tab = Tab, row = Row, col = Col, value = Value}) ->
+                Line = io_lib:format(“~p,~p,~p,~p\n”, [Tab, Row, Col, Value]),
+                file:write(IoDevice, Line)
+            end, Records),
+            %% Chiude il file
+            File:close(IoDevice),
+            ok;
+        {error, Reason} ->
+            {error, Reason}
+    end.
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Handle_call({from_csv, SpreadsheetName, Filename}, _From, State) ->
+    %% Legge i dati dal file CSV
+    Case read_from_csv(Filename) of
+        {ok, Records} ->
+            %% Inserisce i record nella tabella Mnesia
+            Case mnesia:transaction(fun() ->
+                Lists:foreach(fun({Tab, Row, Col, Value}) ->
+                    Mnesia:write(#spreadsheet_data{
+                        Name = SpreadsheetName,
+                        tab = Tab,
+                        row = Row,
+                        col = Col,
+                        value = Value
+                    })
+                End, Records)
+            End) of
+                {atomic, ok} ->
+                    Io:format(“Spreadsheet ~p imported successfully from ~p~n”, [SpreadsheetName, Filename]),
+                    {reply, ok, State};
+                {aborted, Reason} ->
+                    Io:format(“Transaction aborted during import: ~p~n”, [Reason]),
+                    {reply, {error, transaction_aborted}, State}
+            End;
+        {error, Reason} ->
+            Io:format(“Failed to read CSV from ~p: ~p~n”, [Filename, Reason]),
+            {reply, {error, Reason}, State}
+    End.
+%%%%%%Funzione Helper read_from_csv/1
+Legge i dati da un file CSV.
+%%Ottieni SpreadsheetName
+
+
+Read_from_csv(Filename) ->
+    %% Apre il file in modalità lettura
+    Case file:open(Filename, [read]) of
+        {ok, IoDevice} ->
+            %% Legge tutte le righe del file
+            Case io:get_line(IoDevice, “”) of
+                %%Ottieni SpreadsheetName
+                “Tab,Row,Col,Value\n” ->  % Salta l’intestazione
+                    Records = read_csv_lines(IoDevice, []),
+                    file:close(IoDevice),
+                    {ok, Records};
+                _ ->
+                    File:close(IoDevice),
+                    {error, invalid_csv_format}
+            End;
+        {error, Reason} ->
+            {error, Reason}
+    End.
+
+Read_csv_lines(IoDevice, Acc) ->
+    Case io:get_line(IoDevice, “”) of
+        Eof -> lists:reverse(Acc);
+        Line ->
+            Case string:tokens(Line, “,”) of
+                [TabStr, RowStr, ColStr, ValueStr] ->
+                    %% Converte i valori in numeri e restituisce la lista
+                    Case {list_to_integer(TabStr), list_to_integer(RowStr), list_to_integer(ColStr)} of
+                        {Tab, Row, Col} ->
+                            Read_csv_lines(IoDevice, [{Tab, Row, Col, string:trim(ValueStr)} | Acc]);
+                        _ ->
+                            {error, invalid_csv_format}
+                    End;
+                _ ->
+                    {error, invalid_csv_format}
+            End
+    End.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
@@ -490,6 +613,10 @@ is_basic_type(Value) when
     true;
 is_basic_type(_) ->
     false.
+%%%%  Importa i dati da un file CSV e li inserisce nella tabella spreadsheet_data.
+From_csv(Filename, Timeout) ->
+    Gen_server:call({global, SpreadsheetName}, {from_csv, SpreadsheetName, Filename}, Timeout).
+
 %% Helper per trovare il nome globale associato a un CallerPid
 find_global_name(CallerPid) ->
     %% Recupera tutti i nomi globali
