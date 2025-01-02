@@ -2,7 +2,7 @@
 -behaviour(application).
 %% Include the record definitions
 -include("records.hrl").
--export([start/2, stop/1, restore_spreadsheets/0, get_owner_pid/1]).
+-export([start/2, stop/1, restore_spreadsheets/0]).
 
 %%CALLBACKS%% VEDI DOC
 start(_StartType, _StartArgs) ->
@@ -84,24 +84,4 @@ restore_spreadsheets() ->
             ok
     end.
 
-get_owner_pid(Name) ->
-    %% Esegui la query all'interno di una transazione
-    case
-        mnesia:transaction(fun() ->
-            %% Legge il record corrispondente
-            case mnesia:read(spreadsheet_owners, Name) of
-                [#spreadsheet_owners{owner = OwnerPid}] ->
-                    %% Record trovato
-                    {ok, OwnerPid};
-                [] ->
-                    %% Nessun record trovato
-                    {error, not_found}
-            end
-        end)
-    of
-        {atomic, Result} ->
-            Result;
-        {aborted, Reason} ->
-            io:format("Transaction aborted while fetching owner PID: ~p~n", [Reason]),
-            {error, transaction_aborted}
-    end.
+
