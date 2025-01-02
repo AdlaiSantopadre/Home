@@ -7,14 +7,13 @@
 
 %% API functions exported from assignement
 
--export([new/1, new/4, share/2, get/4, get/5, set/5, set/6, info/1, to_csv/3, to_csv/2]).%, from_csv/2
+-export([new/1, new/4, share/2, get/4, get/5, set/5, set/6, info/1, to_csv/3, to_csv/2,from_csv/1, from_csv/2]).
 %% API
 -export([start_link/1]).
 
 %%REMOVE AFTER TEST
-
 %update_access_policies/3,
--export([find_global_name/1, check_access/3]).
+-export([find_global_name/1, check_access/3,parse_value/1,read_from_csv/1]).
 
 %% Callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -136,9 +135,25 @@ to_csv(SpreadsheetName, Filename) ->
 to_csv(SpreadsheetName, Filename, Timeout) ->
     gen_server:call({global, SpreadsheetName}, {to_csv, SpreadsheetName, Filename}, Timeout).
 
-%%%% Importa i dati da un file CSV e li inserisce nella tabella spreadsheet_data.
+%%% Importa i dati da un file CSV e li inserisce nella tabella spreadsheet_data.
+from_csv(Filename) ->  
+    from_csv(Filename, infinity).
 from_csv(Filename, Timeout) ->
-    gen_server:call({global, SpreadsheetName}, {from_csv, SpreadsheetName, Filename}, Timeout).
+    %% Recupera la directory configurata
+    %%CsvDirectory = application:get_env(my_app, csv_directory, "/default/path"),
+    %%FullPath = filename:join(CsvDirectory, Filename),
+    %%io:format("FullPath: ~p~n", [FullPath]),
+%% recupero il nome globale dello spreadshheet
+    case file:open(Filename, [read]) of
+            {ok, IoDevice} ->
+                case io:get_line(IoDevice, '') of
+                    "Spreadsheet Name: " ++ SpreadsheetNameLine ->
+                    Name = string:strip(SpreadsheetNameLine, both, $\n),
+                    SpreadsheetName=parse_value(Name),
+                    file:close(IoDevice)
+                end
+            end,
+    gen_server:call({global,SpreadsheetName}, {from_csv, Filename}, Timeout).
 
 %% Avvia il gen_server /registra il nome globalmente
 start_link(Args) ->
@@ -429,6 +444,7 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
     Name = maps:get(name, State),
     if
         Name =:= SpreadsheetName ->
+            io:format("Exporting spreadsheet ~p to file ~p~n", [SpreadsheetName, Filename]),
             %% Legge tutti i record relativi allo spreadsheet
             case
                 mnesia:transaction(fun() ->
@@ -439,7 +455,7 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
             of
                 {atomic, Records} ->
                     %% Scrive i record nel file CSV
-                    case write_to_csv(Filename, Records) of
+                    case write_csv(Filename, SpreadsheetName, Records)  of
                         ok ->
                             io:format("Spreadsheet ~p exported successfully to ~p~n", [
                                 SpreadsheetName, Filename
@@ -459,7 +475,25 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
             {reply, {error, spreadsheet_not_found}, State}
     end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% handle_call({from_csv, SpreadsheetName, Filename}, _From, State) ->
+handle_call({from_csv, NameorFullPath}, _From, State) ->
+    %% Leggi il file CSV
+    case read_from_csv(NameorFullPath) of
+        {ok, Records} ->
+            %% Salva i record nello spreadsheet
+            case mnesia:transaction(fun() ->
+                %% Scrive i dati e le info nelle tabelle
+                lists:foreach(fun(Record) -> mnesia:write(Record) end, Records)
+                
+            end) of
+                {atomic,ok} ->
+                    {reply, ok, State};
+                {aborted, Reason} ->
+                    {reply, {error, Reason}, State}
+            end;
+        {error, Reason} ->
+            {reply, {error, Reason}, State}
+    end;
+
 %     %% Legge i dati dal file CSV
 %     case read_from_csv(Filename) of
 %         {ok, Records} ->
@@ -503,14 +537,20 @@ handle_info(_Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %%%%%%%%%%%%%% Funzione Helper write_to_csv/2%%%%%%%%%%%%%%
-write_to_csv(Filename, Records) ->
+write_csv(Filename, SpreadsheetName, Records) ->
+     try 
+     File = Filename ++ ".csv",
     %% Apre il file in modalità scrittura
-    case file:open(Filename, [write]) of
+     file:open(File, [write]) of
         {ok, IoDevice} ->
-            try
+           
                 %% Scrive l'intestazione
-                io:format(IoDevice, "Spreadsheet Name: ~s~n", [Filename]),
+                io:format(IoDevice, "Spreadsheet Name: ~s~n", [SpreadsheetName]),
                 file:write(IoDevice, "Tab,Row,Col,Value\n"),
                 
                 %% Scrive i record
@@ -522,68 +562,76 @@ write_to_csv(Filename, Records) ->
                     end,
                     Records
                 ),
+                file:close(IoDevice),
                 ok
-            after
-                %% Chiude il file in ogni caso
-                file:close(IoDevice)
+            catch
+            _:_ -> {error, write_failed}
+
+            end.
+        
+
+
+%%%%%%Funzione Helper read_from_csv/1 %%%%%%%%%%%%%%%%%%%%%%%%
+read_from_csv(Filename) ->
+    %try
+        case file:open(Filename, [read]) of
+            {ok, IoDevice} ->
+                case io:get_line(IoDevice, '') of
+                    "Spreadsheet Name: " ++ SpreadsheetNameLine ->
+                    Name = string:strip(SpreadsheetNameLine, both, $\n)
+                end,
+                %% Salta l'intestazione CSV
+                
+                io:get_line(IoDevice, ''),
+                case read_lines(IoDevice,[])  of
+                    {ok, Lines}->
+                            io:format("Lines: ~p~n", [Lines]),
+                            Records = lists:map(fun(Line) ->
+                            case string:tokens(string:strip(Line, both, $\n), ",") of
+                                [Tab, Row, Col, ValueStr] ->
+                                 #spreadsheet_data{name =list_to_atom(Name),
+                                     tab=list_to_integer(Tab),
+                                     row=list_to_integer(Row),
+                                     col=list_to_integer(Col),
+                                     value = parse_value(ValueStr)};
+                                _ -> throw({error, invalid_csv_format})
+                            end
+                                end, Lines),
+                        file:close(IoDevice),
+                        {ok, Records};
+                    {error, Reason} ->
+                        {error, Reason}
+                end
+    %    end
+   % catch
+   %     _:_ -> {error, read_failed}
+    end.
+
+read_lines(IoDevice, Acc) ->
+
+    case io:get_line(IoDevice, '') of
+        eof -> {ok, lists:reverse(Acc)};
+        Line -> read_lines(IoDevice, [Line | Acc])
+        
+    end.
+
+%%%%%%Funzione Helper parse_value/1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+parse_value(ValueString) ->
+    case erl_scan:string(ValueString ++ ".") of  % Aggiungi un punto finale per termini completi
+        {ok, Tokens, _} ->
+            case erl_parse:parse_term(Tokens) of
+                {ok, Term} -> Term;  % Parsing riuscito
+                {error, Reason} -> {error, Reason}  % Parsing fallito
             end;
-        {error, Reason} ->
-            {error, Reason}
+        {error, Reason, _} ->
+            {error, Reason}  % Errore nella scansione
     end.
 
 
-% %%%%%%Funzione Helper read_from_csv/1
-% Legge i dati da un file CSV.
-% %%Ottieni SpreadsheetName
 
-% Read_from_csv(Filename) ->
-%     %% Apre il file in modalità lettura
-%     case file:open(Filename, [read]) of
-%         {ok, IoDevice} ->
-%             %% Legge tutte le righe del file
-%             case io:get_line(IoDevice, "") of
-%                 %%Ottieni SpreadsheetName
 
-%                 % Salta l’intestazione
-%                 "Tab,Row,Col,Value\n" ->
-%                     Records = read_csv_lines(IoDevice, []),
-%                     file:close(IoDevice),
-%                     {ok, Records};
-%                 _ ->
-%                     file:close(IoDevice),
-%                     {error, invalid_csv_format}
-%             end;
-%         {error, Reason} ->
-%             {error, Reason}
-%     end.
+%genera i record per "rappresentare" lo spreadsheet usando list comprehensions.
 
-% Read_csv_lines(IoDevice, Acc) ->
-%     case io:get_line(IoDevice, "") of
-%         Eof ->
-%             lists:reverse(Acc);
-%         Line ->
-%             case string:tokens(Line, ",") of
-%                 [TabStr, RowStr, ColStr, ValueStr] ->
-%                     %% Converte i valori in numeri e restituisce la lista
-%                     case
-%                         {list_to_integer(TabStr), list_to_integer(RowStr), list_to_integer(ColStr)}
-%                     of
-%                         {Tab, Row, Col} ->
-%                             Read_csv_lines(IoDevice, [{Tab, Row, Col, string:trim(ValueStr)} | Acc]);
-%                         _ ->
-%                             {error, invalid_csv_format}
-%                     end;
-%                 _ ->
-%                     {error, invalid_csv_format}
-%             end
-%     end.
-
-%%%%%%%%%%%%%%%%%%%%%%%%
-%%% HELPER FUNCTIONS %%%
-%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%genera tutti i record necessari per "rappresentare" lo spreadsheet
-%%usando list comprehensions.
 
 generate_records(Name, N, M, K) ->
     [
