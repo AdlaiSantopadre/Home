@@ -19,6 +19,14 @@ init([]) ->
              transient,
              5000,
              supervisor,
-             [spreadsheet_supervisor]}
+             [spreadsheet_supervisor]},
+             
+            % Processo node_monitor supervisionato
+            {node_monitor,
+             {node_monitor, start_link, [[]]}, %% Lista iniziale vuota o passare nodi
+             permanent, %% Può essere `transient` o `temporary` a seconda del caso
+             5000,
+             worker,
+             [node_monitor]}
         ]
     }}.

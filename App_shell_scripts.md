@@ -178,6 +178,7 @@ mnesia:system_info().
 mnesia:system_info(tables).
 mnesia:table_info(spreadsheet_data, all).
 mnesia:table_info(spreadsheet_owners, all)
+mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella 
 %cancellare una tabella e ricrearla
 mnesia:delete_table(Table).
 mensia:create_table(....)
