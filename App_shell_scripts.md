@@ -29,7 +29,7 @@ net_adm:ping('Charlie@DESKTOPQ2A2FL7').
 ## distribuzione del codice APPLICATION OTP
 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup].
+Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor].
 mnesia_setup:distribute_modules(Nodes, Modules).
 %% individua la path del codice .beam caricato
 code:which(distributed_spreadsheet).

@@ -161,11 +161,9 @@ start_link(Args) ->
     {SpreadsheetName, _, _, _, _} = Args,
     gen_server:start_link({global, SpreadsheetName}, ?MODULE, Args, []).
 
-%%% gen_server CALLBACKS %%%
 
-terminate(Reason, State) ->
-    io:format("Terminating spreadsheet ~p with reason: ~p~n", [maps:get(name, State), Reason]),
-    ok.
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% gen_server CALLBACKS %%%
@@ -537,6 +535,9 @@ handle_info(_Info, State) ->
     {noreply, State}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+terminate(Reason, State) ->
+    io:format("Terminating spreadsheet ~p with reason: ~p~n", [maps:get(name, State), Reason]),
+    ok.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
