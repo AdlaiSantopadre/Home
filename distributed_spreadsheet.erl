@@ -405,21 +405,27 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, Sta
     %% Check if the calling process has write access
     case check_access(CallerPid, [write], SpreadsheetName) of
         ok ->
-            case
+            case %% Recupera il record presente dalla tabella mnesia
                 mnesia:transaction(fun() ->
-                    %% Recupera il record presente dalla tabella mnesia
-                    mnesia:delete_object(#spreadsheet_data{
+                    
+                    Records=mnesia:match_object(#spreadsheet_data{
                         name = SpreadsheetName,
                         tab = TabIndex,
                         row = I,
-                        col = J
+                        col = J,
+                        value = '_'
                     }),
-
+                    %% Elimina ciascun record trovato
+                    lists:foreach(
+                        fun(Record) -> mnesia:delete_object(Record) end,
+                        Records
+                    ),
                     mnesia:write(#spreadsheet_data{
                         name = SpreadsheetName,
                         tab = TabIndex,
                         row = I,
-                        col = J
+                        col = J,
+                        value = Value
                     })
                 end)
             of
@@ -687,7 +693,9 @@ check_access(CallerPid, RequiredAccessList, SpreadsheetName) ->
                     Pattern = #access_policies{
                         name = SpreadsheetName, proc = GlobalName, access = '_'
                     },
+                    io:format("stampa pattern su cui fare match :~p ~n", [Pattern]),
                     Records = mnesia:match_object(Pattern),
+                    io:format("controlla i record su cui effettuare la ricerca:~p ~n", [Records]),
                     %% Filtra i record con il permesso richiesto
                     lists:filter(
                         fun(#access_policies{access = Access}) ->

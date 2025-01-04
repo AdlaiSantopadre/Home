@@ -61,7 +61,7 @@ observer:start().
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 
 application:which_applications().
-SpreadsheetName = trentundicembre.
+SpreadsheetName = ventiquattrodicembre.
 mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
 %% solo sul nodo Alice
@@ -71,28 +71,28 @@ supervisor:which_children(app_sup).
 supervisor:which_children(spreadsheet_sup).
 >>ritorna []
 application:which_applications().
-SpreadsheetName = trentundicembre.
+SpreadsheetName = ventiquattrodicembre.
 mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
 ## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
 
 %%f(Args).
-%%Args= {trentundicembre, 4, 3, 2,self()}.
+%%Args= {ventiquattrodicembre, 4, 3, 2,self()}.
 %% distributed_spreadsheet:start_link(Args).
 %%spreadsheet_supervisor:start_spreadsheet(Args).
 %%supervisor:start_child(spreadsheet_sup, [Args]).
-distributed_spreadsheet:new(trentundicembre).
-**distributed_spreadsheet:new(trentundicembre, 3, 4, 2).**
+distributed_spreadsheet:new(ventiquattrodicembre).
+**distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**
 supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
-global:whereis_name(trentundicembre). % Controlla il gen_server globale
+global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
 whereis(spreadsheet_sup). % Controlla il supervisore locale
 %% per deregistrare un nome **global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).**
 
 ### fallimento dello spreadsheet/fallimento del distributed_sup
 
 %%da testare
-distributed_spreadsheet:new(trentundicembre, 3, 4, 2).
-exit(global:whereis_name(trentundicembre), kill).
+distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).
+exit(global:whereis_name(ventiquattrodicembre), kill).
 
 ## Fallimento del NODO Alice, Charlie
 
@@ -110,32 +110,32 @@ NOTA per testare da shell, includere prima il comando di registrazione dei recor
 ES **rr("records.hrl").**
 
 %% x controllare il processo spreadsheet,se necessario
-process_info(global:whereis_name(trentundicembre)).
+process_info(global:whereis_name(ventiquattrodicembre)).
 
 ## Test Share(SpreadsheetName,Access_policies)
 
-%% supponendo di aver inizializzato trentundicembre e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
+%% supponendo di aver inizializzato ventiquattrodicembre e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
 [{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 %% test funzione ausiliaria 
-distributed_spreadsheet:update_access_policies(trentundicembre, [{<0.422.0>, write},{<0.141.0>,read}]).
+distributed_spreadsheet:update_access_policies(ventiquattrodicembre, [{<0.422.0>, write},{<0.141.0>,read}]).
 
 ## Test get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
 from node Bob
-distributed_spreadsheet:get(trentundicembre,2,3,4).
+distributed_spreadsheet:get(ventiquattrodicembre,2,3,4).
 
-distributed_spreadsheet:set(trentundicembre,2,3,4, "Hey, Adi").
-distributed_spreadsheet:set(trentundicembre,2,2,4, atomic).
+distributed_spreadsheet:set(ventiquattrodicembre,2,3,4, "Hey, Adi").
+distributed_spreadsheet:set(ventiquattrodicembre,2,2,4, atomic).
 
 distributed_spreadsheet:find_global_name(CallerPid).
 distributed_spreadsheet:check_access(CallerPid).
 
 ## Test info(Spreadsheetname)
 
-distributed_spreadsheet:info(trentundicembre).
+distributed_spreadsheet:info(ventiquattrodicembre).
 
 ## Test to_csv(SpredsheetName, Filename)
-distributed_spreadsheet:to_csv(trentundicembre, spreadsheet).
+distributed_spreadsheet:to_csv(ventiquattrodicembre, spreadsheet).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
