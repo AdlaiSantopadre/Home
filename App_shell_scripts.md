@@ -117,7 +117,7 @@ process_info(global:whereis_name(ventiquattrodicembre)).
 %% supponendo di aver inizializzato ventiquattrodicembre e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
 [{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 %% test funzione ausiliaria 
-distributed_spreadsheet:update_access_policies(ventiquattrodicembre, [{<0.422.0>, write},{<0.141.0>,read}]).
+distributed_spreadsheet:update_access_policies(ventiquattrodicembre, [{<20727.83177.0>, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
 
 ## Test get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 

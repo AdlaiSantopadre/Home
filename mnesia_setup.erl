@@ -1,6 +1,6 @@
 -module(mnesia_setup). % v. 4.2 Windows SO con shortNames  + distribuzione del codice compilato 
 %% Record spreadsheet_info
--export([setup_mnesia/2,create_tables/1, distribute_modules/2,start_application/1, init_cluster_policies/2]).%,  mnesia_start/1,
+-export([setup_mnesia/2,create_tables/1, distribute_modules/2,start_application/1, init_cluster_policies/2,populate_access_policies/2]).%,  mnesia_start/1,
 
 -include("records.hrl").
 
