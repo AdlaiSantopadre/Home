@@ -6,10 +6,7 @@
     value                   %valore della cella
     
 }).
--record(spreadsheet_owners, {
-    name,                   % Nome univoco del foglio di calcolo
-    owner                  % pid del possessore    
-}).
+
 -record(access_policies, {
     name,                   % Nome univoco del foglio di calcolo
     proc,                  % pid o registered name del processo

@@ -118,6 +118,10 @@ process_info(global:whereis_name(ventiquattrodicembre)).
 [{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 %% test funzione ausiliaria 
 distributed_spreadsheet:update_access_policies(ventiquattrodicembre, [{<20727.83177.0>, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
+distributed_spreadsheet:update_access_policies(ventiquattrodicembre,[{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}], [{nodoAlice@DESKTOPQ2A2FL7, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
+distributed_spreadsheet:update_access_policies(ventiquattrodicembre,[{nodoAlice@DESKTOPQ2A2FL7,write},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}],[{<20727.83177.0>,read}]). Questo comando mi da sintax error
+distributed_spreadsheet:share(ventiquattrodicembre,[{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}]).
+
 
 ## Test get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
