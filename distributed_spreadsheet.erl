@@ -47,8 +47,9 @@ new(Name) ->
 
 %% Crea uno spreadsheet con parametri specifici
 new(SpreadsheetName, N, M, K) ->
-    %% Richiesta del pid del master di my_app
-    OwnerPid = application_controller:get_master(my_app),
+    
+    OwnerPid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
+    %%%%%application_controller:get_master(my_app),
     Args = {SpreadsheetName, N, M, K, OwnerPid},
     case spreadsheet_supervisor:start_spreadsheet(Args) of
         %% Invio richiesta a spreadsheet_supervisor per creare il supervisore specifico
@@ -198,7 +199,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
             mnesia:transaction(fun() ->
                 %% Scrive i dati e le info nelle tabelle
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
-                %%mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
+                
                 mnesia:write(#spreadsheet_info{
                     name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
                 })
@@ -240,48 +241,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
             {stop, Reason}
     end.
 
-% init({SpreadsheetName, N, M, K, OwnerPid}) ->
-%     io:format("Initializing spreadsheet ~p with owner ~p~n", [SpreadsheetName, OwnerPid]),
 
-%     case
-%         mnesia:transaction(fun() ->
-%             case mnesia:read({spreadsheet_owners, SpreadsheetName}) of
-%                 %% New spreadsheet creation
-%                 [] ->
-%                     io:format("No existing data for spreadsheet ~p. Initializing records.~n", [
-%                         SpreadsheetName]),
-
-%                     Records = generate_records(SpreadsheetName, N, M, K),
-%                     lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
-%                     mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-%                     mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),
-%                     {new, ok};
-%                 %% Restart case
-%                 [#spreadsheet_owners{name = SpreadsheetName, owner = ExistingOwner}] ->
-%                     if  ExistingOwner == OwnerPid -> io:format("Found existing owner ~p for spreadsheet ~p.~n", [OwnerPid, SpreadsheetName ]),
-%                     {existing, ExistingOwner};
-%                     true -> mnesia:delete_object(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-%                             io:format("Reassign ownership of spreadsheet ~p to pid ~p .~n", [SpreadsheetName,OwnerPid]),
-%                             mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-%                             {existing, ExistingOwner}
-%                             %%mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K}),
-%                     end
-%                 end
-
-%         end)
-%     of
-%         {atomic, {new, ok}} ->
-%             %% oK
-%             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
-%         {atomic, {existing, ExistingOwner}} ->
-%             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => ExistingOwner}};
-%         {aborted, Reason} ->
-%             io:format("Failed to initialize spreadsheet ~p: ~p~n", [SpreadsheetName, Reason]),
-%             {stop, Reason}
-%     end.
-
-%%% Handle the 'share' request in the gen_server
-%% gen_server:call(Pid, {share, SpreadsheetName, AccessPolicies,MasterPid})
 
 handle_call({share, SpreadsheetName, AccessPolicies, CallerPid}, {FromPid, _Alias}, State) ->
     io:format("Received share/2 for spreadsheet ~p from MasterPid of caller ~p ~n", [SpreadsheetName, CallerPid        

@@ -1,7 +1,7 @@
 {application, my_app,[
   {description, "Distributed Spreadsheet Application"},
-  {vsn, "2.0"},% Aggiunto node_monitor
-  {modules, [my_app, app_sup, spreadsheet_supervisor, distributed_spreadsheet,node_monitor]},
+  {vsn, "2.0"},
+  {modules, [my_app, app_sup, spreadsheet_supervisor, distributed_spreadsheet]},
   {registered, [app_sup]},
   {applications, [kernel, stdlib, mnesia ]},  % Dipendenze richieste + mnesia
   {mod, {my_app, []}},
