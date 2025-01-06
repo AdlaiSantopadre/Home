@@ -15,9 +15,11 @@ c(spreadsheet_supervisor).
 c(my_app).
 c(node_monitor).
 
-## COMPILARE mnesia_setup
+
+## COMPILARE cluster_setup e mnesia_setup
 
 %% **dal nodo Alice**
+c(cluster_setup).
 c(mnesia_setup).
 
 ### Controlla la comunicazione tra i nodi

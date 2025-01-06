@@ -204,6 +204,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
                     name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
                 })
             end),
+            init_access_policies(SpreadsheetName),
             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
         {atomic, [
             #spreadsheet_info{
@@ -754,3 +755,22 @@ find_global_name(CallerPid) ->
         %% Nessun nome globale trovato
         [] -> undefined
     end.
+%% Funzione helper per popolare la tabella access_policies
+init_access_policies(SpreadsheetName) ->
+
+    mnesia:transaction(fun() ->
+        %% Rimuovi le politiche esistenti per lo spreadsheet
+        mnesia:delete({access_policies, SpreadsheetName}),
+        %% Inserisci le nuove politiche
+        Nodes=nodes(),
+        lists:foreach(fun(Node) ->
+            Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("nodo" ++ atom_to_list(Node)), access = read},
+            io:format("Inserting access policy: ~p~n", [Record]),
+            mnesia:write(Record)
+        end, Nodes),
+        Node=node(),
+        Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("nodo" ++ atom_to_list(Node)), access = write},
+            io:format("Inserting access policy: ~p~n", [Record]),
+            mnesia:write(Record),
+        ok
+   end).
