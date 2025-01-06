@@ -199,9 +199,9 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
                 %% Scrive i dati e le info nelle tabelle
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
                 %%mnesia:write(#spreadsheet_owners{name = SpreadsheetName, owner = OwnerPid}),
-                mnesia:write(#spreadsheet_info{
-                    name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
-                })
+                mnesia:write(#spreadsheet_info{name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
+                }),
+                                   %% Recupera Nodes e popola acccess_policies
             end),
             {ok, #{name => SpreadsheetName, size => {N, M, K}, owner => OwnerPid}};
         {atomic, [
