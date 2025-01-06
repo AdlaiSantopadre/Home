@@ -17,6 +17,26 @@ start(_StartType, _StartArgs) ->
                     io:format("Unexpected result from restore_spreadsheets~n")
                     
             end,
+%%%%%Aggiunta
+    case application_controller:get_master(my_app) of
+    MasterPid when is_pid(MasterPid) ->
+                
+                %% Crea un atomo unico per il nodo
+                GlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
+                %% Registra globalmente il MasterPid
+                case global:register_name(GlobalName, MasterPid) of
+                    yes ->
+                        io:format("MasterPid ~p registered globally as ~p~n", [MasterPid, GlobalName]);
+                        %{GlobalName, read}; %tutti i nodo del cluster vengono inseriti con policy read
+                    no ->
+                        io:format("Failed to register MasterPid ~p: ~n", [MasterPid])
+                        %{GlobalName,error}
+                end;
+            undefined ->
+                io:format("Failed to retrieve MasterPid ~n", [])
+                %{error, undefined}
+        end,
+%%% Fine aggiunta
     %% Avvia il supervisore principale
     app_sup:start_link().
   

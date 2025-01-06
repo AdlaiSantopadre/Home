@@ -1,21 +1,9 @@
 # MESSAGGI DA SHELL
 
-## AVVIO / RIAVVIO di un Cluster di (3) Nodi con Directory di Mnesia separate
+## (1) AVVIO / RIAVVIO di un Cluster di (3) Nodi con Directory di Mnesia separate
 
-### arrestare ed eliminare lo schema di Mnesia
-
-% su ogni nodo
-mnesia:stop().
-mnesia:delete_schema([node()]).
-q().
-
-% per tutti i nodi dal nodo1
-mnesia:stop().
-mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
-init:stop().
-
-% da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-e avviare
+% da  powershell  avvia il cluster con **setup_nodes.bat**
+% e avvia
 erl -sname node_test -setcookie mycookie
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -138,3 +126,14 @@ distributed_spreadsheet:share(dodicidicembre, [{self(), write}]).
 
 **NOTA:questa funzione, lanciata da Alice non gestisce il caso in cui per debug o errore dodicidicembre non è più un nome registrato**
 
+### arrestare ed eliminare lo schema di Mnesia
+
+% su ogni nodo
+mnesia:stop().
+mnesia:delete_schema([node()]).
+q().
+
+% per tutti i nodi dal nodo1
+mnesia:stop().
+mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
+init:stop().

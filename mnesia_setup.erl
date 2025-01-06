@@ -23,14 +23,8 @@ setup_mnesia(Nodes, Dirs) ->
 
     %% Crea lo schema sui nodi specificati
     mnesia:create_schema(Nodes).
-%%verifica se necessario..
-    % %% Cambia la copia dello schema su disco  
-    % lists:foreach(fun(Node) ->
-    %     rpc:call(Node, mnesia, change_table_copy_type, [schema, Node, disc_copies])
-    % end, Nodes).
-    
-    
 
+%%% Crea le tabelle e avvia Mnesia sui nodi del cluster
 create_tables(Nodes) ->
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
@@ -45,33 +39,25 @@ create_tables(Nodes) ->
         {type, bag}, 
         {disc_copies, Nodes}
     ]),
-    % %% Tabella per i proprietari degli spreadsheet
-    %     mnesia:create_table(spreadsheet_owners, [
-    %     {attributes, record_info(fields,spreadsheet_owners)},
-    %     {disc_copies, Nodes}
-    % ]),
+    
     %% Tabella metadati degli spreadsheet
-        mnesia:create_table(spreadsheet_info, [
-        {attributes, record_info(fields, spreadsheet_info)},
-        {disc_copies, Nodes}]),
+    mnesia:create_table(spreadsheet_info, [
+    {attributes, record_info(fields, spreadsheet_info)},
+    {disc_copies, Nodes}]),
 
-        
+    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 20000),    
+    
     lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
-        end, Nodes),
-    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_owners,spreadsheet_info], 20000),
-    
-    %% Avvia Mnesia su tutti i nodi
-    lists:foreach(fun(Node) ->
-        rpc:call(Node, mnesia, start, [])
-    end, Nodes).
-    
+        end, Nodes).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Avvia my_app su tutti i nodi
 start_application(Nodes) ->
     lists:foreach(fun(Node) ->
         rpc:call(Node, application, start, [my_app])
+        
     end, Nodes).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Distribuisci i moduli specificati su tutti i nodi
@@ -98,9 +84,10 @@ init_cluster_policies(Nodes, SpreadsheetName) ->
     %% Recupera il MasterPid per ogni nodo e registra globalmente il nome
     Policies = lists:map(fun(Node) ->
         %% Esegue il comando su ciascun nodo
+        
         case rpc:call(Node, application_controller, get_master, [my_app]) of
             MasterPid when is_pid(MasterPid) ->
-            
+            rpc:call(Node, application, start, [my_app]),
             %% Crea un atomo unico per il nodo
             GlobalName = list_to_atom("nodo" ++ atom_to_list(Node)),
             %% Registra globalmente il MasterPid

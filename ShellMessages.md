@@ -1,19 +1,19 @@
 # MESSAGGI DA SHELL
 
-## Setup ambiente
+## 1.Setup ambiente
 
 % da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-%% **Aggiornato per utilizzare sys.config**
+%% *Aggiornato per utilizzare -config*
 %aggiungere al cluster
-erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang 
+erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
 
-## Compilare i moduli
+## Compilare i moduli della Distributed APPLICATION
 
 c(app_sup).
 c(distributed_spreadsheet).
 c(spreadsheet_supervisor).
 c(my_app).
-c(mnesia_setup).
+c(node_monitor).
 
 ## COMPILARE mnesia_setup
 
@@ -29,14 +29,16 @@ net_adm:ping('Charlie@DESKTOPQ2A2FL7').
 ## distribuzione del codice APPLICATION OTP
 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor].
+Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup].
 mnesia_setup:distribute_modules(Nodes, Modules).
+observer:start().
+
 %% individua la path del codice .beam caricato
-code:which(distributed_spreadsheet).
+*code:which(distributed_spreadsheet).*
 
-## ESEGUIRE mnesia_setup
+## 2. ESEGUIRE mnesia_setup
 
-### setup e creazione delle tabelle
+### setup,creazione delle tabelle e avvio di Mnesia
 
 %% **dal nodo Alice**
 Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
@@ -48,9 +50,9 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
 mnesia_setup:setup_mnesia(Nodes, Dirs).
 %%Attenzione alla crezione delle tabelle
 mnesia_setup:create_tables(Nodes).
-observer:start().%se lo integro in setup_mnesia/2 non crea le tabelle
+*observer:start().*
 
-## Avvio della APP da nodo Alice
+## 3.Avvio della APP da nodo Alice
 
 %% controlla se serve per leggere my.app.app
 %% **code:add_patha("C:/Users/campus.uniurb.it/Erlang/").**
@@ -60,7 +62,9 @@ mnesia_setup:start_application(Nodes).
 observer:start().
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 
-application:which_applications().
+## Avvio di un distributed spreadsheet
+
+*application:which_applications().*
 SpreadsheetName = ventiquattrodicembre.
 mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
@@ -139,6 +143,7 @@ distributed_spreadsheet:check_access(CallerPid).
 distributed_spreadsheet:info(ventiquattrodicembre).
 
 ## Test to_csv(SpredsheetName, Filename)
+
 distributed_spreadsheet:to_csv(ventiquattrodicembre, spreadsheet).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -161,7 +166,7 @@ C:\Users\campus.uniurb.it\Erlang\Alice_data
 C:\Users\campus.uniurb.it\Erlang\Bob_data
 C:\Users\campus.uniurb.it\Erlang\Charlie_data
 %e in ogni directory avvia un nodo
-erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
+erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
 
 erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
 erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
