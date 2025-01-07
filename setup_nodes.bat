@@ -1,3 +1,4 @@
+@echo off
 REM Imposta la directory di base
 set BASE_DIR=C:\Users\campus.uniurb.it\Erlang
 
@@ -11,7 +12,7 @@ REM David Edward Frank Grace Helen Ian Jack
 REM Crea le directory per i nodi ed avviali in loop
 for %%N in (%NAMES%) do (
     REM Crea la directory per il nodo
-    mkdir "%BASE_DIR%\%%N_data"
+    mkdir "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data"
 
     REM Avvia il nodo in una nuova finestra di PowerShell
     start powershell -NoExit -Command "& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% -config %%N"

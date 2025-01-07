@@ -55,7 +55,10 @@ try_reconnect(Node) ->
     io:format("Attempting to reconnect to node: ~p~n", [Node]),
     case net_adm:ping(Node) of
         pong ->
-            io:format("Successfully reconnected to node: ~p~n", [Node]);
+            io:format("Successfully reconnected to node: ~p~n", [Node]),
+            Dir = "C:/Users/campus.uniurb.it/Erlang/" ++ Node ++ "data",
+            rpc:call(Node, application, set_env, [mnesia, dir, Dir]),
+            rpc:call(Node, mnesia, start, []);
         pang ->
             io:format("Failed to reconnect to node: ~p. Retrying in 5 seconds...~n", [Node]),
             timer:sleep(5000),

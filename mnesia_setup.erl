@@ -1,6 +1,6 @@
 -module(mnesia_setup). % v. 4.2 Windows SO con shortNames  + distribuzione del codice compilato 
 
--export([setup_mnesia/2,create_tables/1, distribute_modules/2,start_application/1,setup_cluster/1]).%,mnesia_start/1,
+-export([setup_mnesia/2,create_tables/1, distribute_modules/2,start_application/1,connect_cluster/1]).%,mnesia_start/1,
 %  ,init_cluster_policies/2,populate_access_policies/2
 -include("records.hrl").
 
@@ -45,7 +45,7 @@ create_tables(Nodes) ->
     {attributes, record_info(fields, spreadsheet_info)},
     {disc_copies, Nodes}]),
 
-    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 20000),    
+    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000),    
     
     lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
@@ -79,14 +79,14 @@ distribute_modules(Nodes, Modules) ->
         end, Nodes)
     end, Modules).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-setup_cluster(Nodes) ->
+connect_cluster(Nodes) ->
     %% Connetti i nodi
-    lists:foreach(fun(Node) -> net_kernel:connect_node(Node) end, Nodes),
+    lists:foreach(fun(Node) -> net_kernel:connect_node(Node) end, Nodes).
 
-    %% Avvia il monitor su ogni nodo
-    lists:foreach(fun(Node) ->
-        rpc:call(Node, node_monitor, monitor_nodes, [])
-    end, Nodes).
+    % %% Avvia il monitor su ogni nodo
+    % lists:foreach(fun(Node) ->
+    %     rpc:call(Node, node_monitor, monitor_nodes, [])
+    % end, Nodes).
 % %% inizializza la tabella con le access policies per ogni nodo del cluster
 % init_cluster_policies(Nodes, SpreadsheetName) ->
 %     %% Recupera il MasterPid per ogni nodo e registra globalmente il nome

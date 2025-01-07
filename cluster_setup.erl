@@ -1,9 +1,12 @@
 -module(cluster_setup).
 -export([init_cluster/0]).
-
+-export([test_init_access_policies/1]).
 -include("records.hrl").
 
 init_cluster() ->
+    MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
+    global:register_name(MyGlobalName, self()),
+    io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),
     %% 1) Recupera l'elenco dei nodi del cluster
     Nodes = nodes(),
     %% Recupera il Pid locale per ogni nodo e registra globalmente il nome
@@ -14,7 +17,7 @@ init_cluster() ->
         case net_adm:ping(Node) of
             pong ->
                 %% 3) Esegui la RPC a node_monitor per recuperare il pid
-                case rpc:call(Node, node_monitor, start_link, []) of
+                case rpc:call(Node, node_monitor, monitor_nodes, []) of
                     {ok, LocalPid} when is_pid(LocalPid) ->
                         %% Crea un atomo unico per il nodo
                         GlobalName = list_to_atom("nodo" ++ atom_to_list(Node)),
@@ -55,7 +58,7 @@ init_cluster() ->
 %             {error, Reason}
 %     end.
 % % procura Nodes
-init_access_policies(SpreadsheetName) ->
+test_init_access_policies(SpreadsheetName) ->
 
     mnesia:transaction(fun() ->
         %% Rimuovi le politiche esistenti per lo spreadsheet

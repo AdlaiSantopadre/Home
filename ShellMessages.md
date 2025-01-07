@@ -7,7 +7,7 @@
 %aggiungere al cluster
 erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
 
-## Compilare i moduli della Distributed APPLICATION
+## Compilare i moduli della Distributed APPLICATION & il gen_server node_monitor
 
 c(app_sup).
 c(distributed_spreadsheet).
@@ -35,8 +35,14 @@ Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_mo
 mnesia_setup:distribute_modules(Nodes, Modules).
 observer:start().
 
+## SETUP del cluster
+
+cluster_setup:init_cluster().
+*global:registered_names().*
 %% individua la path del codice .beam caricato
 *code:which(distributed_spreadsheet).*
+%% test con codice da rimuovere
+**cluster_setup:test_init_access_policies(ventiquattrodicembre).**
 
 ## 2. ESEGUIRE mnesia_setup
 
@@ -50,7 +56,7 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
         "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
-%%Attenzione alla crezione delle tabelle
+%%**Attenzione alla crezione delle tabelle**
 mnesia_setup:create_tables(Nodes).
 *observer:start().*
 
@@ -60,15 +66,14 @@ mnesia_setup:create_tables(Nodes).
 %% **code:add_patha("C:/Users/campus.uniurb.it/Erlang/").**
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 mnesia_setup:start_application(Nodes).
+
  %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
-observer:start().
+*observer:start().*
 %Consulta le tabelle su observer->Applications->Mnesia->Table viewer
 
 ## Avvio di un distributed spreadsheet
 
 *application:which_applications().*
-SpreadsheetName = ventiquattrodicembre.
-mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
 
 %% solo sul nodo Alice
 %% application:start(my_app).
@@ -76,9 +81,7 @@ supervisor:which_children(app_sup).
 >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
 supervisor:which_children(spreadsheet_sup).
 >>ritorna []
-application:which_applications().
-SpreadsheetName = ventiquattrodicembre.
-mnesia_setup:init_cluster_policies(Nodes, SpreadsheetName).
+*application:which_applications().*
 
 ## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
 
@@ -104,6 +107,7 @@ exit(global:whereis_name(ventiquattrodicembre), kill).
 
 rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
 rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, []).
+global:registered_names().
 
 ### Ricollegare il nodo Alice al cluster Mnesia
 
@@ -171,7 +175,7 @@ C:\Users\campus.uniurb.it\Erlang\Charlie_data
 erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
 
 erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
-erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
+erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
 
 erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
 
