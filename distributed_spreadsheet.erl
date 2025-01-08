@@ -71,14 +71,14 @@ info(SpreadsheetName) ->
         undefined ->
             io:format("Spreadsheet ~p not found globally.~n", [SpreadsheetName]),
             {error, spreadsheet_not_found};
-        OwnerPid when is_pid(OwnePid) ->
+        Pid when is_pid(Pid) ->
             %% Step 2: Check if the process is alive
-            %% OwnerPid = application_controller:get_master(my_app),
-            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, OwnerPid]),
+            NodePid = global:whereis_name(list_to_atom("nodo" ++ atom_to_list(node()))),
+            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, NodePid]),
 
             try
-                io:format("Caller node with Pid: ~p~n", [Pid]),
-                gen_server:call({global, SpreadsheetName}, {about, SpreadsheetName, OwnerPid})
+                io:format("Caller process with Pid: ~p~n", [self()]),
+                gen_server:call({global, SpreadsheetName}, {about, SpreadsheetName, NodePid})
             catch
                 _:_ -> {error, timeout}
             end
@@ -311,12 +311,12 @@ handle_call({share, SpreadsheetName, AccessPolicies, CallerPid}, {FromPid, _Alia
     end;
 % Handle the synchronous request to get the spreadsheet's info
 %%%%%%%%%%%%%%%%%HANDLE CALL ABOUT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-handle_call({about, SpreadsheetName, OwnerPid}, _From, State) ->
+handle_call({about, SpreadsheetName, _NodePid}, _From, State) ->
     io:format("getting info about  ~p~n", [SpreadsheetName]),
     case
         mnesia:transaction(fun() ->
             mnesia:match_object(#spreadsheet_info{
-                name = SpreadsheetName, rows = '_', cols = '_', tabs = '_', owner = OwnerPid
+                name = SpreadsheetName, rows = '_', cols = '_', tabs = '_', owner = '_'
             })
         end)
     of
@@ -324,7 +324,7 @@ handle_call({about, SpreadsheetName, OwnerPid}, _From, State) ->
             #spreadsheet_info{name = Name, rows = Rows, cols = Cols, tabs = Tabs, owner = Owner}
         ]} ->
             %%numero totale delle celle
-            TotalCells = Rows * Cols,
+            CellsxTab = Rows * Cols,
 
             %% Recupera le politiche di accesso dalla tabella access_policies
 
@@ -350,7 +350,7 @@ handle_call({about, SpreadsheetName, OwnerPid}, _From, State) ->
                         name => Name,
                         owner => Owner,
                         total_tabs => Tabs,
-                        total_cells => TotalCells,
+                        total_cells => CellsxTab,
                         read_permissions => ReadPermissions,
                         write_permissions => WritePermissions
                     },
