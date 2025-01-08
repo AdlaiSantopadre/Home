@@ -1,5 +1,6 @@
 -module(distributed_spreadsheet).
-%% gen_server with mnesia
+%% modulo di Application my_app 
+%% gen_server con Mnesia e supervisore dedicato
 -behaviour(gen_server).
 
 %% Include the record definitions
@@ -19,8 +20,8 @@
 %% API
 -export([start_link/1]).
 
-%%REMOVE AFTER TEST
-%
+%%direttiva export di funzioni helper 
+%%si può rimuovere a fine test
 -export([
     find_global_name/1,
     check_access/3,
@@ -49,7 +50,7 @@ new(Name) ->
 new(SpreadsheetName, N, M, K) ->
     
     OwnerPid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
-    %%%%%application_controller:get_master(my_app),
+
     Args = {SpreadsheetName, N, M, K, OwnerPid},
     case spreadsheet_supervisor:start_spreadsheet(Args) of
         %% Invio richiesta a spreadsheet_supervisor per creare il supervisore specifico
@@ -61,42 +62,44 @@ new(SpreadsheetName, N, M, K) ->
             {error, Reason}
     end.
 
-%% Permette di avere informazioni sugli spreadsheets
+%% API function init/1 to get info about spreadsheets
 info(SpreadsheetName) ->
-    %% Richiesta del pid del master di my_app
+    
 
-    %% Step 1: Check if the process is registered globally
+    %% Check if the process is registered globally
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             io:format("Spreadsheet ~p not found globally.~n", [SpreadsheetName]),
             {error, spreadsheet_not_found};
-        Pid when is_pid(Pid) ->
+        OwnerPid when is_pid(OwnePid) ->
             %% Step 2: Check if the process is alive
-            OwnerPid = application_controller:get_master(my_app),
-            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, Pid]),
+            %% OwnerPid = application_controller:get_master(my_app),
+            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, OwnerPid]),
 
             try
-                io:format("Caller node with MasterPid: ~p~n", [OwnerPid]),
+                io:format("Caller node with Pid: ~p~n", [Pid]),
                 gen_server:call({global, SpreadsheetName}, {about, SpreadsheetName, OwnerPid})
             catch
                 _:_ -> {error, timeout}
             end
     end.
-%% Permette l'accesso condiviso allo spreadsheet secondo una lista di politiche di accesso
+
+%% API function to share the spreadsheet and state access policies 
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};
-        Pid when is_pid(Pid) ->
-            MasterPid = application_controller:get_master(my_app),
-
+        OwnerPid when is_pid(OwnerPid) ->
+            %%MasterPid = application_controller:get_master(my_app),
+        Pid = self(),
             try
-                io:format("Caller node with MasterPid: ~p~n", [MasterPid]),
-                gen_server:call(Pid, {share, SpreadsheetName, AccessPolicies, MasterPid})
+                io:format("Caller node with Pid: ~p~n", [Pid]),
+                gen_server:call(Pid, {share, SpreadsheetName, AccessPolicies, OwnerPid})
             catch
                 _:_ -> {error, timeout}
             end
     end.
+
 %% API function to get the value from a specific cell with default timeout (infinity)
 get(SpreadsheetName, TabIndex, I, J) ->
     get(SpreadsheetName, TabIndex, I, J, infinity).
@@ -308,12 +311,12 @@ handle_call({share, SpreadsheetName, AccessPolicies, CallerPid}, {FromPid, _Alia
     end;
 % Handle the synchronous request to get the spreadsheet's info
 %%%%%%%%%%%%%%%%%HANDLE CALL ABOUT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-handle_call({about, SpreadsheetName, MasterPid}, _From, State) ->
+handle_call({about, SpreadsheetName, OwnerPid}, _From, State) ->
     io:format("getting info about  ~p~n", [SpreadsheetName]),
     case
         mnesia:transaction(fun() ->
             mnesia:match_object(#spreadsheet_info{
-                name = SpreadsheetName, rows = '_', cols = '_', tabs = '_', owner = MasterPid
+                name = SpreadsheetName, rows = '_', cols = '_', tabs = '_', owner = OwnerPid
             })
         end)
     of
@@ -346,7 +349,6 @@ handle_call({about, SpreadsheetName, MasterPid}, _From, State) ->
                     Info = #{
                         name => Name,
                         owner => Owner,
-                        %last_modified => LastModified,
                         total_tabs => Tabs,
                         total_cells => TotalCells,
                         read_permissions => ReadPermissions,
@@ -358,7 +360,7 @@ handle_call({about, SpreadsheetName, MasterPid}, _From, State) ->
                     {error, transaction_aborted}
             end;
         {atomic, []} ->
-            %% Nessuno spreadsheet trovato
+            %% Controllo proprietario fallito
             {reply, {error, spreadsheet_not_found}, State};
         {aborted, Reason} ->
             %% Gestisce errori di transazione
