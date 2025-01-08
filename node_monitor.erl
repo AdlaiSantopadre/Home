@@ -8,7 +8,7 @@
 %% API per avviare il monitoraggio
 monitor_nodes() ->
     case start_link() of
-        {ok, _Pid} -> ok;
+        {ok, _Pid} -> {ok, _Pid};
         {error, Reason} -> io:format("Errore monitoraggio nodo: ~p~n", [Reason])
     end.
 %% Avvia il gen_server per il monitoraggio dei nodi
@@ -56,7 +56,7 @@ try_reconnect(Node) ->
     case net_adm:ping(Node) of
         pong ->
             io:format("Successfully reconnected to node: ~p~n", [Node]),
-            Dir = "C:/Users/campus.uniurb.it/Erlang/" ++ Node ++ "data",
+            Dir = ("C:/Users/campus.uniurb.it/Erlang/" ++ atom_to_list(Node) ++ "data"),
             rpc:call(Node, application, set_env, [mnesia, dir, Dir]),
             rpc:call(Node, mnesia, start, []);
         pang ->

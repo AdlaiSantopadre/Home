@@ -15,7 +15,6 @@ c(spreadsheet_supervisor).
 c(my_app).
 c(node_monitor).
 
-
 ## COMPILARE cluster_setup e mnesia_setup
 
 %% **dal nodo Alice**
@@ -31,7 +30,7 @@ net_adm:ping('Charlie@DESKTOPQ2A2FL7').
 ## distribuzione del codice APPLICATION OTP
 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup].
+Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup].
 mnesia_setup:distribute_modules(Nodes, Modules).
 observer:start().
 
@@ -40,7 +39,7 @@ observer:start().
 cluster_setup:init_cluster().
 *global:registered_names().*
 %% individua la path del codice .beam caricato
-*code:which(distributed_spreadsheet).*
+*code:which(node_monitor).*
 %% test con codice da rimuovere
 **cluster_setup:test_init_access_policies(ventiquattrodicembre).**
 
@@ -51,9 +50,9 @@ cluster_setup:init_cluster().
 %% **dal nodo Alice**
 Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 
-Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice_data",
-        "C:/Users/campus.uniurb.it/Erlang/Bob_data",
-        "C:/Users/campus.uniurb.it/Erlang/Charlie_data"].
+Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
+        "C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data",
+        "C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].
 
 mnesia_setup:setup_mnesia(Nodes, Dirs).
 %%**Attenzione alla crezione delle tabelle**

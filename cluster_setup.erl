@@ -4,42 +4,54 @@
 -include("records.hrl").
 
 init_cluster() ->
-    MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
-    global:register_name(MyGlobalName, self()),
-    io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),
+    % MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
+    % global:register_name(MyGlobalName, self()),
+    % io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),
+    node_monitor:monitor_nodes(),
     %% 1) Recupera l'elenco dei nodi del cluster
     Nodes = nodes(),
     %% Recupera il Pid locale per ogni nodo e registra globalmente il nome
-
-    %% Esegue il comando su ciascun nodo
-    lists:map(fun(Node) ->
-        %% 2) Controlla che siano connessi
+    lists:foreach(fun(Node) ->
         case net_adm:ping(Node) of
             pong ->
-                %% 3) Esegui la RPC a node_monitor per recuperare il pid
-                case rpc:call(Node, node_monitor, monitor_nodes, []) of
-                    {ok, LocalPid} when is_pid(LocalPid) ->
-                        %% Crea un atomo unico per il nodo
-                        GlobalName = list_to_atom("nodo" ++ atom_to_list(Node)),
+                io:format("Connesso a ~p~n", [Node]),
 
-                        %% Registra globalmente il LocalPid
-                        case global:register_name(GlobalName, LocalPid) of
-                            yes ->
-                                io:format("Pid locale ~p registrato globalmente come ~p~n", [LocalPid, GlobalName]),
-                                {GlobalName, read}; % Tutti i nodi del cluster vengono inseriti con policy read
-                            {error, Reason} ->
-                                io:format("Fallita la registrazione del Pid locale ~p: ~p~n", [LocalPid, Reason]),
-                                {GlobalName, error}
-                        end;
-                    _ ->
-                        io:format("Fallito il recupero del Pid locale dal nodo ~p~n", [Node]),
-                        {error, undefined}
-                end;
+                %% Usa spawn per avviare il gen_server                
+                Pid = spawn(Node, node_monitor, start_link, []),
+                io:format("Monitor avviato su ~p con PID ~p~n", [Node, Pid]);
             pang ->
-                io:format("Nodo ~p non raggiungibile.~n", [Node]),
-                {error, unreachable}
+                io:format("Nodo ~p non raggiungibile.~n", [Node])
         end
     end, Nodes).
+    % %% Esegue il comando su ciascun nodo
+    % lists:map(fun(Node) ->
+    %     %% 2) Controlla che siano connessi
+    %     case net_adm:ping(Node) of
+    %         pong ->
+    %             %% 3) Esegui la RPC a node_monitor per recuperare il pid
+    %             case rpc:call(Node, node_monitor, monitor_nodes, []) of
+    %                 {ok, LocalPid} when is_pid(LocalPid) ->
+    %                     %% Crea un atomo unico per il nodo
+    %                     GlobalName = list_to_atom("nodo" ++ atom_to_list(Node)),
+
+    %                     %% Registra globalmente il LocalPid
+    %                     case global:register_name(GlobalName, LocalPid) of
+    %                         yes ->
+    %                             io:format("Pid locale ~p registrato globalmente come ~p~n", [LocalPid, GlobalName]),
+    %                             {GlobalName, read}; % Tutti i nodi del cluster vengono inseriti con policy read
+    %                         {error, Reason} ->
+    %                             io:format("Fallita la registrazione del Pid locale ~p: ~p~n", [LocalPid, Reason]),
+    %                             {GlobalName, error}
+    %                     end;
+    %                 _ ->
+    %                     io:format("Fallito il recupero del Pid locale dal nodo ~p~n", [Node]),
+    %                     {error, undefined}
+    %             end;
+    %         pang ->
+    %             io:format("Nodo ~p non raggiungibile.~n", [Node]),
+    %             {error, unreachable}
+    %     end
+    % end, Nodes).
 
 %% 4) crea una funzione  per popolare access_policies.Questa funzione andrà copiata sul genserver distributed_spreadsheet.Verrà chiamata da init/1
 %%    -per il  nodo dell' ownerpid dopo esser stata popolata #spreadsheet_info ,
