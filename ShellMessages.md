@@ -1,38 +1,32 @@
 # MESSAGGI DA SHELL
 
-## 1.Setup ambiente
-
-% da una powershell ulteriore avvia il cluster con **setup_nodes.bat**
-%% *Aggiornato per utilizzare -config*
-%aggiungere al cluster
-erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
-
-## Compilare i moduli della Distributed APPLICATION & il gen_server node_monitor
+## 0.Compilare  i moduli della Dist.APPLICATION del node_monitor e di setup
 
 c(app_sup).
 c(distributed_spreadsheet).
 c(spreadsheet_supervisor).
 c(my_app).
 c(node_monitor).
-
-## COMPILARE cluster_setup e mnesia_setup
-
-%% **dal nodo Alice**
+c(restart_node).
 c(cluster_setup).
 c(mnesia_setup).
 
-### Controlla la comunicazione tra i nodi
+## 1.Setup cluster Application OTP w Mnesia e monitor_service
 
-net_adm:ping('Alice@DESKTOPQ2A2FL7').
-net_adm:ping('Bob@DESKTOPQ2A2FL7').
-net_adm:ping('Charlie@DESKTOPQ2A2FL7').
+* avvia il cluster con **setup_nodes.bat**
+%% *Aggiornato per utilizzare -config
+
+* Aggiungi al cluster un nodo di servizio 
+**erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "node_monitor:start_link()."**
+
+* dal nodo Alice
 
 ## distribuzione del codice APPLICATION OTP
 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup].
+Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup,restart_node].
 mnesia_setup:distribute_modules(Nodes, Modules).
-observer:start().
+*observer:start().*
 
 ## SETUP del cluster
 
@@ -40,14 +34,14 @@ cluster_setup:init_cluster().
 *global:registered_names().*
 %% individua la path del codice .beam caricato
 *code:which(node_monitor).*
-%% test con codice da rimuovere
+
+* test con codice da rimuovere
 **cluster_setup:test_init_access_policies(ventiquattrodicembre).**
 
-## 2. ESEGUIRE mnesia_setup
+## 2. ESEGUIRE mnesia_setup:distribuzione del codice,setup,creazione delle tabelle e avvio di Mnesia
 
-### setup,creazione delle tabelle e avvio di Mnesia
+%% **dal primo nodo Alice**
 
-%% **dal nodo Alice**
 Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 
 Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
@@ -61,20 +55,24 @@ mnesia_setup:create_tables(Nodes).
 
 ## 3.Avvio della APP da nodo Alice
 
-%% controlla se serve per leggere my.app.app
-%% **code:add_patha("C:/Users/campus.uniurb.it/Erlang/").**
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 mnesia_setup:start_application(Nodes).
 
  %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
 *observer:start().*
-%Consulta le tabelle su observer->Applications->Mnesia->Table viewer
+
+* Controlla la comunicazione tra i nodi(si avvia nel node_monitor)
+
+*net_adm:ping('Alice@DESKTOPQ2A2FL7').*
+*net_adm:ping('Bob@DESKTOPQ2A2FL7').*
+*net_adm:ping('Charlie@DESKTOPQ2A2FL7').*
 
 ## Avvio di un distributed spreadsheet
 
 *application:which_applications().*
 
-%% solo sul nodo Alice
+* (solo sul nodo Alice)
+
 %% application:start(my_app).
 supervisor:which_children(app_sup).
 >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
@@ -82,19 +80,24 @@ supervisor:which_children(spreadsheet_sup).
 >>ritorna []
 *application:which_applications().*
 
-## TEST Avvio funzioni distributed_spreadsheet dal nodo Alice
+## 4. Avvio funzioni distributed_spreadsheet dal nodo Alice
 
-%%f(Args).
-%%Args= {ventiquattrodicembre, 4, 3, 2,self()}.
-%% distributed_spreadsheet:start_link(Args).
-%%spreadsheet_supervisor:start_spreadsheet(Args).
-%%supervisor:start_child(spreadsheet_sup, [Args]).
 distributed_spreadsheet:new(ventiquattrodicembre).
 **distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**
-supervisor:which_children(spreadsheet_sup). %% aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
-global:whereis_name(ventiquattrodicembre). % Controlla il gen_server globale
-whereis(spreadsheet_sup). % Controlla il supervisore locale
-%% per deregistrare un nome **global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).**
+>>f(Args).
+>>Args= {ventiquattrodicembre, 4, 3, 2,self()}.
+>>distributed_spreadsheet:start_link(Args).
+>>spreadsheet_supervisor:start_spreadsheet(Args).
+>>supervisor:start_child(spreadsheet_sup, [Args]).
+
+
+
+*supervisor:which_children(spreadsheet_sup).*  aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
+*global:whereis_name(ventiquattrodicembre).*  Controlla il gen_server globale
+*whereis(spreadsheet_sup). % Controlla il supervisore locale*
+
+* per deregistrare un nome
+*global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).*
 
 ### fallimento dello spreadsheet/fallimento del distributed_sup
 

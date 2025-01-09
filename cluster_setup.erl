@@ -1,9 +1,13 @@
+%%Questo modulo prenderà il posto di Mnesia_setup
+
+
 -module(cluster_setup).
--export([init_cluster/0]).
+-export([start_cluster/0]).
+
 -export([test_init_access_policies/1]).
 -include("records.hrl").
 
-init_cluster() ->
+start_cluster() ->
     % MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
     % global:register_name(MyGlobalName, self()),
     % io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),

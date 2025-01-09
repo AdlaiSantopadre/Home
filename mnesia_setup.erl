@@ -5,6 +5,7 @@
 -include("records.hrl").
 
 
+
 setup_mnesia(Nodes, Dirs) ->
     %% Imposta la directory di Mnesia per ogni nodo
     lists:zipwith(fun(Node, Dir) -> 
@@ -47,6 +48,9 @@ create_tables(Nodes) ->
 
     mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000),    
     
+    lists:foreach(fun(Node) ->
+            rpc:call(Node, mnesia, start, [])
+        end, Nodes),
     lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
         end, Nodes).
