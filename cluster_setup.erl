@@ -4,18 +4,19 @@
 -module(cluster_setup).
 -export([start_cluster/0]).
 
--export([test_init_access_policies/1]).
+%-export([test_init_access_policies/1]).
 -include("records.hrl").
 
 start_cluster() ->
-    % MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
-    % global:register_name(MyGlobalName, self()),
-    % io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),
-%IL COMMENTO ESCLUDE IL NODO DALLA REGISTRAZIONE
-    %node_monitor:monitor_nodes(), 
 
-    %% 1) Recupera l'elenco dei nodi del cluster
-    Nodes = nodes(),
+% Registra il nodo di servizio
+    MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
+    global:register_name(MyGlobalName, self()),
+    io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),
+
+
+    %%  Elenco iniziale dei nodi del cluster
+    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
     %% Recupera il Pid locale per ogni nodo e registra globalmente il nome
     lists:foreach(fun(Node) ->
         case net_adm:ping(Node) of
@@ -23,7 +24,7 @@ start_cluster() ->
                 io:format("Connesso a ~p~n", [Node]),
 
                 %% Usa spawn per avviare il gen_server                
-                Pid = spawn(Node, node_monitor, start_link, []),
+                Pid = spawn(Node, node_monitor, monitor_nodes, []),
                 io:format("Monitor avviato su ~p con PID ~p~n", [Node, Pid]);
             pang ->
                 io:format("Nodo ~p non raggiungibile.~n", [Node])

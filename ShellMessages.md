@@ -11,31 +11,31 @@ c(restart_node).
 c(cluster_setup).
 c(mnesia_setup).
 
-## 1.Setup cluster Application OTP w Mnesia e monitor_service
+## 1.Setup nodi della cluster Application OTP w Mnesia e monitor_service
 
 * avvia il cluster con **setup_nodes.bat**
 %% *Aggiornato per utilizzare -config
 
 * Aggiungi al cluster un nodo di servizio 
-**erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "node_monitor:start_link()."**
+**erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"**
 
 * dal nodo Alice
 
-## distribuzione del codice APPLICATION OTP
+## 1.2 distribuzione del codice APPLICATION OTP
 
 Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup,restart_node].
 mnesia_setup:distribute_modules(Nodes, Modules).
 *observer:start().*
 
-## SETUP del cluster
+* saltare ## SETUP del cluster
 
-cluster_setup:init_cluster().
+* cluster_setup:start_cluster().
 *global:registered_names().*
-%% individua la path del codice .beam caricato
+* %% individua la path del codice .beam caricato
 *code:which(node_monitor).*
 
-* test con codice da rimuovere
+* test  codice da rimuovere
 **cluster_setup:test_init_access_policies(ventiquattrodicembre).**
 
 ## 2. ESEGUIRE mnesia_setup:distribuzione del codice,setup,creazione delle tabelle e avvio di Mnesia
@@ -55,7 +55,7 @@ mnesia_setup:create_tables(Nodes).
 
 ## 3.Avvio della APP da nodo Alice
 
-Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+*Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
 mnesia_setup:start_application(Nodes).
 
  %% NOTA: il comando per inizializzare app_sup è già in my.app.erl
@@ -80,7 +80,7 @@ supervisor:which_children(spreadsheet_sup).
 >>ritorna []
 *application:which_applications().*
 
-## 4. Avvio funzioni distributed_spreadsheet dal nodo Alice
+## 4. Avvio  distributed_spreadsheet dal nodo Alice
 
 distributed_spreadsheet:new(ventiquattrodicembre).
 **distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).**
@@ -105,11 +105,17 @@ distributed_spreadsheet:new(ventiquattrodicembre).
 distributed_spreadsheet:new(ventiquattrodicembre, 3, 4, 2).
 exit(global:whereis_name(ventiquattrodicembre), kill).
 
-## Fallimento del NODO Alice, Charlie
+## Fallimento del NODO (Alice, Charlie)
 
-rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []).
-rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, []).
+spawn(fun() -> rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []) end).
+erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
 global:registered_names().
+spawn(fun() -> rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, [])end).
+
+erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Bob
+erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
+
+erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
 
 ### Ricollegare il nodo Alice al cluster Mnesia
 
@@ -174,12 +180,7 @@ C:\Users\campus.uniurb.it\Erlang\Alice_data
 C:\Users\campus.uniurb.it\Erlang\Bob_data
 C:\Users\campus.uniurb.it\Erlang\Charlie_data
 %e in ogni directory avvia un nodo
-erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
 
-erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
-erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
-
-erl -sname node_test -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config sys
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
