@@ -5,7 +5,7 @@
 -export([start_link/0,monitor_nodes/0]).%%monitor_nodes/0
 
 %% Callbacks
--export([init/1, handle_info/2, terminate/2, code_change/3]).
+-export([init/1, handle_info/2,handle_call/3,handle_cast/2, terminate/2, code_change/3]).
 
 %% API Avvia il gen_server per il monitoraggio dei nodi
 start_link() ->
@@ -43,6 +43,11 @@ handle_info({nodeup, Node}, State) ->
     io:format("Nodo di nuovo attivo: ~p~n", [Node]),
     {noreply, State}.
 
+handle_call(_Request, _From, State) ->
+    {reply, {error, unsupported_operation}, State}.
+
+handle_cast(_Msg, State) ->
+    {noreply, State}.
 
 
 code_change(_OldVsn, State, _Extra) ->

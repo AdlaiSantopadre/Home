@@ -3,10 +3,40 @@
 
 -module(cluster_setup).
 -export([start_cluster/0]).
+-export([setup/0, distribute_modules/2]).
 
 %-export([test_init_access_policies/1]).
 -include("records.hrl").
+%% Funzione principale per configurare il cluster
+setup() ->
+    %% Ricompila tutti i moduli
+    Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
+               app_sup, node_monitor, mnesia_setup, cluster_setup, restart_node],
+    lists:foreach(fun(Module) -> compile:file(Module) end, Modules),
 
+    %% Nodi del cluster
+    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
+
+    %% Distribuisci i moduli ai nodi
+    distribute_modules(Nodes, Modules),
+
+    
+    io:format("Cluster setup completato con successo.~n").
+
+%% Funzione per distribuire i moduli
+distribute_modules(Nodes, Modules) ->
+    lists:foreach(fun(Node) ->
+        lists:foreach(fun(Module) ->
+            case code:get_object_code(Module) of
+                {Module, Binary, FileName} ->
+                    %% Carica dinamicamente il modulo sul nodo remoto
+                    rpc:call(Node, code, load_binary, [Module, FileName, Binary]),
+                    io:format("Modulo ~p distribuito su nodo ~p~n", [Module, Node]);
+                _ ->
+                    io:format("Modulo ~p non trovato o non compilato.~n", [Module])
+            end
+        end, Modules)
+    end, Nodes).
 start_cluster() ->
 
 % Registra il nodo di servizio

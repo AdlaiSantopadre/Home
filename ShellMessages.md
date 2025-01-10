@@ -1,31 +1,32 @@
 # MESSAGGI DA SHELL
 
-## 0.Compilare  i moduli della Dist.APPLICATION del node_monitor e di setup
+## 1.1 Setup nodi della cluster Application OTP w Mnesia e monitor_service
 
-c(app_sup).
-c(distributed_spreadsheet).
-c(spreadsheet_supervisor).
-c(my_app).
-c(node_monitor).
-c(restart_node).
-c(cluster_setup).
-c(mnesia_setup).
+* avvia il cluster con
+**setup_nodes.bat**
 
-## 1.Setup nodi della cluster Application OTP w Mnesia e monitor_service
-
-* avvia il cluster con **setup_nodes.bat**
-%% *Aggiornato per utilizzare -config
-
-* Aggiungi al cluster un nodo di servizio 
+* Aggiungi al cluster un nodo di servizio
 **erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"**
 
 * dal nodo Alice
 
 ## 1.2 distribuzione del codice APPLICATION OTP
 
-Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
-Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup,restart_node].
-mnesia_setup:distribute_modules(Nodes, Modules).
+### Compilare  i moduli della Dist.APPLICATION del node_monitor e di setup
+
+**cluster_setup:setup().**
+
+* c(app_sup).
+* c(distributed_spreadsheet).
+* c(spreadsheet_supervisor).
+* c(my_app).
+* c(node_monitor).
+* c(restart_node).
+* c(cluster_setup).
+* c(mnesia_setup).
+* Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+* Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup,restart_node].
+* mnesia_setup:distribute_modules(Nodes, Modules).
 *observer:start().*
 
 * saltare ## SETUP del cluster
@@ -89,8 +90,6 @@ distributed_spreadsheet:new(ventiquattrodicembre).
 >>distributed_spreadsheet:start_link(Args).
 >>spreadsheet_supervisor:start_spreadsheet(Args).
 >>supervisor:start_child(spreadsheet_sup, [Args]).
-
-
 
 *supervisor:which_children(spreadsheet_sup).*  aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
 *global:whereis_name(ventiquattrodicembre).*  Controlla il gen_server globale
