@@ -111,12 +111,12 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};
-        Pid when is_pid(Pid) ->
-            MasterPid = application_controller:get_master(my_app),
-            %% Make a gen_server:call with a timeout
+        SpreadsheetPid when is_pid(SpreadsheetPid) ->
+            MonitorPid = whereis(node_monitor),
             try
-                io:format("Caller node with MasterPid: ~p~n", [MasterPid]),
-                gen_server:call(Pid, {get, SpreadsheetName, TabIndex, I, J, MasterPid}, Timeout)
+                io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
+                case gen_server:call(SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout) of
+                {ok,Value} -> Value end
             catch
                 _:_ -> {error, timeout}
             end
@@ -132,18 +132,18 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) when
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};
-        Pid when is_pid(Pid) ->
-            MasterPid = application_controller:get_master(my_app),
+        SpreadsheetPid when is_pid(SpreadsheetPid) ->
+            MonitorPid = whereis(node_monitor),
             %% Check if value is a valid Erlang term, dynamically handle all types
             case validate_value(Value) of
                 ok ->
                     try
-                        gen_server:call(
-                            Pid, {set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, Timeout
-                        )
+                      case  gen_server:call(SpreadsheetPid, {set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, Timeout) of
+                        {ok,Value} -> true end       
                     catch
                         _:_ -> {error, timeout}
                     end;
+                %aggiornare affinchè ritorni false    
                 {error, invalid_type} ->
                     {reply, {error, invalid_type}}
             end
@@ -368,9 +368,10 @@ handle_call({about, SpreadsheetName}, _From, State) ->
             {reply, {error, transaction_aborted}, State}
     end;
 %%%%%%%%%%HANDLE %%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% gen_server:call(SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout)
 % Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
-handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, _From, State) ->
-    CallerPid = MasterPid,
+handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
+    CallerPid = MonitorPid,
     io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
 
     %% Check if the calling process has read access (or superior write access)
@@ -405,9 +406,10 @@ handle_call({get, SpreadsheetName, TabIndex, I, J, MasterPid}, _From, State) ->
             {reply, {error, access_denied}, State}
     end;
 %%%%%%%%%%HANDLE %%%%%%%%% SET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% SpreadsheetPid, {set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, Timeout
 %% Handle the 'set' request in the gen_server
-handle_call({set, SpreadsheetName, TabIndex, I, J, MasterPid, Value}, _From, State) ->
-    CallerPid = MasterPid,
+handle_call({set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, _From, State) ->
+    CallerPid = MonitorPid,
     io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [
         CallerPid, TabIndex, I, J, Value
     ]),

@@ -99,7 +99,7 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
 
 **distributed_spreadsheet:info(undicigennaio).**
 
-## Test Share(SpreadsheetName,Access_policies)
+## 4.2 Test Share(SpreadsheetName,Access_policies)
 
 %% supponendo di aver inizializzato undicigennaio e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
 [{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
@@ -111,7 +111,7 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
 ,[{<20727.83177.0>,read}]). Questo comando mi da sintax error
 distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
 
-## Test get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
+## Test 4.3 get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
 from node Bob
 distributed_spreadsheet:get(undicigennaio,2,3,4).

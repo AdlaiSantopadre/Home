@@ -46,29 +46,28 @@ to_cvs(name,filename, timeout) -> ok | {error,reason} | timeout
 from_cvs(name,filename, timeout)->spreadsheet | {error,reason} | timeout 
 
 info(name) -> Spreadsheet_info Le informazioni devono contenere almeno: 
-• Numerodi celle x tab 
+• Numerodi celle x tab
 • I permessi di lettura e scrittura
 
 Requisiti 
 • I fogli devono essere visibili su tutti i nodi della rete 
 • I fogli devono resistere ai fallimenti di uno o più nodi • Esempio: la mia applicazione esegue su tre nodi, 2 cadono ma i fogli sono ancora visibili al nodo rimanente
 
+# Spreadsheet avanzato
 
-# Spreadsheet avanzato 
- Prerequisiti: • Aver implementato la parte “semplice” 
- 
- Aggiungiamo operazioni che modificano la forma del foglio 
- add_row(spreadsheet, tab) -> ok | {err,reason} 
- • Aggiunge una riga in append al tab del foglio name 
- del_row(spreadsheet, tab,i) -> ok | {err,reason} 
- • Rimuove l’iesima riga del tab del foglio nameSpreadsheet avanzato 2/2 
- Una cella può contenere 
- • qualsiasi tipo di dato primitivo 
+ Prerequisiti: • Aver implementato la parte “semplice”
+ Aggiungiamo operazioni che modificano la forma del foglio
+ add_row(spreadsheet, tab) -> ok | {err,reason}
+ • Aggiunge una riga in append al tab del foglio name
+ del_row(spreadsheet, tab,i) -> ok | {err,reason}
+ • Rimuove l’iesima riga del tab del foglio nameSpreadsheet avanzato 2/2
+ Una cella può contenere
+ • qualsiasi tipo di dato primitivo
  • Il valore undef
   
  • una formula/macro
-Suggerimenti 
-LE FORMULE SONO FUNZIONI LAMBDA 
+Suggerimenti
+LE FORMULE SONO FUNZIONI LAMBDA
 UNA CELLA PUÒ ESSERE VISTA COME UNA MEMORY CELL DI CCS/PI-CALCOLO
 Formule 
 • I valori delle celle possono essere delle formule 
