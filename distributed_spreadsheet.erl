@@ -367,8 +367,8 @@ handle_call({about, SpreadsheetName}, _From, State) ->
             io:format("Transaction aborted: ~p~n", [Reason]),
             {reply, {error, transaction_aborted}, State}
     end;
+
 %%%%%%%%%%HANDLE %%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% gen_server:call(SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout)
 % Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
     CallerPid = MonitorPid,
@@ -405,6 +405,7 @@ handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
+
 %%%%%%%%%%HANDLE %%%%%%%%% SET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SpreadsheetPid, {set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, Timeout
 %% Handle the 'set' request in the gen_server
@@ -471,6 +472,9 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
                 end)
             of
                 {atomic, Records} ->
+                    io:format("Spreadsheet ~p to be exported to ~p~n", [
+                                SpreadsheetName, Filename]),
+                    io:format("Record to be written  ~p~n", [Records]),        
                     %% Scrive i record nel file CSV
                     case write_csv(Filename, SpreadsheetName, Records)  of
                         ok ->
@@ -513,7 +517,8 @@ terminate(Reason, State) ->
 %%%%%%%%%%%%%% Funzione Helper write_to_csv/2%%%%%%%%%%%%%%
 write_csv(Filename, SpreadsheetName, Records) ->
     try
-        File = Filename ++ ".csv",
+        Extension = ".csv",
+        File = atom_to_list(Filename) ++ Extension,
         %% Apre il file in modalità scrittura
         file:open(File, [write])
     of

@@ -104,27 +104,28 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
 %% supponendo di aver inizializzato undicigennaio e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
 [{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 
-* distributed_spreadsheet:share(undicigennaio, [{<0.102.0>, read},{nodeBob@DESKTOPQ2A2FL7,read}]).
-* distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
-* distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7, write},{nodeBob@DESKTOPQ2A2FL7,read}]).
-* distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,write},{nodeBob@DESKTOPQ2A2FL7,write},{nodeCharlie@DESKTOPQ2A2FL7,write}]).
-,[{<20727.83177.0>,read}]). Questo comando mi da sintax error
+distributed_spreadsheet:share(undicigennaio, [{<0.102.0>, read},{nodeBob@DESKTOPQ2A2FL7,read}]).
+**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).**
+**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7, write},{nodeBob@DESKTOPQ2A2FL7,read}]).**
+**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,write},{nodeBob@DESKTOPQ2A2FL7,write},{nodeCharlie@DESKTOPQ2A2FL7,write}]).**
+
 distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
 
-## Test 4.3 get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
+## 4.3 Test  get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
-from node Bob
-distributed_spreadsheet:get(undicigennaio,2,3,4).
+**distributed_spreadsheet:get(undicigennaio,2,3,4).**
 
-distributed_spreadsheet:set(undicigennaio,2,3,4, "Hey, Adi").
-distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).
+**distributed_spreadsheet:set(undicigennaio,2,3,4, "Hey, Adi").**
+**distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).**
 
-distributed_spreadsheet:find_global_name(CallerPid).
-distributed_spreadsheet:check_access(CallerPid).
+* distributed_spreadsheet:find_global_name(CallerPid).
+* distributed_spreadsheet:check_access(CallerPid).
 
-## Test to_csv(SpredsheetName, Filename)
+## 4.4 Test to_csv(SpredsheetName, Filename)
 
 distributed_spreadsheet:to_csv(undicigennaio, spreadsheet).
+
+## 4.5 Test from_csv(Filename)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

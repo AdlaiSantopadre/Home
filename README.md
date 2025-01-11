@@ -36,10 +36,10 @@ set(spreadsheet, tab, i, j, k, val) -> bool
 get(spreadsheet, tab, i, j, val, timeout) -> Value | undef | timeout 
 set(spreadsheet, tab, i, j, val, timeout) -> bool | timeout
 
-to_cvs(spreadsheet,filename) -> ok | {error,reason} 
-• Esporta in cvs (comma separated values) il foglio 
+to_cvs(spreadsheet,filename) -> ok | {error,reason}
+• Esporta in cvs (comma separated values) il foglio
 
-from_cvs(filename) -> spreadsheet | {error,reason} 
+from_cvs(filename) -> spreadsheet | {error,reason}
 
 to_cvs(name,filename, timeout) -> ok | {error,reason} | timeout 
 
