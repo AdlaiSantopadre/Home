@@ -101,10 +101,11 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
 
 ## Test Share(SpreadsheetName,Access_policies)
 
-%% supponendo di aver inizializzato undicigennaio e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
-[{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
+* policies iniziali
+[{nodoAlice@DESKTOPQ2A2FL7,write},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read},{nodomonitor_service@DESKTOPQ2A2FL7,read}]
 
 * test funzione ausiliaria
+*global:whereis_name(nodoAlice@DESKTOPQ2A2FL7).*
 
 distributed_spreadsheet:update_access_policies(undicigennaio, [{<20727.83177.0>, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
 distributed_spreadsheet:update_access_policies(undicigennaio,[{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}], [{nodoAlice@DESKTOPQ2A2FL7, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
@@ -121,8 +122,6 @@ distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).
 
 distributed_spreadsheet:find_global_name(CallerPid).
 distributed_spreadsheet:check_access(CallerPid).
-
-
 
 ## Test to_csv(SpredsheetName, Filename)
 
@@ -171,7 +170,7 @@ mnesia:change_config(extra_db_nodes, [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A
 
 ## messaggi di diagnosi su Mnesia
 
-% per ottenere l'elenco dei nodi connessi esplicitamente a 
+% per ottenere l'elenco dei nodi connessi esplicitamente a
 % formare un cluster
 mnesia:system_info(running_db_nodes).
 mnesia:table_info(spreadsheet_data, where_to_read).
@@ -180,7 +179,7 @@ mnesia:system_info().
 mnesia:system_info(tables).
 mnesia:table_info(spreadsheet_data, all).
 mnesia:table_info(spreadsheet_owners, all)
-mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella 
+mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella
 %cancellare una tabella e ricrearla
 mnesia:delete_table(Table).
 mensia:create_table(....)
