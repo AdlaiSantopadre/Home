@@ -5,7 +5,7 @@
 -export([start_cluster/0]).
 -export([setup/0, distribute_modules/2]).
 
-%-export([test_init_access_policies/1]).
+
 -include("records.hrl").
 %% Funzione principale per configurare il cluster
 setup() ->
@@ -20,7 +20,6 @@ setup() ->
     %% Distribuisci i moduli ai nodi
     distribute_modules(Nodes, Modules),
 
-    
     io:format("Cluster setup completato con successo.~n").
 
 %% Funzione per distribuire i moduli
@@ -60,26 +59,3 @@ start_cluster() ->
                 io:format("Nodo ~p non raggiungibile.~n", [Node])
         end
     end, Nodes).
-    
-                             
-                             
-%%% Inserisce le politiche di accesso nella tabella Mnesia
-%
-test_init_access_policies(SpreadsheetName) ->
-
-    mnesia:transaction(fun() ->
-        %% Rimuovi le politiche esistenti per lo spreadsheet
-        mnesia:delete({access_policies, SpreadsheetName}),
-        %% Inserisci le nuove politiche
-        Nodes=nodes(),
-        lists:foreach(fun(Node) ->
-            Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("nodo" ++ atom_to_list(Node)), access = read},
-            io:format("Inserting access policy: ~p~n", [Record]),
-            mnesia:write(Record)
-        end, Nodes),
-        Node=node(),
-        Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("nodo" ++ atom_to_list(Node)), access = write},
-            io:format("Inserting access policy: ~p~n", [Record]),
-            mnesia:write(Record),
-        ok
-   end).

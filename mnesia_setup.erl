@@ -12,12 +12,12 @@ setup_mnesia(Nodes, Dirs) ->
         rpc:call(Node, application, set_env, [mnesia, dir, Dir])
     end, Nodes, Dirs),
 
-    %% Ferma Mnesia su tutti i nodi
+    %% Ferma Mnesia su tutti i nodi se tratttasi di ripristino
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, stop, [])
     end, Nodes),
 
-    %% Cancella schema precedente su tutti i nodi
+    %% Cancella schema precedente su tutti i nodi se trattasi di ripristino
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, delete_schema, [Nodes])
     end, Nodes),
@@ -26,7 +26,11 @@ setup_mnesia(Nodes, Dirs) ->
     mnesia:create_schema(Nodes).
 
 %%% Crea le tabelle e avvia Mnesia sui nodi del cluster
-create_tables(Nodes) ->
+    create_tables(Nodes) ->
+        lists:foreach(fun(Node) ->
+            rpc:call(Node, mnesia, start, [])
+        end, Nodes),
+
     %% Creare la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
         {attributes, record_info(fields, spreadsheet_data)},
@@ -44,16 +48,11 @@ create_tables(Nodes) ->
     %% Tabella metadati degli spreadsheet
     mnesia:create_table(spreadsheet_info, [
     {attributes, record_info(fields, spreadsheet_info)},
-    {disc_copies, Nodes}]),
+    {disc_copies, Nodes}]).
 
-    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000),    
+    %%mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000),    
     
-    lists:foreach(fun(Node) ->
-            rpc:call(Node, mnesia, start, [])
-        end, Nodes),
-    lists:foreach(fun(Node) ->
-            rpc:call(Node, mnesia, start, [])
-        end, Nodes).
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

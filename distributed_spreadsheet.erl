@@ -78,7 +78,7 @@ info(SpreadsheetName) ->
 
             try
                 io:format("Caller process with Pid: ~p~n", [self()]),
-                gen_server:call({global, SpreadsheetName}, {about, SpreadsheetName, NodePid})
+                gen_server:call({global, SpreadsheetName}, {about, SpreadsheetName})
             catch
                 _:_ -> {error, timeout}
             end
@@ -311,7 +311,7 @@ handle_call({share, SpreadsheetName, AccessPolicies, CallerPid}, {FromPid, _Alia
     end;
 % Handle the synchronous request to get the spreadsheet's info
 %%%%%%%%%%%%%%%%%HANDLE CALL ABOUT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-handle_call({about, SpreadsheetName, _NodePid}, _From, State) ->
+handle_call({about, SpreadsheetName}, _From, State) ->
     io:format("getting info about  ~p~n", [SpreadsheetName]),
     case
         mnesia:transaction(fun() ->
