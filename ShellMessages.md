@@ -5,10 +5,10 @@
 * avvia il cluster con
 **setup_nodes.bat**
 
-* Aggiungi al cluster un nodo di servizio
+* Aggiungi al cluster un node di servizio
 **erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"**
 
-* dal nodo Alice
+* dal node Alice
 
 ## 2.1 compilazione e distribuzione del codice APPLICATION OTP/SETUP + SETUP_MNESIA
 
@@ -37,20 +37,20 @@
 **mnesia_setup:setup_mnesia(Nodes, Dirs).** %Nodes dovrà comprendendere "monitor_service@DESKTOPQ2A2FL7"
 *observer:start().*
 
-## 2.2 Avvio della APP da nodo Alice
+## 2.2 Avvio della APP da node Alice
 
 *Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
 **mnesia_setup:start_application(Nodes).**
 *observer:start().*
 *application:which_applications().*
 
-* (solo sul nodo Alice)
+* (solo sul node Alice)
 *application:start(my_app).*
 *supervisor:which_children(app_sup).* >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
 *supervisor:which_children(spreadsheet_sup).* >>ritorna []
 *application:which_applications().*
 
-## 3. Avvio  distributed_spreadsheet dal nodo Alice
+## 3. Avvio  distributed_spreadsheet dal node Alice
 
 **distributed_spreadsheet:new(undicigennaio).**
 **distributed_spreadsheet:new(undicigennaio, 3, 4, 2).**
@@ -65,7 +65,7 @@
 *whereis(spreadsheet_sup). % Controlla il supervisore locale*
 
 * per deregistrare un nome
-*global:unregister_name(nodoAlice@DESKTOPQ2A2FL7).*
+*global:unregister_name(nodeAlice@DESKTOPQ2A2FL7).*
 
 ### 3.2 fallimento dello spreadsheet/fallimento del distributed_sup
 
@@ -73,7 +73,7 @@
 exit(global:whereis_name(undicigennaio), kill).
 distributed_spreadsheet:new(undicigennaio, 3, 4, 2).
 
-## 3.3 Fallimento del NODO (Alice, Charlie)
+## 3.3 Fallimento del node (Alice, Charlie)
 
 **spawn(fun() -> rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []) end).**
 
@@ -102,14 +102,14 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
 ## Test Share(SpreadsheetName,Access_policies)
 
 %% supponendo di aver inizializzato undicigennaio e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
-[{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
+[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 
-* test funzione ausiliaria
-
-distributed_spreadsheet:update_access_policies(undicigennaio, [{<20727.83177.0>, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
-distributed_spreadsheet:update_access_policies(undicigennaio,[{nodoAlice@DESKTOPQ2A2FL7,read},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}], [{nodoAlice@DESKTOPQ2A2FL7, write},{nodoBob@DESKTOPQ2A2FL7,read}]).
-distributed_spreadsheet:update_access_policies(undicigennaio,[{nodoAlice@DESKTOPQ2A2FL7,write},{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}],[{<20727.83177.0>,read}]). Questo comando mi da sintax error
-distributed_spreadsheet:share(undicigennaio,[{nodoBob@DESKTOPQ2A2FL7,read},{nodoCharlie@DESKTOPQ2A2FL7,read}]).
+* distributed_spreadsheet:share(undicigennaio, [{<0.102.0>, read},{nodeBob@DESKTOPQ2A2FL7,read}]).
+* distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
+* distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7, write},{nodeBob@DESKTOPQ2A2FL7,read}]).
+* distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,write},{nodeBob@DESKTOPQ2A2FL7,write},{nodeCharlie@DESKTOPQ2A2FL7,write}]).
+,[{<20727.83177.0>,read}]). Questo comando mi da sintax error
+distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
 
 ## Test get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
@@ -121,8 +121,6 @@ distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).
 
 distributed_spreadsheet:find_global_name(CallerPid).
 distributed_spreadsheet:check_access(CallerPid).
-
-
 
 ## Test to_csv(SpredsheetName, Filename)
 
@@ -141,12 +139,12 @@ Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
 
 ### arrestare ed eliminare lo schema di Mnesia
 
-% su ogni nodo
+% su ogni node
 mnesia:stop().
 mnesia:delete_schema([node()]).
 q().
 
-% per tutti i nodi dal nodo1
+% per tutti i nodi dal node1
 mnesia:stop().
 mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
 init:stop().
@@ -155,9 +153,9 @@ init:stop().
 * C:\Users\campus.uniurb.it\Erlang\Alice_data
 * C:\Users\campus.uniurb.it\Erlang\Bob_data
 * C:\Users\campus.uniurb.it\Erlang\Charlie_data
-* e in ogni directory avvia un nodo
+* e in ogni directory avvia un node
 
-### Ricollegare il nodo Alice al cluster Mnesia
+### Ricollegare il node Alice al cluster Mnesia
 
 *mnesia:start().*
 mnesia:change_config(extra_db_nodes, [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).

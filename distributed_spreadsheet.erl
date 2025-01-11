@@ -73,7 +73,7 @@ info(SpreadsheetName) ->
             {error, spreadsheet_not_found};
         Pid when is_pid(Pid) ->
             %% Step 2: Check if the process is alive
-            NodePid = global:whereis_name(list_to_atom("nodo" ++ atom_to_list(node()))),
+            NodePid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
             io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, NodePid]),
 
             try
@@ -89,12 +89,12 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};
-        OwnerPid when is_pid(OwnerPid) ->
-            %%MasterPid = application_controller:get_master(my_app),
-        Pid = self(),
+        SpreadsheetPid when is_pid(SpreadsheetPid) ->
+            MonitorPid = whereis(node_monitor),
+            
             try
-                io:format("Caller node with Pid: ~p~n", [Pid]),
-                gen_server:call(Pid, {share, SpreadsheetName, AccessPolicies, OwnerPid})
+                io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
+                gen_server:call(SpreadsheetPid, {share, SpreadsheetName, AccessPolicies, MonitorPid})
             catch
                 _:_ -> {error, timeout}
             end
@@ -246,16 +246,16 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
     end.
 
 
-
-handle_call({share, SpreadsheetName, AccessPolicies, CallerPid}, {FromPid, _Alias}, State) ->
-    io:format("Received share/2 for spreadsheet ~p from MasterPid of caller ~p ~n", [SpreadsheetName, CallerPid        
+% gen_server:call(Pid, {share, SpreadsheetName, AccessPolicies, OwnerPid}
+handle_call({share, SpreadsheetName, AccessPolicies, MonitorPid}, {FromPid, _Alias}, State) ->
+    io:format("Received share/2 for spreadsheet ~p from caller with pid of monitor_node   ~p ~n", [SpreadsheetName, MonitorPid        
                                                                                                      ]),
     %% Verifica se il chiamante è il proprietario dello spreadsheet
     case
         mnesia:transaction(fun() ->
             case
                 mnesia:match_object(#spreadsheet_info{
-                    name = SpreadsheetName, cols = '_', rows = '_', tabs = '_', owner = CallerPid
+                    name = SpreadsheetName, cols = '_', rows = '_', tabs = '_', owner = MonitorPid
                 })
             of
                 [] -> {error, unauthorized};
@@ -609,8 +609,8 @@ generate_records(Name, N, M, K) ->
         Row <- lists:seq(1, N),
         Col <- lists:seq(1, M)
     ].
-
-update_access_policies(SpreadsheetName, ExistingPolicies, NewPolicies) ->
+% update_access_policies(SpreadsheetName, AccessPolicies, ExistingPolicies)
+update_access_policies(SpreadsheetName,NewPolicies ,ExistingPolicies) ->
     %% Preelabora NewPolicies per creare una mappa di PID e nomi globali
     ResolvedNewPolicies = resolve_policies(NewPolicies),
     io:format("ottengo queste policies pre-elaborate:~p,~n", [ResolvedNewPolicies]),
@@ -629,7 +629,7 @@ update_access_policies(SpreadsheetName, ExistingPolicies, NewPolicies) ->
         end,
         ExistingPolicies
     ),
-    io:format("queste policies esistenti:~p, non sono da  aggiornare~n", [FilteredExistingPolicies]),
+    io:format("tra le policies esistenti, non sono da  aggiornare:~p~n", [FilteredExistingPolicies]),
     %% Combina le politiche filtrate con NewPolicies
     UpdatedPolicies = FilteredExistingPolicies ++ NewPolicies,
     io:format("ottengo queste policies aggiornate:~p,~n", [UpdatedPolicies]),
@@ -766,12 +766,12 @@ init_access_policies(SpreadsheetName) ->
         %% Inserisci le nuove politiche
         Nodes=nodes(),
         lists:foreach(fun(Node) ->
-            Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("nodo" ++ atom_to_list(Node)), access = read},
+            Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("node" ++ atom_to_list(Node)), access = read},
             io:format("Inserting access policy: ~p~n", [Record]),
             mnesia:write(Record)
         end, Nodes),
         Node=node(),
-        Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("nodo" ++ atom_to_list(Node)), access = write},
+        Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("node" ++ atom_to_list(Node)), access = write},
             io:format("Inserting access policy: ~p~n", [Record]),
             mnesia:write(Record),
         ok
