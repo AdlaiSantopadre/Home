@@ -49,7 +49,7 @@ new(Name) ->
 %% Crea uno spreadsheet con parametri specifici
 new(SpreadsheetName, N, M, K) ->
     
-    OwnerPid = global:whereis_name(list_to_atom("nodo" ++ atom_to_list(node()))),
+    OwnerPid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
 
     Args = {SpreadsheetName, N, M, K, OwnerPid},
     case spreadsheet_supervisor:start_spreadsheet(Args) of
