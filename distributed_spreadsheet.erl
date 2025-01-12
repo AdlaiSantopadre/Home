@@ -496,6 +496,26 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
             {reply, {error, spreadsheet_not_found}, State}
         
     end;
+%%% gen_server:call({global, SpreadsheetName}, {from_csv, Filename}, Timeout).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+handle_call({from_csv, NameorFullPath}, _From, State) ->
+    %% Leggi il file CSV
+    case read_from_csv(NameorFullPath) of
+        {ok, Records} ->
+            %% Salva i record nello spreadsheet
+            case mnesia:transaction(fun() ->
+                %% Scrive i dati e le info nelle tabelle
+                lists:foreach(fun(Record) -> mnesia:write(Record) end, Records)
+                
+            end) of
+                {atomic,ok} ->
+                    {reply, ok, State};
+                {aborted, Reason} ->
+                    {reply, {error, Reason}, State}
+            end;
+        {error, Reason} ->
+            {reply, {error, Reason}, State}
+    end;
 
 handle_call(_Request, _From, State) ->
     {reply, {error, unsupported_operation}, State}.
@@ -543,6 +563,7 @@ write_csv(Filename, SpreadsheetName, Records) ->
     end.
 
 %%%%%%Funzione Helper read_from_csv/1 %%%%%%%%%%%%%%%%%%%%%%%%
+
 read_from_csv(Filename) ->
     %try
     case file:open(Filename, [read]) of
@@ -560,7 +581,8 @@ read_from_csv(Filename) ->
                     Records = lists:map(
                         fun(Line) ->
                             case string:tokens(string:strip(Line, both, $\n), ",") of
-                                [Tab, Row, Col, ValueStr] ->
+                                [Tab, Row, Col, ValueStr]->
+                                io:format("Line: ~p,~p,~p,~p,~n", [Tab, Row, Col, ValueStr]),
                                     #spreadsheet_data{
                                         name = list_to_atom(Name),
                                         tab = list_to_integer(Tab),

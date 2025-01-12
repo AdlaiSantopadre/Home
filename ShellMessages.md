@@ -127,6 +127,8 @@ distributed_spreadsheet:to_csv(undicigennaio, spreadsheet).
 
 ## 4.5 Test from_csv(Filename)
 
+distributed_spreadsheet:from_csv("spreadsheet.csv").
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
