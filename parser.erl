@@ -7,6 +7,7 @@ read_from_csv(Filename) ->
             case io:get_line(IoDevice, '') of
                 "Spreadsheet Name: " ++ SpreadsheetNameLine ->
                     Name = string:strip(SpreadsheetNameLine, both, $\n),
+                    io:format("Name ~p~n",[Name]),
                     %% Salta l'intestazione del CSV
                     io:get_line(IoDevice, ''),
                     case read_lines(IoDevice, [], Name) of

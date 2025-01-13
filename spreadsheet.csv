@@ -21,6 +21,6 @@ Tab,Row,Col,Value
 2,3,1,undef
 2,3,2,undef
 2,3,3,undef
-2,3,4,"Hey, Adi"
-2,2,4,atomic
-1,1,2,1000
+2,3,4,undef
+2,2,4,undef
+1,1,2,undef

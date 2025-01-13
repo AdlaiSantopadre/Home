@@ -47,7 +47,7 @@ new(Name) ->
     new(Name, N, M, K).
 
 %% Crea uno spreadsheet con parametri specifici
-new(SpreadsheetName, N, M, K) ->
+new(SpreadsheetName, N, M, K) when is_integer(N),is_integer(M),is_integer(K)->
     
     OwnerPid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
 
@@ -170,12 +170,12 @@ from_csv(Filename, Timeout) ->
         {ok, IoDevice} ->
             case io:get_line(IoDevice, '') of
                 "Spreadsheet Name: " ++ SpreadsheetNameLine ->
-                    Name = string:strip(SpreadsheetNameLine, both, $\n),
-                    SpreadsheetName = parse_value(Name),
+                    Name = string:trim(SpreadsheetNameLine, both, "\n"),
+                    SpreadsheetName = list_to_atom(Name),
                     file:close(IoDevice)
             end
     end,
-    gen_server:call({global, SpreadsheetName}, {from_csv, Filename}, Timeout).
+    gen_server:call({global, SpreadsheetName}, {from_csv, Filename, SpreadsheetName}, Timeout).
 
 %% Avvia il gen_server /registra il nome globalmente
 start_link(Args) ->
@@ -498,12 +498,15 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
     end;
 %%% gen_server:call({global, SpreadsheetName}, {from_csv, Filename}, Timeout).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-handle_call({from_csv, NameorFullPath}, _From, State) ->
+handle_call({from_csv, Filename,Name}, _From, State) ->
     %% Leggi il file CSV
-    case read_from_csv(NameorFullPath) of
+    case read_from_csv(Filename) of
         {ok, Records} ->
+            io:format("Records fetched : ~p~n", [Records]),
             %% Salva i record nello spreadsheet
             case mnesia:transaction(fun() ->
+                mnesia:delete(spreadsheet_data,Name,write),
+
                 %% Scrive i dati e le info nelle tabelle
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records)
                 
@@ -565,68 +568,107 @@ write_csv(Filename, SpreadsheetName, Records) ->
 %%%%%%Funzione Helper read_from_csv/1 %%%%%%%%%%%%%%%%%%%%%%%%
 
 read_from_csv(Filename) ->
-    %try
     case file:open(Filename, [read]) of
         {ok, IoDevice} ->
             case io:get_line(IoDevice, '') of
                 "Spreadsheet Name: " ++ SpreadsheetNameLine ->
-                    Name = string:strip(SpreadsheetNameLine, both, $\n)
-            end,
-            %% Salta l'intestazione CSV
-
-            io:get_line(IoDevice, ''),
-            case read_lines(IoDevice, []) of
-                {ok, Lines} ->
-                    io:format("Lines: ~p~n", [Lines]),
-                    Records = lists:map(
-                        fun(Line) ->
-                            case string:tokens(string:strip(Line, both, $\n), ",") of
-                                [Tab, Row, Col, ValueStr]->
-                                io:format("Line: ~p,~p,~p,~p,~n", [Tab, Row, Col, ValueStr]),
-                                    #spreadsheet_data{
-                                        name = list_to_atom(Name),
-                                        tab = list_to_integer(Tab),
-                                        row = list_to_integer(Row),
-                                        col = list_to_integer(Col),
-                                        value = parse_value(ValueStr)
-                                    };
-                                _ ->
-                                    throw({error, invalid_csv_format})
-                            end
-                        end,
-                        Lines
-                    ),
+                    Name = string:strip(SpreadsheetNameLine, both, $\n),
+                    %% Salta l'intestazione del CSV
+                    io:get_line(IoDevice, ''),
+                    case read_lines(IoDevice, [], Name) of
+                        {ok, Records} ->
+                            file:close(IoDevice),
+                            {ok, Records};
+                        {error, Reason} ->
+                            file:close(IoDevice),
+                            {error, Reason}
+                    end;
+                _ ->
                     file:close(IoDevice),
-                    {ok, Records};
-                {error, Reason} ->
-                    {error, Reason}
-            end
-        %    end
-        % catch
-        %     _:_ -> {error, read_failed}
+                    {error, intestazione_scorretta}
+            end;
+        {error, Reason} -> {error, Reason}
     end.
 
-read_lines(IoDevice, Acc) ->
+read_lines(IoDevice, Acc, Name) ->
     case io:get_line(IoDevice, '') of
         eof -> {ok, lists:reverse(Acc)};
-        Line -> read_lines(IoDevice, [Line | Acc])
+        Line ->
+            case parse_csv_line(Line, Name) of
+                {ok, Record} ->
+                    read_lines(IoDevice, [Record | Acc], Name);
+                {error, Reason} ->
+                    %% Logga la riga malformata
+                    io:format("Riga malformata: ~p, errore: ~p~n", [Line, Reason]),
+                    read_lines(IoDevice, Acc, Name)
+            end
     end.
+%%%%%%Funzione Helper parse_csv_line/1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+parse_csv_line(Line, Name) ->
+    case tokenize_csv(Line) of
+        {ok, [Tab, Row, Col, ValueStr]} ->
+            case parse_value(ValueStr) of
+                {ok, Value} ->
+                    {ok, #spreadsheet_data{
+                        name = list_to_atom(Name),
+                        tab = list_to_integer(binary_to_list(Tab)),
+                        row = list_to_integer(binary_to_list(Row)),
+                        col = list_to_integer(binary_to_list(Col)),
+                        value = Value
+                    }};
+                {error, Reason} -> {error, {invalid_value, Reason}}
+            end;
+        {error, Reason} -> {error, Reason}
+    end.
+
+tokenize_csv(Line) ->
+    tokenize_csv(Line, [], false, []).
+
+tokenize_csv([], Acc, _InQuotes, CurrentToken) ->
+    %% Aggiungi l'ultimo token alla lista rimuovendo eventuali \n o spazi
+    {ok, lists:reverse([list_to_binary(string:strip(CurrentToken, both, $\n)) | Acc])};
+tokenize_csv([$\" | Rest], Acc, false, CurrentToken) ->
+    %% Inizio di una stringa racchiusa tra virgolette
+    tokenize_csv(Rest, Acc, true, CurrentToken);
+tokenize_csv([$\" | Rest], Acc, true, CurrentToken) ->
+    %% Fine di una stringa racchiusa tra virgolette
+    tokenize_csv(Rest, Acc, false, CurrentToken);
+tokenize_csv([$, | Rest], Acc, false, CurrentToken) ->
+    %% Separatore CSV, aggiungi il token corrente alla lista
+    tokenize_csv(Rest, [list_to_binary(CurrentToken) | Acc], false, []);
+tokenize_csv([Char | Rest], Acc, InQuotes, CurrentToken) ->
+    %% Accumula caratteri nel token corrente
+    tokenize_csv(Rest, Acc, InQuotes, CurrentToken ++ [Char]).
 
 %%%%%%Funzione Helper parse_value/1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 parse_value(ValueString) ->
-    % Aggiungi un punto finale per termini completi
-    case erl_scan:string(ValueString ++ ".") of
-        {ok, Tokens, _} ->
-            case erl_parse:parse_term(Tokens) of
-                % Parsing riuscito
-                {ok, Term} -> Term;
-                % Parsing fallito
-                {error, Reason} -> {error, Reason}
-            end;
-        {error, Reason, _} ->
-            % Errore nella scansione
-            {error, Reason}
+    %% Rimuovi eventuali virgolette esterne
+    Stripped = binary_to_list(ValueString),
+    case Stripped of
+        "undef" -> {ok, undef};
+        _ ->
+            %% Prova a interpretare come intero
+            case string:to_integer(Stripped) of
+                {ok, Int} -> {ok, Int};
+                _ ->
+                    %% Prova a interpretare come float
+                    case string:to_float(Stripped) of
+                        {ok, Float} -> {ok, Float};
+                        _ ->
+                            %% Tratta il valore come stringa o termine Erlang
+                            try erl_scan:string(Stripped ++ ".") of
+                                {ok, Tokens, _} ->
+                                    case erl_parse:parse_term(Tokens) of
+                                        {ok, Term} -> {ok, Term};
+                                        _ -> {ok, Stripped}
+                                    end;
+                                _ -> {ok, Stripped}
+                            catch _:_ -> {ok, Stripped}
+                            end
+                    end
+            end
     end.
+
 
 %Funzione Helper 
 %genera i record per "rappresentare" lo spreadsheet usando list comprehensions.
