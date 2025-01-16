@@ -45,7 +45,7 @@ to_cvs(name,filename, timeout) -> ok | {error,reason} | timeout
 from_cvs(name,filename, timeout)->spreadsheet | {error,reason} | timeout
 
 info(name) -> Spreadsheet_info Le informazioni devono contenere almeno:
-• Numerodi celle x tab
+• Numero di celle x tab
 • I permessi di lettura e scrittura
 
 Requisiti
