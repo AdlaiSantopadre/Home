@@ -1,6 +1,6 @@
 -module(mnesia_setup). % v. 4.2 Windows SO con shortNames  + distribuzione del codice compilato 
 
--export([setup_mnesia/2,create_tables/1, distribute_modules/2,start_application/1,connect_cluster/1]).%,mnesia_start/1,
+-export([setup_mnesia/2,create_tables/1,start_application/1,connect_cluster/1]).%,mnesia_start/1,, distribute_modules/2
 %  ,init_cluster_policies/2,populate_access_policies/2
 -include("records.hrl").
 
@@ -63,24 +63,24 @@ start_application(Nodes) ->
         
     end, Nodes).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Distribuisci i moduli specificati su tutti i nodi
-distribute_modules(Nodes, Modules) ->
-    lists:foreach(fun(Module) ->
-        lists:foreach(fun(Node) ->
-            case file:read_file(atom_to_list(Module) ++ ".beam") of
-                {ok, Binary} ->
-                    case rpc:call(Node, code, load_binary, [Module, atom_to_list(Module) ++ ".beam", Binary]) of
-                        {module, Module} ->
-                            io:format("Module ~p successfully loaded on node ~p~n", [Module, Node]);
+% %% Distribuisci i moduli specificati su tutti i nodi
+% distribute_modules(Nodes, Modules) ->
+%     lists:foreach(fun(Module) ->
+%         lists:foreach(fun(Node) ->
+%             case file:read_file(atom_to_list(Module) ++ ".beam") of
+%                 {ok, Binary} ->
+%                     case rpc:call(Node, code, load_binary, [Module, atom_to_list(Module) ++ ".beam", Binary]) of
+%                         {module, Module} ->
+%                             io:format("Module ~p successfully loaded on node ~p~n", [Module, Node]);
                             
-                        {error, Reason} ->
-                            io:format("Failed to load module ~p on node ~p: ~p~n", [Module, Node, Reason])
-                    end;
-                {error, Reason} ->
-                    io:format("Failed to read module ~p: ~p~n", [Module, Reason])
-            end
-        end, Nodes)
-    end, Modules).
+%                         {error, Reason} ->
+%                             io:format("Failed to load module ~p on node ~p: ~p~n", [Module, Node, Reason])
+%                     end;
+%                 {error, Reason} ->
+%                     io:format("Failed to read module ~p: ~p~n", [Module, Reason])
+%             end
+%         end, Nodes)
+%     end, Modules).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 connect_cluster(Nodes) ->
     %% Connetti i nodi

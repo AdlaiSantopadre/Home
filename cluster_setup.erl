@@ -3,10 +3,11 @@
 
 -module(cluster_setup).
 -export([start_cluster/0]).
--export([setup/0, distribute_modules/2]).
+-export([setup/0,setup_mnesia/2, distribute_modules/2,start_application/1]).%
 
 
 -include("records.hrl").
+
 %% Funzione principale per configurare il cluster
 setup() ->
     %% Ricompila tutti i moduli
@@ -16,10 +17,18 @@ setup() ->
 
     %% Nodi del cluster
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
-
+    %  Directories di lavoro dei nodi Mnesia
+    %  Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
+    %         "C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data",
+    %         "C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"
+    %         ],
+    
     %% Distribuisci i moduli ai nodi
     distribute_modules(Nodes, Modules),
 
+    
+
+    
     io:format("Cluster setup completato con successo.~n").
 
 %% Funzione per distribuire i moduli
@@ -36,6 +45,57 @@ distribute_modules(Nodes, Modules) ->
             end
         end, Modules)
     end, Nodes).
+
+setup_mnesia(Nodes, Dirs) ->
+    %% Imposta la directory di Mnesia per ogni nodo
+    lists:zipwith(fun(Node, Dir) -> 
+        rpc:call(Node, application, set_env, [mnesia, dir, Dir])
+    end, Nodes, Dirs),
+
+    %% Ferma Mnesia su tutti i nodi se trattasi di ripristino
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, mnesia, stop, [])
+    end, Nodes),
+
+    %% Cancella schema precedente su tutti i nodi se trattasi di ripristino
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, mnesia, delete_schema, [Nodes])
+    end, Nodes),
+
+    %% Crea lo schema sui nodi specificati
+    mnesia:create_schema(Nodes),
+    create_tables(Nodes).
+%%% Crea le tabelle e avvia Mnesia sui nodi del cluster
+    create_tables(Nodes) ->
+    %%Avvia Mnesia 
+
+        lists:foreach(fun(Node) ->
+            rpc:call(Node, mnesia, start, [])
+        end, Nodes),
+
+    %% Crea la tabella per i dati del foglio di calcolo con replica
+    mnesia:create_table(spreadsheet_data, [
+        {attributes, record_info(fields, spreadsheet_data)},
+        {type, bag}, 
+        {disc_copies, Nodes},
+        {index, [tab, row, col]} % Indici per ottimizzare le query
+        ]),
+    %% Crea la tabella per le politiche di accesso con replica
+    mnesia:create_table(access_policies, [
+        {attributes, record_info(fields,access_policies)},
+        {type, bag}, 
+        {disc_copies, Nodes}
+    ]),
+    
+    %% Tabella metadati degli spreadsheet
+    mnesia:create_table(spreadsheet_info, [
+    {attributes, record_info(fields, spreadsheet_info)},
+    {disc_copies, Nodes}]),
+
+    mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000).    
+    
+
+%funzione utilizzata in avvio del nodo monitor_service
 start_cluster() ->
 
 % Registra il nodo di servizio
@@ -59,3 +119,13 @@ start_cluster() ->
                 io:format("Nodo ~p non raggiungibile.~n", [Node])
         end
     end, Nodes).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Avvia my_app su tutti i nodi
+start_application(Nodes) ->
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, application, start, [my_app])
+        
+    end, Nodes).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+

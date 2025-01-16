@@ -1,75 +1,191 @@
-# ADCC 2023-2024
+# MESSAGGI
 
-* Per ogni progetto bisogna consegnare una relazione scritta (pdf) e un link ad un repository git con il codice
-* Nella relazione documentate tutte le vostre scelte implementative (design choices)
-* La consegna avviene una settimana prima della data dell’esame
+## 1. Avvio nodi della cluster Application OTP w Mnesia e monitor_service DA SHELL WINDOWS
 
-## Distributed Spreadsheet
+* avvia il cluster con
+**setup_nodes.bat**
 
-• Un foglio di calcolo è una “matrice” di NxM celle
-• Una cella può contenere
-• qualsiasi tipo di dato primitivo
-• Il valore undef
+* Aggiungi al cluster un node di servizio
+**erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"**
 
-Intefaccia 1/4
-Il modulo spreadsheet deve contenere almeno le seguenti funzioni:
-new(name) -> spreadsheet | {error,reason}
-• Crea un nuovo foglio di nome “name” di dimensioni NxM di K tab (schede)
-• assegna il processo creatore come proprietario del foglio
-• I parametri N, M, K  sono default nel modulo
+*observer:start().*
+*global:registered_names().*
+*code:which(node_monitor).* %individua la path del codice .beam caricato
 
-new(name, N, M, K) -> spreadsheet | {error,reason} • Crea un nuovo foglio di nome “name” di K tab
-• Ogni tab ha dimensioni NxM
-• assegna il processo creatore come proprietario del foglio
+## 2.1 compilazione e distribuzione del codice APPLICATION OTP/SETUP 
 
-share(spreadsheet, AccessPolicies) -> **bool**
-Il proprietario del foglio può condidivere il foglio in Lettura o scrittura con altri processi
- AccessPolicies è una lista di {Proc,AP} dove
- • Proc è un Pid/reg_name • AP = read | write
- Le policy di accesso ad un foglio possono cambiare in qualsiasi momento
+**cluster_setup:setup().**
 
-get(spreadsheet, tab, i, j, val) -> Value | undef
-• Legge il valore della cella (i,j) che appartiene al tab del foglio name
-set(spreadsheet, tab, i, j, k, val) -> bool
-• Scrive il valore della cella (i,j) che appartiene al tab del foglio name
-get(spreadsheet, tab, i, j, val, timeout) -> Value | undef | timeout
-set(spreadsheet, tab, i, j, val, timeout) -> bool | timeout
+### 2.1.1 Ricompilare  i moduli e distibuirli
 
-to_cvs(spreadsheet,filename) -> ok | {error,reason}
-• Esporta in cvs (comma separated values) il foglio
+**Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].**
+**Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup,restart_node].**
 
-from_cvs(filename) -> spreadsheet | {error,reason}
+**cluster_setup:distribute_modules(Nodes, Modules)**
 
-to_cvs(name,filename, timeout) -> ok | {error,reason} | timeout
+* c(app_sup).
+* c(distributed_spreadsheet).
+* c(spreadsheet_supervisor).
+* c(my_app).
+* c(node_monitor).
+* c(restart_node).
+* c(cluster_setup).
+* c(mnesia_setup).
 
-from_cvs(name,filename, timeout)->spreadsheet | {error,reason} | timeout
+## 2.1 SETUP INIZIALE MNESIA dal nodo Alice@DESKTOPQ2A2FL7
 
-info(name) -> Spreadsheet_info Le informazioni devono contenere almeno:
-• Numero di celle x tab
-• I permessi di lettura e scrittura
+*Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
 
-Requisiti
-• I fogli devono essere visibili su tutti i nodi della rete
-• I fogli devono resistere ai fallimenti di uno o più nodi • Esempio: la mia applicazione esegue su tre nodi, 2 cadono ma i fogli sono ancora visibili al nodo rimanente
+*Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].*
 
-## Spreadsheet avanzato
+**cluster_setup:setup_mnesia(Nodes,Dirs).**
 
- Prerequisiti: • Aver implementato la parte “semplice”
- Aggiungiamo operazioni che modificano la forma del foglio
- add_row(spreadsheet, tab) -> ok | {err,reason}
- • Aggiunge una riga in append al tab del foglio name
- del_row(spreadsheet, tab,i) -> ok | {err,reason}
- • Rimuove l’iesima riga del tab del foglio nameSpreadsheet avanzato 2/2
- Una cella può contenere
- • qualsiasi tipo di dato primitivo
- • Il valore undef
-  
- • una formula/macro
-Suggerimenti
-LE FORMULE SONO FUNZIONI LAMBDA
-UNA CELLA PUÒ ESSERE VISTA COME UNA MEMORY CELL DI CCS/PI-CALCOLO
-Formule
-• I valori delle celle possono essere delle formule
-• Le formule possono usare dei range di celle
-• Per semplicità usiamo range regolari del tipo a1:c6 • a1:c6 indica tutte le seguenti celle
-• tab!a1:c6 indica tutte le celle comprese nel range a1:c6 del tab1
+## 2.2 Avvio della APP dal nodo Alice@DESKTOPQ2A2FL7
+
+*Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
+**cluster_setup:start_application(Nodes).**
+*observer:start().*
+*application:which_applications().*
+
+* (solo sul node Alice)
+*application:start(my_app).*
+*supervisor:which_children(app_sup).* >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
+*supervisor:which_children(spreadsheet_sup).* >>ritorna []
+*application:which_applications().*
+
+## 3. Avvio  distributed_spreadsheet dal node Alice
+
+**distributed_spreadsheet:new(undicigennaio).**
+**distributed_spreadsheet:new(undicigennaio, 3, 4, 2).**
+>>f(Args).
+>>Args= {undicigennaio, 4, 3, 2,self()}.
+>>distributed_spreadsheet:start_link(Args).
+>>spreadsheet_supervisor:start_spreadsheet(Args).
+>>supervisor:start_child(spreadsheet_sup, [Args]).
+
+*supervisor:which_children(spreadsheet_sup).*  >>aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
+*global:whereis_name(undicigennaio).*  Controlla il gen_server globale
+*whereis(spreadsheet_sup). % Controlla il supervisore locale*
+
+* per deregistrare un nome
+*global:unregister_name(nodeAlice@DESKTOPQ2A2FL7).*
+
+### 3.2 fallimento dello spreadsheet/fallimento del distributed_sup
+
+* da testare
+exit(global:whereis_name(undicigennaio), kill).
+distributed_spreadsheet:new(undicigennaio, 3, 4, 2).
+
+## 3.3 Fallimento del node (Alice, Charlie)
+
+**spawn(fun() -> rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []) end).**
+
+* implementare restart_node
+
+erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
+global:registered_names().
+spawn(fun() -> rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, [])end).
+
+erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Bob
+erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
+erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
+
+## 4. TEST DELLE API
+
+* NOTA per testare da shell, includere prima il comando di registrazione dei record
+ **rr("records.hrl").**
+
+* controllare il processo spreadsheet,se necessario
+*process_info(global:whereis_name(undicigennaio)).*
+
+## 4.1 Test info(Spreadsheetname)
+
+**distributed_spreadsheet:info(undicigennaio).**
+
+## 4.2 Test Share(SpreadsheetName,Access_policies)
+
+%% supponendo di aver inizializzato undicigennaio e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
+[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
+
+distributed_spreadsheet:share(undicigennaio, [{<0.102.0>, read},{nodeBob@DESKTOPQ2A2FL7,read}]).
+**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).**
+**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7, write},{nodeBob@DESKTOPQ2A2FL7,read}]).**
+**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,write},{nodeBob@DESKTOPQ2A2FL7,write},{nodeCharlie@DESKTOPQ2A2FL7,write}]).**
+
+distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
+
+## 4.3 Test  get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
+
+**distributed_spreadsheet:get(undicigennaio,2,3,4).**
+
+**distributed_spreadsheet:set(undicigennaio,2,3,4, "Hey, Adi").**
+**distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).**
+
+* distributed_spreadsheet:find_global_name(CallerPid).
+* distributed_spreadsheet:check_access(CallerPid).
+
+## 4.4 Test to_csv(SpredsheetName, Filename)
+
+distributed_spreadsheet:to_csv(undicigennaio, spreadsheet).
+
+## 4.5 Test from_csv(Filename)
+
+distributed_spreadsheet:from_csv("spreadsheet.csv").
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+### Compilare  i moduli e distibuirli
+
+Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+
+Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
+        "C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data",
+        "C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].
+cluster_setup:distribute_modules(Nodes, Modules)
+
+### arrestare ed eliminare lo schema di Mnesia
+
+% su ogni node
+mnesia:stop().
+mnesia:delete_schema([node()]).
+q().
+
+% per tutti i nodi dal node1
+mnesia:stop().
+mnesia:delete_schema(['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
+init:stop().
+
+* in alternativa crea tre directory separate
+* C:\Users\campus.uniurb.it\Erlang\Alice_data
+* C:\Users\campus.uniurb.it\Erlang\Bob_data
+* C:\Users\campus.uniurb.it\Erlang\Charlie_data
+* e in ogni directory avvia un node
+
+### Ricollegare il node Alice al cluster Mnesia
+
+*mnesia:start().*
+mnesia:change_config(extra_db_nodes, [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']).
+
+* Controlla la comunicazione tra i nodi(avviata  nel modulo  node_monitor)
+*net_adm:ping('Alice@DESKTOPQ2A2FL7').*
+*net_adm:ping('Bob@DESKTOPQ2A2FL7').*
+*net_adm:ping('Charlie@DESKTOPQ2A2FL7').*
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+## messaggi di diagnosi su Mnesia
+
+% per ottenere l'elenco dei nodi connessi esplicitamente a 
+% formare un cluster
+mnesia:system_info(running_db_nodes).
+mnesia:table_info(spreadsheet_data, where_to_read).
+%%  verifica dove è replicata la tabella spreadsheet_data
+mnesia:system_info().
+mnesia:system_info(tables).
+mnesia:table_info(spreadsheet_data, all).
+mnesia:table_info(spreadsheet_owners, all)
+mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella 
+%cancellare una tabella e ricrearla
+mnesia:delete_table(Table).
+mensia:create_table(....)
