@@ -15,11 +15,6 @@ start_spreadsheet(Args) ->
     io:format("Passing params to start_child: ~p~n", [Args]),
     supervisor:start_child(spreadsheet_sup, [Args]).
 
-% restart_child({recreate, Pid}) ->
-%     %% Registra il processo esistente come figlio supervisionato
-%     supervisor:start_child(spreadsheet_sup, [
-%         {Pid, [], temporary, 5000, worker, [distributed_spreadsheet]}
-%     ]).
 
 
 %% API per terminare un figlio

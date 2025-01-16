@@ -12,7 +12,7 @@ setup_mnesia(Nodes, Dirs) ->
         rpc:call(Node, application, set_env, [mnesia, dir, Dir])
     end, Nodes, Dirs),
 
-    %% Ferma Mnesia su tutti i nodi se tratttasi di ripristino
+    %% Ferma Mnesia su tutti i nodi se trattasi di ripristino
     lists:foreach(fun(Node) ->
         rpc:call(Node, mnesia, stop, [])
     end, Nodes),
@@ -31,14 +31,14 @@ setup_mnesia(Nodes, Dirs) ->
             rpc:call(Node, mnesia, start, [])
         end, Nodes),
 
-    %% Creare la tabella per i dati del foglio di calcolo con replica
+    %% Crea la tabella per i dati del foglio di calcolo con replica
     mnesia:create_table(spreadsheet_data, [
         {attributes, record_info(fields, spreadsheet_data)},
         {type, bag}, 
         {disc_copies, Nodes},
         {index, [tab, row, col]} % Indici per ottimizzare le query
         ]),
-    %% Creare la tabella per le politiche di accesso con replica
+    %% Crea la tabella per le politiche di accesso con replica
     mnesia:create_table(access_policies, [
         {attributes, record_info(fields,access_policies)},
         {type, bag}, 
