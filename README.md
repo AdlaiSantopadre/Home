@@ -2,24 +2,24 @@
 
 ## 1. Avvio nodi della cluster Application OTP w Mnesia e monitor_service DA SHELL WINDOWS
 
-* avvia il cluster con
+* avvia il cluster di Mnesia + il nodo monitor service
 **setup_nodes.bat**
 
-* Aggiungi al cluster un node di servizio
-**erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"**
+*erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"*
 
 *observer:start().*
 *global:registered_names().*
 *code:which(node_monitor).* %individua la path del codice .beam caricato
 
-## 2.1 compilazione e distribuzione del codice APPLICATION OTP/SETUP 
+## 2.1 compilazione e distribuzione del codice APPLICATION OTP/SETUP
 
+*c(cluster_setup).*
 **cluster_setup:setup().**
 
-### 2.1.1 Ricompilare  i moduli e distibuirli
+### 2.1.1 (Debugging)Ricompilare  i moduli e distibuirli
 
 **Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].**
-**Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,mnesia_setup,cluster_setup,restart_node].**
+**Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,cluster_setup,restart_node].**
 
 **cluster_setup:distribute_modules(Nodes, Modules)**
 
@@ -30,7 +30,6 @@
 * c(node_monitor).
 * c(restart_node).
 * c(cluster_setup).
-* c(mnesia_setup).
 
 ## 2.1 SETUP INIZIALE MNESIA dal nodo Alice@DESKTOPQ2A2FL7
 
@@ -39,15 +38,16 @@
 *Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].*
 
 **cluster_setup:setup_mnesia(Nodes,Dirs).**
+*mnesia:system_info(running_db_nodes).*
 
 ## 2.2 Avvio della APP dal nodo Alice@DESKTOPQ2A2FL7
 
+* (solo sul node Alice)
 *Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
 **cluster_setup:start_application(Nodes).**
 *observer:start().*
 *application:which_applications().*
 
-* (solo sul node Alice)
 *application:start(my_app).*
 *supervisor:which_children(app_sup).* >>ritorna [{spreadsheet_supervisor,<0.210.0>,supervisor,[spreadsheet_supervisor]}]
 *supervisor:which_children(spreadsheet_sup).* >>ritorna []
@@ -68,6 +68,7 @@
 *whereis(spreadsheet_sup). % Controlla il supervisore locale*
 
 * per deregistrare un nome
+
 *global:unregister_name(nodeAlice@DESKTOPQ2A2FL7).*
 
 ### 3.2 fallimento dello spreadsheet/fallimento del distributed_sup
@@ -176,7 +177,7 @@ mnesia:change_config(extra_db_nodes, [ 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A
 
 ## messaggi di diagnosi su Mnesia
 
-% per ottenere l'elenco dei nodi connessi esplicitamente a 
+% per ottenere l'elenco dei nodi connessi esplicitamente a
 % formare un cluster
 mnesia:system_info(running_db_nodes).
 mnesia:table_info(spreadsheet_data, where_to_read).
@@ -185,7 +186,7 @@ mnesia:system_info().
 mnesia:system_info(tables).
 mnesia:table_info(spreadsheet_data, all).
 mnesia:table_info(spreadsheet_owners, all)
-mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella 
+mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella
 %cancellare una tabella e ricrearla
 mnesia:delete_table(Table).
 mensia:create_table(....)

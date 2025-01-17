@@ -55,25 +55,13 @@ code_change(_OldVsn, State, _Extra) ->
 terminate(Reason, State) ->
     io:format("Terminating spreadsheet ~p with reason: ~p~n", [maps:get(name, State), Reason]),
     ok.
-%% Tentativo di riconnessione,ripetuto ad intervallo dato da timer:sleep/1
+
+%% Tentativo di riavvio
 try_restart_node(Node) ->
-    io:format("Tentativo di riavvio per il nodo: ~p~n", [Node]),
+    io:format("Tentativo di riavvio per il nodo: ~p da monitor ~p~n" , [Node,self() ]),
     %% Converte il nome del nodo in un nome file batch
     BatFile = "restart_node_" ++ atom_to_list(Node) ++ ".bat",
     os:cmd("start cmd.exe /c " ++ BatFile),
     io:format("Tentativo di riavvio eseguito per il nodo: ~p con il file ~p~n", [Node, BatFile]).
 
-try_reconnect(Node) ->
-    io:format("Attempting to reconnect to node: ~p~n", [Node]),  
 
-    case net_adm:ping(Node) of
-        pong ->
-            io:format("Successfully reconnected to node: ~p~n", [Node]),
-            Dir = ("C:/Users/campus.uniurb.it/Erlang/" ++ atom_to_list(Node) ++ "data"),
-            rpc:call(Node, application, set_env, [mnesia, dir, Dir]),
-            rpc:call(Node, mnesia, start, []);
-        pang ->
-            io:format("Failed to reconnect to node: ~p. Retrying in 5 seconds...~n", [Node]),
-            timer:sleep(5000),
-            try_reconnect(Node)
-    end.

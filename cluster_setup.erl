@@ -1,9 +1,8 @@
-%%Questo modulo prenderà il posto di Mnesia_setup
-
-
 -module(cluster_setup).
+
 -export([start_cluster/0]).
--export([setup/0,setup_mnesia/2, distribute_modules/2,start_application/1]).%
+
+-export([setup/0,setup_mnesia/2,distribute_modules/2,start_application/1]).%
 
 
 -include("records.hrl").
@@ -12,7 +11,7 @@
 setup() ->
     %% Ricompila tutti i moduli
     Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
-               app_sup, node_monitor, mnesia_setup, cluster_setup, restart_node],
+               app_sup, node_monitor, cluster_setup, restart_node],
     lists:foreach(fun(Module) -> compile:file(Module) end, Modules),
 
     %% Nodi del cluster
@@ -25,12 +24,10 @@ setup() ->
     
     %% Distribuisci i moduli ai nodi
     distribute_modules(Nodes, Modules),
-
-    
-
     
     io:format("Cluster setup completato con successo.~n").
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Funzione per distribuire i moduli
 distribute_modules(Nodes, Modules) ->
     lists:foreach(fun(Node) ->
@@ -46,6 +43,8 @@ distribute_modules(Nodes, Modules) ->
         end, Modules)
     end, Nodes).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%Setup iniziale di Mnesia 
 setup_mnesia(Nodes, Dirs) ->
     %% Imposta la directory di Mnesia per ogni nodo
     lists:zipwith(fun(Node, Dir) -> 
@@ -65,29 +64,30 @@ setup_mnesia(Nodes, Dirs) ->
     %% Crea lo schema sui nodi specificati
     mnesia:create_schema(Nodes),
     create_tables(Nodes).
+    
 %%% Crea le tabelle e avvia Mnesia sui nodi del cluster
-    create_tables(Nodes) ->
-    %%Avvia Mnesia 
-
+create_tables(Nodes) ->
+    
+        %%Avvia Mnesia 
         lists:foreach(fun(Node) ->
             rpc:call(Node, mnesia, start, [])
         end, Nodes),
 
-    %% Crea la tabella per i dati del foglio di calcolo con replica
+    %% Crea la tabella per i dati del foglio di calcolo con replica su disco
     mnesia:create_table(spreadsheet_data, [
         {attributes, record_info(fields, spreadsheet_data)},
         {type, bag}, 
         {disc_copies, Nodes},
         {index, [tab, row, col]} % Indici per ottimizzare le query
         ]),
-    %% Crea la tabella per le politiche di accesso con replica
+    %% Crea la tabella per le politiche di accesso con replica su disco
     mnesia:create_table(access_policies, [
         {attributes, record_info(fields,access_policies)},
         {type, bag}, 
         {disc_copies, Nodes}
     ]),
     
-    %% Tabella metadati degli spreadsheet
+    %% Tabella metadati degli spreadsheet replicata su disco
     mnesia:create_table(spreadsheet_info, [
     {attributes, record_info(fields, spreadsheet_info)},
     {disc_copies, Nodes}]),
@@ -95,7 +95,8 @@ setup_mnesia(Nodes, Dirs) ->
     mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000).    
     
 
-%funzione utilizzata in avvio del nodo monitor_service
+%%%%%funzione utilizzata in avvio del nodo monitor_service 
+
 start_cluster() ->
 
 % Registra il nodo di servizio
@@ -121,7 +122,8 @@ start_cluster() ->
     end, Nodes).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Avvia my_app su tutti i nodi
+%%Funzione che  Avvia my_app su tutti i nodi 
+%%(esegue con detachment eispetto al runtime)
 start_application(Nodes) ->
     lists:foreach(fun(Node) ->
         rpc:call(Node, application, start, [my_app])
