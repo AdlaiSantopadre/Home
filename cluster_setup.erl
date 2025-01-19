@@ -123,7 +123,7 @@ start_cluster() ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Funzione che  Avvia my_app su tutti i nodi 
-%%(esegue con detachment eispetto al runtime)
+%%(esegue con detachment rispetto al runtime)
 start_application(Nodes) ->
     lists:foreach(fun(Node) ->
         rpc:call(Node, application, start, [my_app])

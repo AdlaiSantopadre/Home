@@ -17,7 +17,7 @@ monitor_nodes() ->
         {error, Reason} -> io:format("Errore monitoraggio nodo: ~p~n", [Reason])
     end.
 %% Inizializza il gen_server
-%% Registra il processo con un nome globale basato sul processo node-_monitor in esecuzione nel nodo
+%% Registra il processo con un nome globale basato sul processo node_monitor in esecuzione nel nodo
 init([]) ->
 NodeName = node(),
     GlobalName = list_to_atom("node" ++ atom_to_list(NodeName)),
@@ -41,6 +41,7 @@ handle_info({nodedown, Node}, State) ->
 
 handle_info({nodeup, Node}, State) ->
     io:format("Nodo di nuovo attivo: ~p~n", [Node]),
+    
     {noreply, State}.
 
 handle_call(_Request, _From, State) ->

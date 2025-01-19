@@ -1,5 +1,5 @@
 -module(restart_node).
--export([init/0]).%init(1),setup_mnesia/0
+-export([init/0,start_application/0]).%init(1),setup_mnesia/0
 
 %% Funzione principale per inizializzare il nodo
 %init(MnesiaDir) ->
@@ -78,11 +78,11 @@ sync_schema() ->
 %         end
 %     end, Tables).
 
-% %% Avvia l'applicazione OTP
-% start_application() ->
-%     case application:start(my_app) of
-%         ok ->
-%             io:format("Applicazione my_app avviata correttamente~n");
-%         {error, Reason} ->
-%             io:format("Errore nell'avvio dell'applicazione my_app: ~p~n", [Reason])
-%     end.
+%% Avvia l'applicazione OTP
+start_application() ->
+    case application:start(my_app) of
+        ok ->
+            io:format("Applicazione my_app avviata correttamente~n");
+        {error, Reason} ->
+            io:format("Errore nell'avvio dell'applicazione my_app: ~p~n", [Reason])
+    end.

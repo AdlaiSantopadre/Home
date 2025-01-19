@@ -66,14 +66,15 @@ distributed_spreadsheet:new(undicigennaio, 3, 4, 2).
 
 * eseguire dal nodo riavviato
 **restart_node:setup_mnesia()**
+**restart_node:start_application().**
 
 erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
 global:registered_names().
 spawn(fun() -> rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, [])end).
-
 erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Bob
 erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
 erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
+
 
 ### 3.3.1 EVENTUALE(Debugging)Ricompilare  i moduli e distibuirli
 
