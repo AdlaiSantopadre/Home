@@ -16,28 +16,11 @@
 *c(cluster_setup).*
 **cluster_setup:setup().**
 
-### 2.1.1 (Debugging)Ricompilare  i moduli e distibuirli
-
-**Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].**
-**Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,cluster_setup,restart_node].**
-
-**cluster_setup:distribute_modules(Nodes, Modules)**
-
-* c(app_sup).
-* c(distributed_spreadsheet).
-* c(spreadsheet_supervisor).
-* c(my_app).
-* c(node_monitor).
-* c(restart_node).
-* c(cluster_setup).
-
 ## 2.1 SETUP INIZIALE MNESIA dal nodo Alice@DESKTOPQ2A2FL7
 
-*Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
-
-*Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].*
-
-**cluster_setup:setup_mnesia(Nodes,Dirs).**
+*Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
+Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].
+cluster_setup:setup_mnesia(Nodes,Dirs).*
 *mnesia:system_info(running_db_nodes).*
 
 ## 2.2 Avvio della APP dal nodo Alice@DESKTOPQ2A2FL7
@@ -81,7 +64,8 @@ distributed_spreadsheet:new(undicigennaio, 3, 4, 2).
 
 **spawn(fun() -> rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []) end).**
 
-* implementare restart_node
+* eseguire dal nodo riavviato
+**restart_node:setup_mnesia()**
 
 erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
 global:registered_names().
@@ -90,6 +74,21 @@ spawn(fun() -> rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, [])end).
 erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Bob
 erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
 erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
+
+### 3.3.1 EVENTUALE(Debugging)Ricompilare  i moduli e distibuirli
+
+*Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].*
+*Modules = [distributed_spreadsheet,spreadsheet_supervisor,my_app,app_sup,node_monitor,cluster_setup,restart_node].*
+
+**cluster_setup:distribute_modules(Nodes, Modules)**
+
+* c(app_sup).
+* c(distributed_spreadsheet).
+* c(spreadsheet_supervisor).
+* c(my_app).
+* c(node_monitor).
+* c(restart_node).
+* c(cluster_setup).
 
 ## 4. TEST DELLE API
 

@@ -1,5 +1,5 @@
 -module(restart_node).
--export([init/0]).%init(1)
+-export([init/0]).%init(1),setup_mnesia/0
 
 %% Funzione principale per inizializzare il nodo
 %init(MnesiaDir) ->
@@ -12,7 +12,7 @@ init() ->
     %% Connetti i nodi
     %% net_kernel:connect_node(node()),   
     %% Configura e avvia Mnesia
-    MnesiaDir = "c:/Users/campus.uniurb.it/Erlang/" ++ "nodo" ++ atom_to_list(node())++ "_data",
+    MnesiaDir = "c:/Users/campus.uniurb.it/Erlang/" ++ atom_to_list(node())++ "_data",
     setup_mnesia(MnesiaDir).
     
 %     %% Avvia l'applicazione distribuita
@@ -33,6 +33,8 @@ assign_global_name() ->
             init:stop()
     end.
     
+%%setup_mnesia() ->
+%%MnesiaDir = "c:/Users/campus.uniurb.it/Erlang/" ++ atom_to_list(node())++ "_data",
 
 %% Configura e avvia Mnesia
 setup_mnesia(MnesiaDir) ->
@@ -59,7 +61,7 @@ sync_schema() ->
     ExcludedNodes = ['monitor_service@DESKTOPQ2A2FL7'],
     Nodes = [Node || Node <- nodes(), Node =/= node(), not lists:member(Node, ExcludedNodes)],
     case mnesia:change_config(extra_db_nodes, Nodes) of
-        ok ->
+        {ok,Nodes} ->
             io:format("Schema sincronizzato con i nodi ~p~n", [Nodes]);
         {error, Reason} ->
             io:format("Errore nella sincronizzazione dello schema: ~p~n", [Reason])

@@ -57,11 +57,22 @@ terminate(Reason, State) ->
     ok.
 
 %% Tentativo di riavvio
+% try_restart_node(Node) ->
+%     io:format("Tentativo di riavvio per il nodo: ~p da monitor ~p~n" , [Node,self() ]),
+%     %% Converte il nome del nodo in un nome file batch
+%     BatFile = "restart_node.bat" ++ atom_to_list(Node),
+%     os:cmd("start cmd.exe /c " ++ BatFile),
+%     io:format("Tentativo di riavvio eseguito per il nodo: ~p con il file ~p~n", [Node, BatFile]).
 try_restart_node(Node) ->
-    io:format("Tentativo di riavvio per il nodo: ~p da monitor ~p~n" , [Node,self() ]),
-    %% Converte il nome del nodo in un nome file batch
-    BatFile = "restart_node_" ++ atom_to_list(Node) ++ ".bat",
-    os:cmd("start cmd.exe /c " ++ BatFile),
-    io:format("Tentativo di riavvio eseguito per il nodo: ~p con il file ~p~n", [Node, BatFile]).
+    io:format("Tentativo di riavvio per il nodo: ~p da monitor ~p~n", [Node, self()]),
 
+    %% Estrae il nome del nodo senza il dominio (@DESKTOPQ2A2FL7)
+    [NodeName | _Domain] = string:split(atom_to_list(Node), "@", all),
+
+    %% Converte il nome del nodo in un nome file batch
+    BatFile = "restart_node.bat " ++ NodeName,
+    %% Esegue il file batch usando os:cmd
+    os:cmd("start cmd.exe /c " ++ BatFile),
+
+    io:format("Tentativo di riavvio eseguito per il nodo: ~p con il file ~p~n", [Node, BatFile]).
 

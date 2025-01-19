@@ -14,9 +14,9 @@ for %%N in (%NAMES%) do (
     REM Rimuove la directory dati del nodo
 if exist "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data" (
     rmdir /s /q "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data"
-    echo Directory %BASE_DIR%\%N%@DESKTOPQ2A2FL7_data rimossa con successo.
+    echo Directory %BASE_DIR%\%%N@DESKTOPQ2A2FL7_data rimossa con successo.
 ) else (
-    echo Directory %BASE_DIR%\%N%@DESKTOPQ2A2FL7_data non trovata.
+    echo Directory %BASE_DIR%\%%N@DESKTOPQ2A2FL7_data non trovata.
 )
     REM Crea la directory per il nodo
     mkdir "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data"
