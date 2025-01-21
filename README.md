@@ -40,18 +40,11 @@ cluster_setup:setup_mnesia(Nodes,Dirs).*
 
 **distributed_spreadsheet:new(undicigennaio).**
 **distributed_spreadsheet:new(undicigennaio, 3, 4, 2).**
->>f(Args).
->>Args= {undicigennaio, 4, 3, 2,self()}.
->>distributed_spreadsheet:start_link(Args).
->>spreadsheet_supervisor:start_spreadsheet(Args).
->>supervisor:start_child(spreadsheet_sup, [Args]).
 
-*supervisor:which_children(spreadsheet_sup).*  >>aggiunto {undefined,<0.119101.0>,worker,[distributed_spreadsheet]}
 *global:whereis_name(undicigennaio).*  Controlla il gen_server globale
 *whereis(spreadsheet_sup). % Controlla il supervisore locale*
 
 * per deregistrare un nome
-
 *global:unregister_name(nodeAlice@DESKTOPQ2A2FL7).*
 
 ### 3.2 fallimento dello spreadsheet/fallimento del distributed_sup
@@ -74,7 +67,6 @@ spawn(fun() -> rpc:call('Charlie@DESKTOPQ2A2FL7', erlang, halt, [])end).
 erl -sname Bob -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Bob
 erl -sname Charlie -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Charlie
 erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang
-
 
 ### 3.3.1 EVENTUALE(Debugging)Ricompilare  i moduli e distibuirli
 
@@ -121,13 +113,14 @@ distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{node
 
 **distributed_spreadsheet:set(undicigennaio,2,3,4, "Hey, Adi").**
 **distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).**
+**distributed_spreadsheet:set(undicigennaio,2,1,4, ["cani","gatti"]).**
 
 * distributed_spreadsheet:find_global_name(CallerPid).
 * distributed_spreadsheet:check_access(CallerPid).
 
 ## 4.4 Test to_csv(SpredsheetName, Filename)
 
-distributed_spreadsheet:to_csv(undicigennaio, spreadsheet).
+**distributed_spreadsheet:to_csv(undicigennaio, spreadsheet).**
 
 ## 4.5 Test from_csv(Filename)
 

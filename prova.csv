@@ -1,6 +1,12 @@
 Spreadsheet Name: undicigennaio
 Tab,Row,Col,Value
-1,1,1,undef
-1,3,4,"Hey, Adi"
-2,3,4,"Erlang's power, rocks!"
-1,1,2,1000
+1,1,1,"string"
+1,1,2,"Erlang! #1@rocks"
+1,1,3,"[1, atom, \"string\"]."
+1,1,4,<<10,20>>
+1,2,1,[atom, 32]
+1,2,2,<0.58.0>
+1,2,3,3.14
+1,2,4,{cane,gatto,topo}
+1,3,2,"fun(X) -> X+1 end"
+1,3,3,#{name => adam, age => 24, date => {july,29}}

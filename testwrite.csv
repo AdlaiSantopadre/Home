@@ -1,9 +1,6 @@
-Spreadsheet Name: ventiquattrodicembre
-Tab,Row,Col,Value
 1,1,1,undef
 1,1,2,undef
 1,1,3,undef
-1,1,4,undef
 1,2,1,undef
 1,2,2,undef
 1,2,3,undef
@@ -15,12 +12,14 @@ Tab,Row,Col,Value
 2,1,1,undef
 2,1,2,undef
 2,1,3,undef
-2,1,4,undef
 2,2,1,undef
 2,2,2,undef
 2,2,3,undef
-2,2,4,undef
 2,3,1,undef
 2,3,2,undef
 2,3,3,undef
-2,3,4,undef
+2,3,4,"Hey, Adi"
+2,2,4,["cani","gatti"]
+2,1,4,["cani","gatti"]
+1,1,4,<0.110.0>
+

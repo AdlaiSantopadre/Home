@@ -1,5 +1,5 @@
 -module(distributed_spreadsheet).
-%% modulo di Application my_app 
+%% modulo di Application my_app
 %% gen_server con Mnesia e supervisore dedicato
 -behaviour(gen_server).
 
@@ -20,7 +20,7 @@
 %% API
 -export([start_link/1]).
 
-%%direttiva export di funzioni helper 
+%%direttiva export di funzioni helper
 %%si può rimuovere a fine test
 -export([
     find_global_name/1,
@@ -47,8 +47,7 @@ new(Name) ->
     new(Name, N, M, K).
 
 %% Crea uno spreadsheet con parametri specifici
-new(SpreadsheetName, N, M, K) when is_integer(N),is_integer(M),is_integer(K)->
-    
+new(SpreadsheetName, N, M, K) when is_integer(N), is_integer(M), is_integer(K) ->
     OwnerPid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
 
     Args = {SpreadsheetName, N, M, K, OwnerPid},
@@ -64,8 +63,6 @@ new(SpreadsheetName, N, M, K) when is_integer(N),is_integer(M),is_integer(K)->
 
 %% API function init/1 to get info about spreadsheets
 info(SpreadsheetName) ->
-    
-
     %% Check if the process is registered globally
     case global:whereis_name(SpreadsheetName) of
         undefined ->
@@ -74,7 +71,9 @@ info(SpreadsheetName) ->
         Pid when is_pid(Pid) ->
             %% Step 2: Check if the process is alive
             NodePid = global:whereis_name(list_to_atom("node" ++ atom_to_list(node()))),
-            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [SpreadsheetName, NodePid]),
+            io:format("Spreadsheet ~p is registered globally with PID ~p~n", [
+                SpreadsheetName, NodePid
+            ]),
 
             try
                 io:format("Caller process with Pid: ~p~n", [self()]),
@@ -84,17 +83,19 @@ info(SpreadsheetName) ->
             end
     end.
 
-%% API function to share the spreadsheet and state access policies 
+%% API function to share the spreadsheet and state access policies
 share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
     case global:whereis_name(SpreadsheetName) of
         undefined ->
             {error, spreadsheet_not_found};
         SpreadsheetPid when is_pid(SpreadsheetPid) ->
             MonitorPid = whereis(node_monitor),
-            
+
             try
                 io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
-                gen_server:call(SpreadsheetPid, {share, SpreadsheetName, AccessPolicies, MonitorPid})
+                gen_server:call(
+                    SpreadsheetPid, {share, SpreadsheetName, AccessPolicies, MonitorPid}
+                )
             catch
                 _:_ -> {error, timeout}
             end
@@ -115,8 +116,13 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when
             MonitorPid = whereis(node_monitor),
             try
                 io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
-                case gen_server:call(SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout) of
-                {ok,Value} -> Value end
+                case
+                    gen_server:call(
+                        SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout
+                    )
+                of
+                    {ok, Value} -> Value
+                end
             catch
                 _:_ -> {error, timeout}
             end
@@ -138,12 +144,19 @@ set(SpreadsheetName, TabIndex, I, J, Value, Timeout) when
             case validate_value(Value) of
                 ok ->
                     try
-                      case  gen_server:call(SpreadsheetPid, {set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, Timeout) of
-                        {ok,Value} -> true end       
+                        case
+                            gen_server:call(
+                                SpreadsheetPid,
+                                {set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value},
+                                Timeout
+                            )
+                        of
+                            {ok, Value} -> true
+                        end
                     catch
                         _:_ -> {error, timeout}
                     end;
-                %aggiornare affinchè ritorni false    
+                %aggiornare affinchè ritorni false
                 {error, invalid_type} ->
                     {reply, {error, invalid_type}}
             end
@@ -202,7 +215,7 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
             mnesia:transaction(fun() ->
                 %% Scrive i dati e le info nelle tabelle
                 lists:foreach(fun(Record) -> mnesia:write(Record) end, Records),
-                
+
                 mnesia:write(#spreadsheet_info{
                     name = SpreadsheetName, rows = N, cols = M, tabs = K, owner = OwnerPid
                 })
@@ -245,11 +258,11 @@ init({SpreadsheetName, N, M, K, OwnerPid}) ->
             {stop, Reason}
     end.
 
-
 % gen_server:call(Pid, {share, SpreadsheetName, AccessPolicies, OwnerPid}
 handle_call({share, SpreadsheetName, AccessPolicies, MonitorPid}, {FromPid, _Alias}, State) ->
-    io:format("Received share/2 for spreadsheet ~p from caller with pid of monitor_node   ~p ~n", [SpreadsheetName, MonitorPid        
-                                                                                                     ]),
+    io:format("Received share/2 for spreadsheet ~p from caller with pid of monitor_node   ~p ~n", [
+        SpreadsheetName, MonitorPid
+    ]),
     %% Verifica se il chiamante è il proprietario dello spreadsheet
     case
         mnesia:transaction(fun() ->
@@ -350,7 +363,7 @@ handle_call({about, SpreadsheetName}, _From, State) ->
                         name => Name,
                         owner => Owner,
                         total_tabs => Tabs,
-                        total_cells => CellsxTab,
+                        total_cells_for_Tab => CellsxTab,
                         read_permissions => ReadPermissions,
                         write_permissions => WritePermissions
                     },
@@ -367,7 +380,6 @@ handle_call({about, SpreadsheetName}, _From, State) ->
             io:format("Transaction aborted: ~p~n", [Reason]),
             {reply, {error, transaction_aborted}, State}
     end;
-
 %%%%%%%%%%HANDLE %%%%%%%%% GET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
@@ -405,7 +417,6 @@ handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
-
 %%%%%%%%%%HANDLE %%%%%%%%% SET %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SpreadsheetPid, {set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, Timeout
 %% Handle the 'set' request in the gen_server
@@ -418,10 +429,10 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, _From, St
     %% Check if the calling process has write access
     case check_access(CallerPid, [write], SpreadsheetName) of
         ok ->
-            case %% Recupera il record presente dalla tabella mnesia
+            %% Recupera il record presente dalla tabella mnesia
+            case
                 mnesia:transaction(fun() ->
-
-                    Records=mnesia:match_object(#spreadsheet_data{
+                    Records = mnesia:match_object(#spreadsheet_data{
                         name = SpreadsheetName,
                         tab = TabIndex,
                         row = I,
@@ -455,12 +466,11 @@ handle_call({set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, _From, St
             io:format("Access denied for process ~p~n", [CallerPid]),
             {reply, {error, access_denied}, State}
     end;
-
 %%%%%%%%%%%%%HANDLE CALL TO_CSV%%%%%%%%%%%%%%%%%%%%
 handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
     %% Verifica che il nome dello spreadsheet sia corretto
     Name = maps:get(name, State),
-        if
+    if
         Name =:= SpreadsheetName ->
             io:format("Exporting spreadsheet ~p to file ~p~n", [SpreadsheetName, Filename]),
             %% Legge tutti i record relativi allo spreadsheet
@@ -473,10 +483,11 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
             of
                 {atomic, Records} ->
                     io:format("Spreadsheet ~p to be exported to ~p~n", [
-                                SpreadsheetName, Filename]),
-                    io:format("Record to be written  ~p~n", [Records]),        
+                        SpreadsheetName, Filename
+                    ]),
+                    io:format("Record to be written  ~p~n", [Records]),
                     %% Scrive i record nel file CSV
-                    case write_csv(Filename, SpreadsheetName, Records)  of
+                    case write_csv(Filename, SpreadsheetName, Records) of
                         ok ->
                             io:format("Spreadsheet ~p exported successfully to ~p~n", [
                                 SpreadsheetName, Filename
@@ -494,24 +505,25 @@ handle_call({to_csv, SpreadsheetName, Filename}, _From, State) ->
             end;
         true ->
             {reply, {error, spreadsheet_not_found}, State}
-        
     end;
-%%% gen_server:call({global, SpreadsheetName}, {from_csv, Filename}, Timeout).
+
+%% gen_server:call({global, SpreadsheetName}, {from_csv, Filename, SpreadsheetName}, Timeout).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%HANDLE CALL FROM_CSV %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-handle_call({from_csv, Filename,Name}, _From, State) ->
+handle_call({from_csv, Filename, Name}, _From, State) ->
     %% Leggi il file CSV
     case read_from_csv(Filename) of
         {ok, Records} ->
             io:format("Records fetched : ~p~n", [Records]),
             %% Salva i record nello spreadsheet
-            case mnesia:transaction(fun() ->
-                mnesia:delete(spreadsheet_data,Name,write),
+            case
+                mnesia:transaction(fun() ->
+                    mnesia:delete(spreadsheet_data, Name, write),
 
-                %% Scrive i dati e le info nelle tabelle
-                lists:foreach(fun(Record) -> mnesia:write(Record) end, Records)
-                
-            end) of
-                {atomic,ok} ->
+                    %% Scrive i dati e le info nelle tabelle
+                    lists:foreach(fun(Record) -> mnesia:write(Record) end, Records)
+                end)
+            of
+                {atomic, ok} ->
                     {reply, ok, State};
                 {aborted, Reason} ->
                     {reply, {error, Reason}, State}
@@ -519,7 +531,6 @@ handle_call({from_csv, Filename,Name}, _From, State) ->
         {error, Reason} ->
             {reply, {error, Reason}, State}
     end;
-
 handle_call(_Request, _From, State) ->
     {reply, {error, unsupported_operation}, State}.
 
@@ -587,12 +598,14 @@ read_from_csv(Filename) ->
                     file:close(IoDevice),
                     {error, intestazione_scorretta}
             end;
-        {error, Reason} -> {error, Reason}
+        {error, Reason} ->
+            {error, Reason}
     end.
 
 read_lines(IoDevice, Acc, Name) ->
     case io:get_line(IoDevice, '') of
-        eof -> {ok, lists:reverse(Acc)};
+        eof ->
+            {ok, lists:reverse(Acc)};
         Line ->
             case parse_csv_line(Line, Name) of
                 {ok, Record} ->
@@ -606,72 +619,88 @@ read_lines(IoDevice, Acc, Name) ->
 %%%%%%Funzione Helper parse_csv_line/1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 parse_csv_line(Line, Name) ->
     case tokenize_csv(Line) of
-        {ok, [Tab, Row, Col, ValueStr]} ->
+        {ok, {Tab, Row, Col , ValueStr}} -> %??
             case parse_value(ValueStr) of
-                {ok, Value} ->
+                {ok, ParsedValue} ->
                     {ok, #spreadsheet_data{
                         name = list_to_atom(Name),
-                        tab = list_to_integer(binary_to_list(Tab)),
-                        row = list_to_integer(binary_to_list(Row)),
-                        col = list_to_integer(binary_to_list(Col)),
-                        value = Value
+                        tab = Tab,
+                        row = Row,
+                        col = Col,
+                        value = ParsedValue
                     }};
-                {error, Reason} -> {error, {invalid_value, Reason}}
+                {error, Reason} ->
+                    {error, {invalid_value, Reason}}
             end;
-        {error, Reason} -> {error, Reason}
+        {error, Reason} ->
+            {error, Reason}
     end.
-
+%%%%%%%%% Funzione Helper per la rifuzione in token di una riga %%%
 tokenize_csv(Line) ->
-    tokenize_csv(Line, [], false, []).
+    case string:split(Line, ",", all) of
+        %% Una linea ben formata deve avere almeno 4 valori
+        [TabStr, RowStr, ColStr | Rest] ->
+            %% Il quarto valore è una lista di ciò che rimane dopo la terza virgola
+            ValueStr = lists:foldl(
+                fun(Elem, Acc) ->
+                    case Acc of
+                        "" -> Elem;
+                        _ -> Acc ++ "," ++ Elem
+                    end
+                end,
+                "",
+                Rest
+            ),
 
-tokenize_csv([], Acc, _InQuotes, CurrentToken) ->
-    %% Aggiungi l'ultimo token alla lista rimuovendo eventuali \n o spazi
-    {ok, lists:reverse([list_to_binary(string:strip(CurrentToken, both, $\n)) | Acc])};
-tokenize_csv([$\" | Rest], Acc, false, CurrentToken) ->
-    %% Inizio di una stringa racchiusa tra virgolette
-    tokenize_csv(Rest, Acc, true, CurrentToken);
-tokenize_csv([$\" | Rest], Acc, true, CurrentToken) ->
-    %% Fine di una stringa racchiusa tra virgolette
-    tokenize_csv(Rest, Acc, false, CurrentToken);
-tokenize_csv([$, | Rest], Acc, false, CurrentToken) ->
-    %% Separatore CSV, aggiungi il token corrente alla lista
-    tokenize_csv(Rest, [list_to_binary(CurrentToken) | Acc], false, []);
-tokenize_csv([Char | Rest], Acc, InQuotes, CurrentToken) ->
-    %% Accumula caratteri nel token corrente
-    tokenize_csv(Rest, Acc, InQuotes, CurrentToken ++ [Char]).
+            %% Verifica che i primi tre termini siano interi
+            case
+                {
+                    try_list_to_integer(TabStr),
+                    try_list_to_integer(RowStr),
+                    try_list_to_integer(ColStr)
+                }
+            of
+                {{ok, Tab}, {ok, Row}, {ok, Col}} ->
+                    {ok, {Tab, Row, Col, clean_token(ValueStr)}};
+                {{error, tab_error}, _, _} ->
+                    {error, {invalid_format, "Invalid Tab value"}};
+                {_, {error, row_error}, _} ->
+                    {error, {invalid_format, "Invalid Row value"}};
+                {_, _, {error, col_error}} ->
+                    {error, {invalid_format, "Invalid Col value"}}
+            end;
+        _ ->
+            {error, invalid_line}
+    end.
+clean_token(Token) ->
+    %% Rimuove spazi e \n dal token
+    string:strip(Token, both, $\n).
+try_list_to_integer(Value) ->
+    try
+        {ok, list_to_integer(Value)}
+    catch
+        _:_ -> {error, invalid_integer}
+    end.
 
 %%%%%%Funzione Helper parse_value/1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-parse_value(ValueString) ->
-    %% Rimuovi eventuali virgolette esterne
-    Stripped = binary_to_list(ValueString),
-    case Stripped of
-        "undef" -> {ok, undef};
-        _ ->
-            %% Prova a interpretare come intero
-            case string:to_integer(Stripped) of
-                {ok, Int} -> {ok, Int};
-                _ ->
-                    %% Prova a interpretare come float
-                    case string:to_float(Stripped) of
-                        {ok, Float} -> {ok, Float};
-                        _ ->
-                            %% Tratta il valore come stringa o termine Erlang
-                            try erl_scan:string(Stripped ++ ".") of
-                                {ok, Tokens, _} ->
-                                    case erl_parse:parse_term(Tokens) of
-                                        {ok, Term} -> {ok, Term};
-                                        _ -> {ok, Stripped}
-                                    end;
-                                _ -> {ok, Stripped}
-                            catch _:_ -> {ok, Stripped}
-                            end
-                    end
-            end
+parse_value(ValueStr) ->
+    try erl_scan:string(ValueStr ++ ".") of
+        {ok, Tokens, _} ->
+            case erl_parse:parse_term(Tokens) of
+                {ok, Term} ->
+                    {ok, Term};
+                {error, Reason} ->
+                    {error, {invalid_value, Reason}}
+            end;
+        {error, Reason, _} ->
+            {error, {scan_failed, Reason}}
+    catch
+        _:_ -> {error, invalid_format}
     end.
 
 
-%Funzione Helper 
-%genera i record per "rappresentare" lo spreadsheet usando list comprehensions.
+%%%%%%%%%%%Funzione Helper che popola di record
+%%%%%%%%%%%lo spreadsheet usando list comprehensions.
 
 generate_records(Name, N, M, K) ->
     [
@@ -681,7 +710,7 @@ generate_records(Name, N, M, K) ->
         Col <- lists:seq(1, M)
     ].
 % update_access_policies(SpreadsheetName, AccessPolicies, ExistingPolicies)
-update_access_policies(SpreadsheetName,NewPolicies ,ExistingPolicies) ->
+update_access_policies(SpreadsheetName, NewPolicies, ExistingPolicies) ->
     %% Preelabora NewPolicies per creare una mappa di PID e nomi globali
     ResolvedNewPolicies = resolve_policies(NewPolicies),
     io:format("ottengo queste policies pre-elaborate:~p,~n", [ResolvedNewPolicies]),
@@ -830,20 +859,30 @@ find_global_name(CallerPid) ->
     end.
 %% Funzione helper per popolare la tabella access_policies
 init_access_policies(SpreadsheetName) ->
-
     mnesia:transaction(fun() ->
         %% Rimuovi le politiche esistenti per lo spreadsheet
         mnesia:delete({access_policies, SpreadsheetName}),
         %% Inserisci le nuove politiche
-        Nodes=nodes(),
-        lists:foreach(fun(Node) ->
-            Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("node" ++ atom_to_list(Node)), access = read},
-            io:format("Inserting access policy: ~p~n", [Record]),
-            mnesia:write(Record)
-        end, Nodes),
-        Node=node(),
-        Record = #access_policies{name = SpreadsheetName, proc = list_to_atom("node" ++ atom_to_list(Node)), access = write},
-            io:format("Inserting access policy: ~p~n", [Record]),
-            mnesia:write(Record),
+        Nodes = nodes(),
+        lists:foreach(
+            fun(Node) ->
+                Record = #access_policies{
+                    name = SpreadsheetName,
+                    proc = list_to_atom("node" ++ atom_to_list(Node)),
+                    access = read
+                },
+                io:format("Inserting access policy: ~p~n", [Record]),
+                mnesia:write(Record)
+            end,
+            Nodes
+        ),
+        Node = node(),
+        Record = #access_policies{
+            name = SpreadsheetName,
+            proc = list_to_atom("node" ++ atom_to_list(Node)),
+            access = write
+        },
+        io:format("Inserting access policy: ~p~n", [Record]),
+        mnesia:write(Record),
         ok
-   end).
+    end).
