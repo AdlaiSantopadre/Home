@@ -58,7 +58,8 @@ distributed_spreadsheet:new(undicigennaio, 3, 4, 2).
 **spawn(fun() -> rpc:call('Alice@DESKTOPQ2A2FL7', erlang, halt, []) end).**
 
 * eseguire dal nodo riavviato
-**restart_node:setup_mnesia()**
+
+**restart_node:setup_mnesia(MnesiaDir)**
 **restart_node:start_application().**
 
 erl -sname Alice -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -config Alice
@@ -114,6 +115,8 @@ distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{node
 **distributed_spreadsheet:set(undicigennaio,2,3,4, "Hey, Adi").**
 **distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).**
 **distributed_spreadsheet:set(undicigennaio,2,1,4, ["cani","gatti"]).**
+distributed_spreadsheet:set(undicigennaio,2,1,4,"Erlang! #1@rocks").
+distributed_spreadsheet:set(undicigennaio,2,1,4,{cane,gatto,topo}).
 
 * distributed_spreadsheet:find_global_name(CallerPid).
 * distributed_spreadsheet:check_access(CallerPid).
@@ -124,7 +127,7 @@ distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{node
 
 ## 4.5 Test from_csv(Filename)
 
-distributed_spreadsheet:from_csv("spreadsheet.csv").
+**distributed_spreadsheet:from_csv("spreadsheet.csv").**
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
