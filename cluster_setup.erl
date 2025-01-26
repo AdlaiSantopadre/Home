@@ -12,7 +12,7 @@ setup() ->
     %% Ricompila tutti i moduli
     Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
                app_sup, node_monitor, cluster_setup, restart_node],
-    lists:foreach(fun(Module) -> compile:file(Module) end, Modules),
+    lists:foreach(fun(Module) -> compile:file(Module,[oudir,"C:\Users\campus.uniurb.it\Erlang\ebin"]) end, Modules),
 
     %% Nodi del cluster
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],

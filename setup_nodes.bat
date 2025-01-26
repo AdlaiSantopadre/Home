@@ -22,8 +22,8 @@ if exist "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data" (
     mkdir "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data"
 
     REM Avvia il nodo in una nuova finestra di PowerShell
-     start powershell -NoExit -Command "& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% -config %%N"
+     start powershell -NoExit -Command "& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% -pa %BASE_DIR%/ebin -config %%N"
 )
 REM Avvia il nodo di monitor service 
- start powershell -NoExit -Command "erl -sname monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% -eval "cluster_setup:start_cluster`(`)"
+ start powershell -NoExit -Command "erl -sname monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%/ebin -eval "cluster_setup:start_cluster`(`)"
 echo I nodi sono stati avviati.
