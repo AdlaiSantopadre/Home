@@ -1,7 +1,6 @@
 -module(cluster_setup).
 
 -export([start_cluster/0]).
-
 -export([setup/0,setup_mnesia/2,distribute_modules/2,start_application/1]).%
 
 
@@ -12,21 +11,17 @@ setup() ->
     %% Ricompila tutti i moduli
     Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
                app_sup, node_monitor, cluster_setup, restart_node],
+                
     lists:foreach(fun(Module) -> compile:file(Module) end, Modules),
-
+    
     %% Nodi del cluster
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
-    %  Directories di lavoro dei nodi Mnesia
-    %  Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
-    %         "C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data",
-    %         "C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"
-    %         ],
     
-    %% Distribuisci i moduli ai nodi
+    %% Distribuisci e carica i moduli nei nodi
     distribute_modules(Nodes, Modules),
     
     io:format("Cluster setup completato con successo.~n").
-
+%% code:get_object_code(module) permette di verificare l'origine da cui e' stato caricato un modulo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Funzione per distribuire i moduli
 distribute_modules(Nodes, Modules) ->
@@ -36,7 +31,7 @@ distribute_modules(Nodes, Modules) ->
                 {Module, Binary, FileName} ->
                     %% Carica dinamicamente il modulo sul nodo remoto
                     rpc:call(Node, code, load_binary, [Module, FileName, Binary]),
-                    io:format("Modulo ~p distribuito su nodo ~p~n", [Module, Node]);
+                    io:format("Modulo ~p distribuito su nodo ~p~n", [Module, Node]); %%VERBOSE
                 _ ->
                     io:format("Modulo ~p non trovato o non compilato.~n", [Module])
             end
