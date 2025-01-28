@@ -7,5 +7,5 @@
   {mod, {my_app, []}},
   {distributed, [{my_app, ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']}]},
   {env, [{csv_directory, "/exported_csv"}]} 
-  %{path, ["ebin"]} %per spostare tutti i file compilati in ebin
+  {path, ["/ebin"]} %MODIFICATO TOGLIENDO COMMENTO
  ]}.

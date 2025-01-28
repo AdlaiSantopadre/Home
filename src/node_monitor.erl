@@ -23,7 +23,7 @@ NodeName = node(),
     GlobalName = list_to_atom("node" ++ atom_to_list(NodeName)),
     case global:register_name(GlobalName, self()) of
         yes ->
-            %% Inizia il monitoraggio dei nodi
+            %% Inizia il monitoraggio dei nodi (in ascolto su nodeup e nodedown)
             net_kernel:monitor_nodes(true),
             io:format("Nodo  registrato su ~p con nome globale: ~p~n", [self(), GlobalName]),
             {ok, #{}};

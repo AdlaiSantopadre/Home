@@ -11,7 +11,7 @@ setup() ->
     %% Ricompila tutti i moduli
     Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
                app_sup, node_monitor, cluster_setup, restart_node],
-    lists:foreach(fun(Module) -> compile:file(Module,[{outdir,"C:\Users\campus.uniurb.it\Erlang\ebin"}]) end, Modules),
+    %%lists:foreach(fun(Module) -> compile:file(Module,[{outdir,"C:\Users\campus.uniurb.it\Erlang\ebin"}]) end, Modules),
 
     %% Nodi del cluster
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
@@ -93,10 +93,16 @@ create_tables(Nodes) ->
 
 start_cluster() ->
 
-% Registra il nodo di servizio
-    MyGlobalName = list_to_atom("nodo" ++ atom_to_list(node())),
-    global:register_name(MyGlobalName, self()),
-    io:format("Pid locale ~p registrato globalmente come ~p~n", [self(), MyGlobalName]),
+    %avvia node_monito locale sul nodo Monitor_service
+    case node_monitor:start_link() of
+        {ok, MonitorPid} ->
+            % Registra globalmente il PID del node_monitor
+            MyGlobalName = 'nodeMonitor_service@DESKTOPQ2A2FL7',
+            global:register_name(MyGlobalName, MonitorPid),
+            io:format("Pid ~p del node_monitor registrato globalmente come ~p~n", [MonitorPid, MyGlobalName]);
+        {error, Reason} ->
+            io:format("Errore nell'avvio di node_monitor: ~p~n", [Reason])
+    end,
 
 
     %%  Elenco iniziale dei nodi del cluster

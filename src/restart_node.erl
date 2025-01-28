@@ -52,6 +52,7 @@ setup_mnesia(MnesiaDir) ->
     case mnesia:start() of
         ok ->
             io:format("Mnesia avviata correttamente~n"),
+            
             sync_schema();
         {error, Reason} ->
             io:format("Errore nell'avvio di Mnesia: ~p~n", [Reason])
@@ -60,6 +61,7 @@ sync_schema() ->
     %% Escludi nodi non attivi per Mnesia (come monitor_service)
     ExcludedNodes = ['monitor_service@DESKTOPQ2A2FL7'],
     Nodes = [Node || Node <- nodes(), Node =/= node(), not lists:member(Node, ExcludedNodes)],
+    io:format("Schema tenta di sincronizzarsi  con i nodi ~p~n", [Nodes]),
     case mnesia:change_config(extra_db_nodes, Nodes) of
         {ok,Nodes} ->
             io:format("Schema sincronizzato con i nodi ~p~n", [Nodes]);

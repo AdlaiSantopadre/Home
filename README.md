@@ -3,7 +3,7 @@
 ## 1. Avvio nodi della cluster Application OTP w Mnesia e monitor_service DA SHELL WINDOWS
 
 * avvia il cluster di Mnesia + il nodo monitor service
-erlc -o Erlang/ebin Erlang/*.erl  %compila tutti i moduli e salvali in  sucdirectory/ebin
+erlc -o Erlang/ebin Erlang/*.erl  %compila tutti i moduli e salvali in  subdirectory/ebin
 **setup_nodes.bat**
 
 *erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"*
