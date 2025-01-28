@@ -33,5 +33,7 @@ if exist "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data" (
      start powershell -NoExit -Command "& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -config %BASE_DIR%\config\%%N"
 )
 REM Avvia il nodo di monitor service 
- start powershell -NoExit -Command "erl -sname Monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -eval "cluster_setup:start_cluster`(`)" -eval "observer:start`(`)" -eval "global:registered_names`(`)"
+SET EVAL_EXPR="spawn('Alice@DESKTOPQ2A2FL7', fun() -> group_leader(whereis(user), self()), demo_menu:start() end)."
+echo %EVAL_EXPR%
+start powershell -NoExit -Command "& erl -sname Monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -eval "cluster_setup:start_cluster`(`)" -eval "observer:start`(`)" -eval "global:registered_names`(`)" -eval \"%EVAL_EXPR%\""
 echo I nodi sono stati avviati.
