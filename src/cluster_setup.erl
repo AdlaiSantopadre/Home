@@ -1,26 +1,64 @@
 -module(cluster_setup).
 
 -export([start_cluster/0]).
--export([setup/0,setup_mnesia/2,distribute_modules/2,start_application/1]).%
+-export([setup_mnesia/2,distribute_modules/2,start_application/1]).%
 
 
 -include("records.hrl").
 
-%% Funzione principale per configurare il cluster
-setup() ->
-    %% Ricompila tutti i moduli
-    Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
-               app_sup, node_monitor, cluster_setup, restart_node],
-    %%lists:foreach(fun(Module) -> compile:file(Module,[{outdir,"C:\Users\campus.uniurb.it\Erlang\ebin"}]) end, Modules),
+%%%%%funzione utilizzata in avvio del nodo monitor_service 
 
-    %% Nodi del cluster
+start_cluster() ->
+
+%%avvia node_monitor locale sul nodo Monitor_service
+    case node_monitor:start_link() of
+        {ok, MonitorPid} ->
+            % Registra globalmente il PID del node_monitor
+            MyGlobalName = 'nodeMonitor_service@DESKTOPQ2A2FL7',
+            global:register_name(MyGlobalName, MonitorPid),
+            io:format("Pid ~p del node_monitor registrato globalmente come ~p~n", [MonitorPid, MyGlobalName]);
+        {error, Reason} ->
+            io:format("Errore nell'avvio di node_monitor: ~p~n", [Reason])
+    end,
+
+
+%%  Elenco iniziale dei nodi del cluster
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
+    %% Recupera il Pid di ogni nodo e registra globalmente il nome
+    lists:foreach(fun(Node) ->
+        case net_adm:ping(Node) of
+            pong ->
+                io:format("Connesso a ~p~n", [Node]),
+                %% Usa spawn per avviare il (gen_server ) node_monitor               
+                Pid = spawn(Node, node_monitor, monitor_nodes, []),
+                io:format("Monitor avviato su ~p con PID ~p~n", [Node, Pid]);
+            pang ->
+                io:format("Nodo ~p non raggiungibile.~n", [Node])
+        end
+    end, Nodes),
+
+%% Distribuisci e carica i moduli nei nodi
+    Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,app_sup,  %% moduli di APPLICATION OTP
+              node_monitor, cluster_setup, restart_node,demo_menu],              %% moduli del node_monitor e per la gestione del cluster
+      distribute_modules(Nodes, Modules),
     
-    %% Distribuisci e carica i moduli nei nodi
-    distribute_modules(Nodes, Modules),
+      io:format("Cluster setup completato con successo.~n").
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+% %% Funzione principale per configurare il cluster
+% setup() ->
+%     %% Ricompila tutti i moduli
+%     Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
+%                app_sup, node_monitor, cluster_setup, restart_node],
+%     %%lists:foreach(fun(Module) -> compile:file(Module,[{outdir,"C:\Users\campus.uniurb.it\Erlang\ebin"}]) end, Modules),
+
+%     %% Nodi del cluster
+%     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
     
-    io:format("Cluster setup completato con successo.~n").
-%% code:get_object_code(module) permette di verificare l'origine da cui e' stato caricato un modulo
+%     
+% %% code:get_object_code(module) permette di verificare l'origine da cui e' stato caricato un modulo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Funzione per distribuire i moduli
 distribute_modules(Nodes, Modules) ->
@@ -89,39 +127,7 @@ create_tables(Nodes) ->
     mnesia:wait_for_tables([access_policies,spreadsheet_data,spreadsheet_info], 10000).    
     
 
-%%%%%funzione utilizzata in avvio del nodo monitor_service 
 
-start_cluster() ->
-
-    %avvia node_monito locale sul nodo Monitor_service
-    case node_monitor:start_link() of
-        {ok, MonitorPid} ->
-            % Registra globalmente il PID del node_monitor
-            MyGlobalName = 'nodeMonitor_service@DESKTOPQ2A2FL7',
-            global:register_name(MyGlobalName, MonitorPid),
-            io:format("Pid ~p del node_monitor registrato globalmente come ~p~n", [MonitorPid, MyGlobalName]);
-        {error, Reason} ->
-            io:format("Errore nell'avvio di node_monitor: ~p~n", [Reason])
-    end,
-
-
-    %%  Elenco iniziale dei nodi del cluster
-    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
-    %% Recupera il Pid locale per ogni nodo e registra globalmente il nome
-    lists:foreach(fun(Node) ->
-        case net_adm:ping(Node) of
-            pong ->
-                io:format("Connesso a ~p~n", [Node]),
-
-                %% Usa spawn per avviare il gen_server                
-                Pid = spawn(Node, node_monitor, monitor_nodes, []),
-                io:format("Monitor avviato su ~p con PID ~p~n", [Node, Pid]);
-            pang ->
-                io:format("Nodo ~p non raggiungibile.~n", [Node])
-        end
-    end, Nodes).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Funzione che  Avvia my_app su tutti i nodi 
 %%(esegue con detachment rispetto al runtime)
 start_application(Nodes) ->

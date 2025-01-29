@@ -1,6 +1,6 @@
+
 @echo off
 SETLOCAL ENABLEDELAYEDEXPANSION
-
 REM Imposta le directory di sorgente e di destinazione
 SET SRC_DIR=C:\Users\campus.uniurb.it\Erlang\src
 SET EBIN_DIR=C:\Users\campus.uniurb.it\Erlang\ebin
@@ -15,8 +15,7 @@ REM Imposta il cookie per i nodi
 set COOKIE=mycookie
 
 REM Array di nomi anglosassoni con iniziali in ordine alfabetico
-set NAMES=Alice Bob Charlie
-SET FIRST_NODE = 1
+set NAMES=Alice Bob Charlie 
 REM David Edward Frank Grace Helen Ian Jack
 
 REM Crea le directory per i nodi Mnesia ed avviali in loop
@@ -31,21 +30,9 @@ if exist "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data" (
     REM Crea la directory per il nodo
     mkdir "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data"
 
-REM Controlla se è il primo nodo del cluster
-    if !FIRST_NODE! EQU 1 (
-        echo Avvio nodo primario %%N...
-
-        start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -config %BASE_DIR%\config\%%N" -eval \"demo_menu:start().\""
-
-        SET FIRST_NODE=0
-    ) else (
-        echo Avvio nodo secondario %%N...
-        start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -config %BASE_DIR%\config\%%N"
-    )
+    REM Avvia il nodo in una nuova finestra di PowerShell
+    start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -config %BASE_DIR%\config\%%N"
 )
-
 REM Avvia il nodo di monitor service 
-SET EVAL_EXPR="spawn('Alice@DESKTOPQ2A2FL7', fun() -> UserPid = rpc:call('Alice@DESKTOPQ2A2FL7', erlang, whereis, [user]), group_leader(UserPid, self()), demo_menu:start() end)."
-echo %EVAL_EXPR%
-start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkGreen'; Clear-Host;& erl -sname Monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -eval "cluster_setup:start_cluster`(`)" -eval "observer:start`(`)" -eval "global:registered_names`(`)" -eval \"%EVAL_EXPR%\""
+ start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkGreen'; Clear-Host;&erl -sname Monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -eval "cluster_setup:start_cluster`(`)" -eval "observer:start`(`)" -eval "global:registered_names`(`)"
 echo I nodi sono stati avviati.

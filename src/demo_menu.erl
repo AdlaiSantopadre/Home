@@ -15,7 +15,7 @@ start() ->
     process_option(string:trim(Option), ?STATE).
 
 %% Processa l'opzione selezionata
-process_option("1", State) ->
+process_option("1", _State) ->
     %% Esegui il setup del cluster e aggiorna lo stato
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
     Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data",
@@ -23,17 +23,17 @@ process_option("1", State) ->
             "C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"],
     cluster_setup:setup_mnesia(Nodes, Dirs),
     io:format("Mnesia is running on nodes: ~p~n", [mnesia:system_info(running_db_nodes)]),
-    State#{setup_done => true},
+    %State#{setup_done => true},
     start();
     
-process_option("2", State) ->
+process_option("2", _State) ->
     
             %% Distribuisci i moduli e aggiorna lo stato
             Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
             Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app, app_sup, node_monitor, cluster_setup, restart_node],
             cluster_setup:distribute_modules(Nodes, Modules),
             io:format("Modules distributed successfully.~n"),
-            State#{modules_distributed => true},
+            %State#{modules_distributed => true},
             start();
        
     
