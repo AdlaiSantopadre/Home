@@ -59,7 +59,7 @@ setup_mnesia(MnesiaDir) ->
     end.
 sync_schema() ->
     %% Escludi nodi non attivi per Mnesia (come monitor_service)
-    ExcludedNodes = ['monitor_service@DESKTOPQ2A2FL7'],
+    ExcludedNodes = ['Monitor_service@DESKTOPQ2A2FL7'],
     Nodes = [Node || Node <- nodes(), Node =/= node(), not lists:member(Node, ExcludedNodes)],
     io:format("Schema tenta di sincronizzarsi  con i nodi ~p~n", [Nodes]),
     case mnesia:change_config(extra_db_nodes, Nodes) of
@@ -68,17 +68,6 @@ sync_schema() ->
         {error, Reason} ->
             io:format("Errore nella sincronizzazione dello schema: ~p~n", [Reason])
     end.
-% %% Ricarica i dati delle tabelle
-% load_tables() ->
-%     Tables = mnesia:system_info(tables),
-%     lists:foreach(fun(Table) ->
-%         case mnesia:load_table(Table) of
-%             {aborted, Reason} ->
-%                 io:format("Errore nel caricamento della tabella ~p: ~p~n", [Table, Reason]);
-%             _ ->
-%                 io:format("Tabella ~p caricata correttamente~n", [Table])
-%         end
-%     end, Tables).
 
 %% Avvia l'applicazione OTP
 start_application() ->

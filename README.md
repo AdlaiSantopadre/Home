@@ -1,23 +1,28 @@
 # MESSAGGI
 
-## 1. Avvio nodi della cluster Application OTP w Mnesia e monitor_service DA SHELL WINDOWS
+## 1. Setup del cluster
 
-* avvia il cluster di Mnesia + il nodo monitor service
-erlc -o Erlang/ebin Erlang/*.erl  %compila tutti i moduli e salvali in  subdirectory/ebin
+* avvia il cluster di Mnesia e il nodo Monitor_service
 **setup_nodes.bat**
 
-*erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"*
+Compila i moduli del progetto, ricrea le cartelle di destinazione di Mnesia per ogni nodo, avvia ogni nodo come parte del cluster Mnesia+APPLICATION OTP eccetto Monitor_service
 
+```console
+erl -sname Monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"
+```
+
+Utilità da shell
+
+*global:registered_names().*
 *observer:start().*
 *global:registered_names().*
-*code:which(node_monitor).* %individua la path del codice .beam caricato
+*code:which(node_monitor).* 
 
-## 2.1 compilazione e distribuzione del codice APPLICATION OTP/SETUP
+## AVVIO DEMO
 
-*c(cluster_setup).*
-**cluster_setup:setup().**
+* Avvia un menù demo interattivo dalla shell di Alice@DESKTOPQ2A2FL7 con **demo_menu:start().**
 
-## 2.1 SETUP INIZIALE MNESIA dal nodo Alice@DESKTOPQ2A2FL7
+## 2.1 SETUP INIZIALE Mnesia dal nodo Alice@DESKTOPQ2A2FL7
 
 *Nodes = [ 'Alice@DESKTOPQ2A2FL7','Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'].
 Dirs = ["C:/Users/campus.uniurb.it/Erlang/Alice@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Bob@DESKTOPQ2A2FL7_data","C:/Users/campus.uniurb.it/Erlang/Charlie@DESKTOPQ2A2FL7_data"].

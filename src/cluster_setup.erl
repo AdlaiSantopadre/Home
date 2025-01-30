@@ -1,7 +1,7 @@
 -module(cluster_setup).
 
 -export([start_cluster/0]).
--export([setup_mnesia/2,distribute_modules/2,start_application/1]).%
+-export([setup_mnesia/2,distribute_modules/1,start_application/1]).%
 
 
 -include("records.hrl").
@@ -37,31 +37,20 @@ start_cluster() ->
         end
     end, Nodes),
 
-%% Distribuisci e carica i moduli nei nodi
-    Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,app_sup,  %% moduli di APPLICATION OTP
-              node_monitor, cluster_setup, restart_node,demo_menu],              %% moduli del node_monitor e per la gestione del cluster
-      distribute_modules(Nodes, Modules),
+%% riistribuisci  i moduli nei nodi
+                 %% moduli del node_monitor e per la gestione del cluster
+      distribute_modules(Nodes),
     
       io:format("Cluster setup completato con successo.~n").
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-
-% %% Funzione principale per configurare il cluster
-% setup() ->
-%     %% Ricompila tutti i moduli
-%     Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,
-%                app_sup, node_monitor, cluster_setup, restart_node],
-%     %%lists:foreach(fun(Module) -> compile:file(Module,[{outdir,"C:\Users\campus.uniurb.it\Erlang\ebin"}]) end, Modules),
-
-%     %% Nodi del cluster
-%     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
-    
-%     
-% %% code:get_object_code(module) permette di verificare l'origine da cui e' stato caricato un modulo
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Funzione per distribuire i moduli
-distribute_modules(Nodes, Modules) ->
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+distribute_modules(Nodes) ->
+        Modules = [distributed_spreadsheet, spreadsheet_supervisor, my_app,app_sup,node_monitor, cluster_setup, restart_node,demo_menu],
+        distribute_modules(Nodes, Modules) .
+distribute_modules(Nodes, Modules)  ->
     lists:foreach(fun(Node) ->
         lists:foreach(fun(Module) ->
             case code:get_object_code(Module) of
