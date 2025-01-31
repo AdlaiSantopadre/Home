@@ -1,7 +1,7 @@
 -module(cluster_setup).
 
 -export([start_cluster/0]).
--export([setup_mnesia/2,distribute_modules/1,start_application/1]).%
+-export([setup_mnesia/2,distribute_modules/1,distribute_modules/2,start_application/1]).%
 
 
 -include("records.hrl").
@@ -23,7 +23,7 @@ start_cluster() ->
 
 
 %%  Elenco iniziale dei nodi del cluster
-    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
+    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7', 'Monitor_service@DESKTOPQ2A2FL7'],
     %% Recupera il Pid di ogni nodo e registra globalmente il nome
     lists:foreach(fun(Node) ->
         case net_adm:ping(Node) of
@@ -37,7 +37,7 @@ start_cluster() ->
         end
     end, Nodes),
 
-%% riistribuisci  i moduli nei nodi
+%% ridistribuisci  i moduli nei nodi
                  %% moduli del node_monitor e per la gestione del cluster
       distribute_modules(Nodes),
     

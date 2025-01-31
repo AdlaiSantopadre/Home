@@ -31,8 +31,8 @@ if exist "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data" (
     mkdir "%BASE_DIR%\%%N@DESKTOPQ2A2FL7_data"
 
     REM Avvia il nodo in una nuova finestra di PowerShell
-    start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -config %BASE_DIR%\config\%%N"
+    start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;& erl -sname %%N@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin -pa %BASE_DIR%\src -config %BASE_DIR%\config\%%N"
 )
 REM Avvia il nodo di monitor service 
- start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkGreen'; Clear-Host;&erl -sname Monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR% %BASE_DIR%\ebin %BASE_DIR%\src -eval "cluster_setup:start_cluster`(`)" -eval "observer:start`(`)" -eval "global:registered_names`(`)"
+ start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkGreen'; Clear-Host;&erl -sname Monitor_service@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %BASE_DIR%  -pa %BASE_DIR%\ebin  -pa %BASE_DIR%\src -eval "cluster_setup:start_cluster`(`)" -eval "observer:start`(`)" -eval "global:registered_names`(`)"
 echo I nodi sono stati avviati.
