@@ -17,5 +17,5 @@ set MNESIA_DIR=%WORK_DIR%\%NODE_NAME%@DESKTOPQ2A2FL7_data
 SET EBIN_DIR=C:\Users\campus.uniurb.it\Erlang\ebin
 SET SRC_DIR=C:\Users\campus.uniurb.it\Erlang\src
 REM Avvia il nodo Erlang
-start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;"& erl -sname %NODE_NAME%@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %EBIN_DIR% -pa %SRC_DIR% -config %WORK_DIR%\config\%NODE_NAME%  -eval restart_node:init`(`)."
+start powershell -NoExit -Command "[console]::ForegroundColor = 'White'; [console]::BackgroundColor = 'DarkBlue'; Clear-Host;& erl -sname %NODE_NAME%@DESKTOPQ2A2FL7 -setcookie %COOKIE% -pa %EBIN_DIR% -pa %SRC_DIR% -config %WORK_DIR%\config\%NODE_NAME% -eval "restart_node:init`(`)"
  
