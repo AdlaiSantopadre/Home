@@ -40,7 +40,7 @@ handle_info({nodedown, Node}, State) ->
     {noreply, State};
 
 handle_info({nodeup, Node}, State) ->
-    io:format("Nodo di nuovo attivo: ~p~n", [Node]),
+    io:format("Nodo attivo: ~p~n", [Node]),
     
     {noreply, State}.
 

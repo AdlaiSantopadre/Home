@@ -16,14 +16,14 @@ start_cluster() ->
             % Registra globalmente il PID del node_monitor
             MyGlobalName = 'nodeMonitor_service@DESKTOPQ2A2FL7',
             global:register_name(MyGlobalName, MonitorPid),
-            io:format("Pid ~p del node_monitor registrato globalmente come ~p~n", [MonitorPid, MyGlobalName]);
+            io:format("Pid ~p del node_monitor registrato globalmente come ~p~n~n", [MonitorPid, MyGlobalName]);
         {error, Reason} ->
             io:format("Errore nell'avvio di node_monitor: ~p~n", [Reason])
     end,
 
 
 %%  Elenco iniziale dei nodi del cluster
-    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7', 'Monitor_service@DESKTOPQ2A2FL7'],
+    Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],%% 'Monitor_service@DESKTOPQ2A2FL7'
     %% Recupera il Pid di ogni nodo e registra globalmente il nome
     lists:foreach(fun(Node) ->
         case net_adm:ping(Node) of
@@ -56,8 +56,8 @@ distribute_modules(Nodes, Modules)  ->
             case code:get_object_code(Module) of
                 {Module, Binary, FileName} ->
                     %% Carica dinamicamente il modulo sul nodo remoto
-                    rpc:call(Node, code, load_binary, [Module, FileName, Binary]),
-                    io:format("Modulo ~p distribuito su nodo ~p~n", [Module, Node]); %%VERBOSE
+                    rpc:call(Node, code, load_binary, [Module, FileName, Binary]);
+                    %%io:format("Modulo ~p distribuito su nodo ~p~n", [Module, Node]); %%VERBOSE
                 _ ->
                     io:format("Modulo ~p non trovato o non compilato.~n", [Module])
             end

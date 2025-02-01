@@ -73,3 +73,5 @@ Formule
 • Le formule possono usare dei range di celle
 • Per semplicità usiamo range regolari del tipo a1:c6 • a1:c6 indica tutte le seguenti celle
 • tab!a1:c6 indica tutte le celle comprese nel range a1:c6 del tab1
+
+

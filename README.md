@@ -44,10 +44,10 @@ cluster_setup:setup_mnesia(Nodes,Dirs).*
 
 ## 3. Avvio  distributed_spreadsheet dal node Alice
 
-**distributed_spreadsheet:new(undicigennaio).**
-**distributed_spreadsheet:new(undicigennaio, 3, 4, 2).**
+**distributed_spreadsheet:new(test_sheet).**
+**distributed_spreadsheet:new(test_sheet, 3, 4, 2).**
 
-*global:whereis_name(undicigennaio).*  Controlla il gen_server globale
+*global:whereis_name(test_sheet).*  Controlla il gen_server globale
 *whereis(spreadsheet_sup). % Controlla il supervisore locale*
 
 * per deregistrare un nome
@@ -56,8 +56,8 @@ cluster_setup:setup_mnesia(Nodes,Dirs).*
 ### 3.2 fallimento dello spreadsheet/fallimento del distributed_sup
 
 * da testare
-exit(global:whereis_name(undicigennaio), kill).
-distributed_spreadsheet:new(undicigennaio, 3, 4, 2).
+exit(global:whereis_name(test_sheet), kill).
+distributed_spreadsheet:new(test_sheet, 3, 4, 2).
 
 ## 3.3 Fallimento del node (Alice, Charlie)
 
@@ -89,6 +89,8 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
 * c(node_monitor).
 * c(restart_node).
 * c(cluster_setup).
+* c(restart_node).
+* c(demo_menu)
 
 ## 4. TEST DELLE API
 
@@ -96,40 +98,40 @@ erl -sname monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erl
  **rr("records.hrl").**
 
 * controllare il processo spreadsheet,se necessario
-*process_info(global:whereis_name(undicigennaio)).*
+*process_info(global:whereis_name(test_sheet)).*
 
 ## 4.1 Test info(Spreadsheetname)
 
-**distributed_spreadsheet:info(undicigennaio).**
+**distributed_spreadsheet:info(test_sheet).**
 
 ## 4.2 Test Share(SpreadsheetName,Access_policies)
 
-%% supponendo di aver inizializzato undicigennaio e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
+%% supponendo di aver inizializzato test_sheet e di aver registrato e inserito i nodi con nomi globali nella tabella access_policies
 [{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}] %sono le policies iniziali
 
-distributed_spreadsheet:share(undicigennaio, [{<0.102.0>, read},{nodeBob@DESKTOPQ2A2FL7,read}]).
-**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).**
-**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7, write},{nodeBob@DESKTOPQ2A2FL7,read}]).**
-**distributed_spreadsheet:share(undicigennaio,[{nodeAlice@DESKTOPQ2A2FL7,write},{nodeBob@DESKTOPQ2A2FL7,write},{nodeCharlie@DESKTOPQ2A2FL7,write}]).**
+distributed_spreadsheet:share(test_sheet, [{<0.102.0>, read},{nodeBob@DESKTOPQ2A2FL7,read}]).
+**distributed_spreadsheet:share(test_sheet,[{nodeAlice@DESKTOPQ2A2FL7,read},{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).**
+**distributed_spreadsheet:share(test_sheet,[{nodeAlice@DESKTOPQ2A2FL7, write},{nodeBob@DESKTOPQ2A2FL7,read}]).**
+**distributed_spreadsheet:share(test_sheet,[{nodeAlice@DESKTOPQ2A2FL7,write},{nodeBob@DESKTOPQ2A2FL7,write},{nodeCharlie@DESKTOPQ2A2FL7,write}]).**
 
-distributed_spreadsheet:share(undicigennaio,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
+distributed_spreadsheet:share(test_sheet,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCharlie@DESKTOPQ2A2FL7,read}]).
 
 ## 4.3 Test  get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
-**distributed_spreadsheet:get(undicigennaio,2,3,4).**
+**distributed_spreadsheet:get(test_sheet,2,3,4).**
 
-**distributed_spreadsheet:set(undicigennaio,2,3,4, "Hey, Adi").**
-**distributed_spreadsheet:set(undicigennaio,2,2,4, atomic).**
-**distributed_spreadsheet:set(undicigennaio,2,1,4, ["cani","gatti"]).**
-distributed_spreadsheet:set(undicigennaio,2,1,4,"Erlang! #1@rocks").
-distributed_spreadsheet:set(undicigennaio,2,1,4,{cane,gatto,topo}).
+**distributed_spreadsheet:set(test_sheet,2,3,4, "Hey, Adi").**
+**distributed_spreadsheet:set(test_sheet,2,2,4, atomic).**
+**distributed_spreadsheet:set(test_sheet,2,1,4, ["cani","gatti"]).**
+distributed_spreadsheet:set(test_sheet,2,1,4,"Erlang! #1@rocks").
+distributed_spreadsheet:set(test_sheet,2,1,4,{cane,gatto,topo}).
 
 * distributed_spreadsheet:find_global_name(CallerPid).
 * distributed_spreadsheet:check_access(CallerPid).
 
 ## 4.4 Test to_csv(SpredsheetName, Filename)
 
-**distributed_spreadsheet:to_csv(undicigennaio, spreadsheet).**
+**distributed_spreadsheet:to_csv(test_sheet, spreadsheet).**
 
 ## 4.5 Test from_csv(Filename)
 
@@ -192,3 +194,7 @@ mnesia:force_load_table(spreadsheet_data). %% forza caricamento tabella
 %cancellare una tabella e ricrearla
 mnesia:delete_table(Table).
 mensia:create_table(....)
+
+### Chiamata da altro nodo
+
+rpc:call('Alice@DESKTOPQ2A2FL7', distributed_spreadsheet, new, [test]).

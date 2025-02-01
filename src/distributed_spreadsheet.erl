@@ -121,7 +121,9 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when
                         SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout
                     )
                 of
-                    {ok, Value} -> Value
+                    {ok, Value} -> Value,
+                    io:format("Returning value ~p~n" ,[Value])
+                    
                 end
             catch
                 _:_ -> {error, timeout}
