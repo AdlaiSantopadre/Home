@@ -685,21 +685,39 @@ try_list_to_integer(Value) ->
     end.
 
 %%%%%%Funzione Helper parse_value/1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-parse_value(ValueStr) ->
-    try erl_scan:string(ValueStr ++ ".") of
+parse_value(ValueStr) -> 
+    io:format("ValueStr now:~p,~n" ,[ValueStr]), 
+    case erl_scan:string(ValueStr ++ ".") of
         {ok, Tokens, _} ->
             case erl_parse:parse_term(Tokens) of
                 {ok, Term} ->
-                    {ok, Term};
-                {error, Reason} ->
-                    {error, {invalid_value, Reason}}
+                     case is_valid_type(Term) of
+                        true -> {ok, Term};
+                        false -> handle_special_cases(ValueStr)
+                    end;
+                _ -> handle_special_cases(ValueStr)
             end;
-        {error, Reason, _} ->
-            {error, {scan_failed, Reason}}
-    catch
-        _:_ -> {error, invalid_format}
+        _ -> handle_special_cases(ValueStr)
     end.
+%%% is_basic_type/1 eccetto is_pid/1 perchè erl_parse:parse_term non riconosce il pud come termine
 
+is_valid_type(Value) when is_integer(Value); is_float(Value); is_atom(Value);
+                           is_list(Value); is_tuple(Value); is_map(Value);
+                           is_binary(Value) -> true;
+is_valid_type(_) -> false.
+
+handle_special_cases(ValueStr) ->
+     
+    case try_convert_to_pid(ValueStr)  of
+       {ok, Pid} when is_pid(Pid) -> {ok,Pid};
+       {error, ValueStr} -> {ok,ValueStr}
+    end.
+try_convert_to_pid(ValueStr) when is_list(ValueStr) ->
+    try
+        {ok, list_to_pid(ValueStr)}
+    catch        
+        _:_ -> {error, ValueStr}
+    end.
 
 %%%%%%%%%%%Funzione Helper che popola di record
 %%%%%%%%%%%lo spreadsheet usando list comprehensions.
