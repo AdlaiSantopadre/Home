@@ -118,13 +118,13 @@ distributed_spreadsheet:share(test_sheet,[{nodeBob@DESKTOPQ2A2FL7,read},{nodeCha
 
 ## 4.3 Test  get(SpreadsheetName, TabIndex, I, J) e set(SpreadsheetName, TabIndex, I, J, Value)
 
-**distributed_spreadsheet:get(test_sheet,2,3,4).**
-
-**distributed_spreadsheet:set(test_sheet,2,3,4, "Hey, Adi").**
-**distributed_spreadsheet:set(test_sheet,2,2,4, atomic).**
-**distributed_spreadsheet:set(test_sheet,2,1,4, ["cani","gatti"]).**
+distributed_spreadsheet:get(test_sheet,2,3,4, 3.14).
+distributed_spreadsheet:set(test_sheet,2,3,4, "Hey, Adi").
+distributed_spreadsheet:set(test_sheet,2,2,4, atomic).
+distributed_spreadsheet:set(test_sheet,2,1,4, ["cani","gatti"]).
 distributed_spreadsheet:set(test_sheet,2,1,4,"Erlang! #1@rocks").
 distributed_spreadsheet:set(test_sheet,2,1,4,{cane,gatto,topo}).
+distributed_spreadsheet:set(test_sheet,2,1,4,#{key => value}).
 
 * distributed_spreadsheet:find_global_name(CallerPid).
 * distributed_spreadsheet:check_access(CallerPid).

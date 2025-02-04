@@ -424,9 +424,9 @@ handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
 %% Handle the 'set' request in the gen_server
 handle_call({set, SpreadsheetName, TabIndex, I, J, MonitorPid, Value}, _From, State) ->
     CallerPid = MonitorPid,
-    io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [
-        CallerPid, TabIndex, I, J, Value
-    ]),
+    % io:format("Set request from ~p for Tab: ~p, Row: ~p, Col: ~p, Value: ~p~n", [
+    %     CallerPid, TabIndex, I, J, Value
+    % ]),
 
     %% Check if the calling process has write access
     case check_access(CallerPid, [write], SpreadsheetName) of
@@ -800,16 +800,16 @@ check_access(CallerPid, RequiredAccessList, SpreadsheetName) ->
             io:format("nessun nome globale trovato per il chiamante ~p~n", [CallerPid]),
             {error, access_denied};
         GlobalName ->
-            io:format("controlla se ~p ha il requisito ~n", [GlobalName]),
+            io:format("controlla se ~p ha il requisito ~n di accesso", [GlobalName]),
             case
                 mnesia:transaction(fun() ->
                     %% Pattern per mnesia:match_object/1
                     Pattern = #access_policies{
                         name = SpreadsheetName, proc = GlobalName, access = '_'
                     },
-                    io:format("stampa pattern su cui fare match :~p ~n", [Pattern]),
+                    %% io:format("stampa pattern su cui fare match :~p ~n", [Pattern]),
                     Records = mnesia:match_object(Pattern),
-                    io:format("controlla i record su cui effettuare la ricerca:~p ~n", [Records]),
+                    %% io:format("controlla i record su cui effettuare la ricerca:~p ~n", [Records]),
                     %% Filtra i record con il permesso richiesto
                     lists:filter(
                         fun(#access_policies{access = Access}) ->
@@ -823,9 +823,9 @@ check_access(CallerPid, RequiredAccessList, SpreadsheetName) ->
                     %% Nessun record soddisfa i requisiti
                     io:format("RequiredAccessList: ~p~n", [RequiredAccessList]),
                     {error, access_denied};
-                {atomic, MatchingRecords} ->
+                {atomic, _MatchingRecords} ->
                     %% Almeno un record soddisfa i requisiti
-                    io:format("Selezionati questi record: ~p~n", [MatchingRecords]),
+                    %% io:format("Selezionati questi record: ~p~n", [MatchingRecords]),
                     ok;
                 {aborted, Reason} ->
                     %% Transazione abortita
@@ -859,7 +859,7 @@ is_basic_type(_) ->
 find_global_name(CallerPid) ->
     %% Recupera tutti i nomi globali
     GlobalNames = global:registered_names(),
-    io:format("Lista dei nomi globali registrati: ~p~n", [GlobalNames]),
+    %% io:format("Lista dei nomi globali registrati: ~p~n", [GlobalNames]),
     %% Trova il nome il cui PID corrisponde al CallerPid
     case
         lists:filter(
