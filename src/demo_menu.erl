@@ -36,7 +36,7 @@ continue() ->
     io:format("~n========  Setup ==========================~n"),
    
     io:format("D -> (Re-Compile and Load Modules~n"),
-    io:format("2 -> Start Distributed Application OTP~n"),
+    io:format("S -> Start Distributed Application OTP~n"),
     io:format("E -> Exit to Shell~n"),
     io:format("============================================~n"),
     Option = io:get_line(""),
@@ -102,7 +102,7 @@ process_option("D") ->
 
        
     
-process_option("2") ->
+process_option("S") ->
     
     io:format("Starting Application ...~n"),
     Nodes = ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7'],
@@ -120,23 +120,22 @@ process_option(_) ->
 api_test_menu() ->
     io:format("~n========= API Test Submenu =========~n"),
     io:format("API Test Submenu:~n ~n"),
-    io:format("a -> Create new Spreadsheet test_sheet ~n"),
-    io:format("b -> Set values in Spreadsheet test_sheet~n"),
-    io:format("c -> Get value from Spreadsheet test_sheet~n"),
-    io:format("d -> Retrieve Spreadsheet info~n"),
-    io:format("e -> Export Spreadsheet to CSV~n"),
-    io:format("f -> Import Spreadsheet from CSV~n"),
-    io:format("g -> Share Spreadsheet~n~n"),
-    io:format("h -> Export Spreadsheet to CSV~n"),
-    io:format("i -> Import Spreadsheet from CSV~n"),
-    io:format("j -> Exit API Test Menu~n"),
+    io:format("new -> Create new Spreadsheet test_sheet ~n"),
+    io:format("set -> Set values in Spreadsheet test_sheet~n"),
+    io:format("get -> Get value from Spreadsheet test_sheet~n"),
+    io:format("info -> Retrieve Spreadsheet info~n"),
+    io:format("to -> Export Spreadsheet To CSV~n"),
+    io:format("from -> Import Spreadsheet From CSV~n"),
+    io:format("share -> Share Spreadsheet~n~n"),
+    
+    io:format("E -> Exit API Test Menu~n"),
     io:format("====================================~n"),    
     io:format("Select an API test option: "),
     
     Option = io:get_line(""),
     execute_test(string:trim(Option)).
 
-execute_test("a") ->
+execute_test("new") ->
     
     
     SpreadsheetName = test_sheet,
@@ -161,7 +160,7 @@ execute_test("a") ->
 
     api_test_menu();
     
-execute_test("b") ->
+execute_test("set") ->
     io:format("Setting some sample values in 'test_sheet' spreadsheet~n"),
     SpreadsheetName = test_sheet,
     % Inserimento batch iniziale di dati
@@ -170,17 +169,17 @@ execute_test("b") ->
     distributed_spreadsheet:set(test_sheet,2,1,2, 3.14),
     distributed_spreadsheet:set(test_sheet,2,1,3, "string"),
     distributed_spreadsheet:set(test_sheet,2,1,4, <<10,20>>),
-    distributed_spreadsheet:set(test_sheet,2,2,1,self()),
+    distributed_spreadsheet:set(test_sheet,2,2,1, self()),
     distributed_spreadsheet:set(test_sheet,2,2,2, [atom, 32]),
     distributed_spreadsheet:set(test_sheet,2,2,3, fun(X) -> X+1 end),
-    distributed_spreadsheet:set(test_sheet,2,2,4, []),
-    distributed_spreadsheet:set(test_sheet,2,3,1, 3.14),
+    distributed_spreadsheet:set(test_sheet,2,2,4, {cane,gatto,topo}),
+    distributed_spreadsheet:set(test_sheet,2,3,1, #{key => value}),
     distributed_spreadsheet:set(test_sheet,2,3,2, "Hey, Adi"),
     distributed_spreadsheet:set(test_sheet,2,3,3, atomic),
     distributed_spreadsheet:set(test_sheet,2,3,4, ["cani","gatti"]),
-    distributed_spreadsheet:set(test_sheet,2,4,1,"Erlang! #1@rocks"),
-    distributed_spreadsheet:set(test_sheet,2,4,2,{cane,gatto,topo}),
-    distributed_spreadsheet:set(test_sheet,2,4,3,#{key => value}),
+    
+    
+
     io:format("Batch data insertion completed.~n"),
 
     
@@ -193,7 +192,7 @@ execute_test("b") ->
     end;
 
     
-execute_test("c") ->
+execute_test("get") ->
     io:format("~n[TEST] Retrieving all sample values set in 'test_sheet'~n"),
 
     distributed_spreadsheet:get(test_sheet, 2, 1, 1),
@@ -208,72 +207,47 @@ execute_test("c") ->
     distributed_spreadsheet:get(test_sheet, 2, 3, 2),
     distributed_spreadsheet:get(test_sheet, 2, 3, 3),
     distributed_spreadsheet:get(test_sheet, 2, 3, 4),
-    distributed_spreadsheet:get(test_sheet, 2, 4, 1),
-    distributed_spreadsheet:get(test_sheet, 2, 4, 2),
-    distributed_spreadsheet:get(test_sheet, 2, 4, 3),
+
 
     % Chiede se si vuole leggere un valore specifico
     io:format("Do you want to read a specific value? (y/n): "),
     case string:trim(io:get_line("")) of
-        "y" -> retrieve_specific_value();
+        "y" -> retrieve_specific_value(),ok;
         _ -> api_test_menu()
     end,
 
     api_test_menu();
     
-execute_test("d") ->
+execute_test("info") ->
     io:format("Retrieving info of 'test_sheet'~n"),
     case distributed_spreadsheet:info(test_sheet) of
-        {ok, Info} -> io:format("Spreadsheet info: ~p~n", [Info]);
+        {ok, Info} -> print_map(Info);
         {error, Reason} -> io:format("Failed to retrieve info: ~p~n", [Reason])
     end,
     api_test_menu();
     
-execute_test("e") ->
-    io:format("Exporting 'test_sheet' to CSV file 'test_sheet.csv'~n"),
-    distributed_spreadsheet:to_csv(test_sheet, "test_sheet.csv"),
+execute_test("to") ->
+    io:format("Exporting Spreadsheet test_sheet to CSV file 'demo_sheet.csv'~n"),
+    distributed_spreadsheet:to_csv(test_sheet, demo_sheet),
     io:format("Spreadsheet exported successfully.~n"),
     api_test_menu();
     
-execute_test("f") ->
-    io:format("Importing 'test_sheet.csv' back into a spreadsheet~n"),
-    distributed_spreadsheet:from_csv("test_sheet.csv"),
+execute_test("from") ->
+    io:format("Importing 'demo_sheet.csv' back into a spreadsheet~n"),
+    distributed_spreadsheet:from_csv("demo_sheet.csv"),
     io:format("Spreadsheet imported successfully.~n"),
     api_test_menu();
     
-execute_test("g") ->
-    io:format("~n[TEST] Sharing 'test_sheet' with changing policies ~n"),
+execute_test("share") ->
+    io:format("~n[TEST] Configuring access policies for 'test_sheet'~n"),
+    AccessPolicies = collect_access_policies(),
+    io:format("Applying access policies: ~p~n", [AccessPolicies]),
+    distributed_spreadsheet:share(test_sheet, AccessPolicies),
     
-    distributed_spreadsheet:share(test_sheet, 
-        [{'nodeAlice@DESKTOPQ2A2FL7', read}, 
-         {'nodeBob@DESKTOPQ2A2FL7', read}, 
-         {'nodeCharlie@DESKTOPQ2A2FL7', read}]),
-
-    distributed_spreadsheet:share(test_sheet, 
-        [{'nodeAlice@DESKTOPQ2A2FL7', write}, 
-         {'nodeBob@DESKTOPQ2A2FL7', read}]),
-
-    distributed_spreadsheet:share(test_sheet, 
-        [{'nodeAlice@DESKTOPQ2A2FL7', write}, 
-         {'nodeBob@DESKTOPQ2A2FL7', read}, 
-         {'nodeCharlie@DESKTOPQ2A2FL7', write}]),
-
-    api_test_menu();
-
-execute_test("h") ->
-    io:format("~n[TEST] Exporting 'test_sheet' to CSV file 'test_sheet.csv'~n"),
-    distributed_spreadsheet:to_csv(test_sheet, "test_sheet.csv"),
     api_test_menu();
     
-execute_test("i") ->
-    io:format("~n[TEST] Importing 'test_sheet.csv' back into a spreadsheet~n"),
-    distributed_spreadsheet:from_csv("test_sheet.csv"),
-    api_test_menu();    
-    
-execute_test("j") ->
-    io:format("Invalid API test option. Please try again.~n"),
-    
-    %% Esce dal menu e ritorna alla shell
+execute_test("E") ->
+        %% Esce dal menu e ritorna alla shell
     io:format("Exiting to shell...~n"),
     ok;
 execute_test(_) ->
@@ -340,14 +314,36 @@ retrieve_specific_value() ->
 
     io:format("Retrieving value from 'test_sheet': Tab: ~p, Row: ~p, Col: ~p~n", [Tab, Row, Col]),
 
-    case distributed_spreadsheet:get(test_sheet, Tab, Row, Col) of
-        {ok, Value} -> io:format("Retrieved Value: ~p~n", [Value]);
-        {error, Reason} -> io:format("Failed to retrieve value: ~p~n", [Reason])
-    end,
+    distributed_spreadsheet:get(test_sheet, Tab, Row, Col),
 
     % Chiede se si vogliono leggere altri valori
     io:format("Do you want to read another value? (y/n): "),
     case string:trim(io:get_line("")) of
         "y" -> retrieve_specific_value();
         _ -> api_test_menu()
+    end.
+print_map(Map) when is_map(Map) ->
+    maps:foreach(fun(Key, Value) ->
+        io:format("~p: ~p~n", [Key, Value])
+    end, Map).
+collect_access_policies() ->
+    PossibleNodes = ['nodeAlice@DESKTOPQ2A2FL7', 'nodeBob@DESKTOPQ2A2FL7', 'nodeCharlie@DESKTOPQ2A2FL7'],
+    io:format("Available nodes: ~p~n", [PossibleNodes]),
+    io:format("Enter node name from the list above (or empty to finish): "),
+    NodeInput = string:trim(io:get_line("")),
+    case lists:member(list_to_atom(NodeInput), PossibleNodes) of
+        true ->
+            io:format("Enter access policy (read/write): "),
+            PolicyInput = string:trim(io:get_line("")),
+            case PolicyInput of
+                "read" -> [{list_to_atom(NodeInput), read} | collect_access_policies()];
+                "write" -> [{list_to_atom(NodeInput), write} | collect_access_policies()];
+                _ ->
+                    io:format("Invalid policy. Please enter 'read' or 'write'.~n"),
+                    collect_access_policies()
+            end;
+        false when NodeInput =:= "" -> [];
+        false ->
+            io:format("Invalid node name. Please select from the available list.~n"),
+            collect_access_policies()
     end.

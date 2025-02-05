@@ -29,7 +29,7 @@
     read_from_csv/1,
     update_access_policies/3,
     resolve_to_global_or_pid/1,
-    resolve_policies/1
+    resolve_policies/1,write_csv/3
 ]).
 
 %% Callbacks
@@ -92,7 +92,7 @@ share(SpreadsheetName, AccessPolicies) when is_list(AccessPolicies) ->
             MonitorPid = whereis(node_monitor),
 
             try
-                io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
+                %% io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
                 gen_server:call(
                     SpreadsheetPid, {share, SpreadsheetName, AccessPolicies, MonitorPid}
                 )
@@ -115,7 +115,7 @@ get(SpreadsheetName, TabIndex, I, J, Timeout) when
         SpreadsheetPid when is_pid(SpreadsheetPid) ->
             MonitorPid = whereis(node_monitor),
             try
-                io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
+                %%io:format("Caller node with Monitor Pid: ~p~n", [MonitorPid]),
                 case
                     gen_server:call(
                         SpreadsheetPid, {get, SpreadsheetName, TabIndex, I, J, MonitorPid}, Timeout
@@ -293,7 +293,7 @@ handle_call({share, SpreadsheetName, AccessPolicies, MonitorPid}, {FromPid, _Ali
                         {Policy#access_policies.proc, Policy#access_policies.access}
                      || Policy <- Policies
                     ],
-                    io:format("Existing Policies: ~p~n", [ExistingPolicies]),
+                    %% io:format("Existing Policies: ~p~n", [ExistingPolicies]),
 
                     case
                         update_access_policies(SpreadsheetName, AccessPolicies, ExistingPolicies)
@@ -327,7 +327,7 @@ handle_call({share, SpreadsheetName, AccessPolicies, MonitorPid}, {FromPid, _Ali
 % Handle the synchronous request to get the spreadsheet's info
 %%%%%%%%%%%%%%%%%HANDLE CALL ABOUT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 handle_call({about, SpreadsheetName}, _From, State) ->
-    io:format("getting info about  ~p~n", [SpreadsheetName]),
+    %% io:format("getting info about  ~p~n", [SpreadsheetName]),
     case
         mnesia:transaction(fun() ->
             mnesia:match_object(#spreadsheet_info{
@@ -354,7 +354,7 @@ handle_call({about, SpreadsheetName}, _From, State) ->
                         {Policy#access_policies.proc, Policy#access_policies.access}
                      || Policy <- Policies, Policy#access_policies.access =:= read
                     ],
-                    io:format("ReadPermissions: ~p~n", [ReadPermissions]),
+                    %% io:format("ReadPermissions: ~p~n", [ReadPermissions]),
                     WritePermissions = [
                         {Policy#access_policies.proc, Policy#access_policies.access}
                      || Policy <- Policies, Policy#access_policies.access =:= write
@@ -386,12 +386,12 @@ handle_call({about, SpreadsheetName}, _From, State) ->
 % Handle the 'get' request in the gen_server SpreadsheetName, N, M, K, OwnerPid
 handle_call({get, SpreadsheetName, TabIndex, I, J, MonitorPid}, _From, State) ->
     CallerPid = MonitorPid,
-    io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
+    %%io:format("Get request from ~p for Tab: ~p, Row: ~p, Col: ~p~n", [CallerPid, TabIndex, I, J]),
 
     %% Check if the calling process has read access (or superior write access)
     case check_access(CallerPid, [read, write], SpreadsheetName) of
         ok ->
-            io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p~n", [TabIndex, I, J]),
+            %% io:format("Returning value for Tab: ~p, Row: ~p, Col: ~p~n", [TabIndex, I, J]),
 
             case
                 mnesia:transaction(fun() ->
@@ -733,14 +733,14 @@ generate_records(Name, N, M, K) ->
 update_access_policies(SpreadsheetName, NewPolicies, ExistingPolicies) ->
     %% Preelabora NewPolicies per creare una mappa di PID e nomi globali
     ResolvedNewPolicies = resolve_policies(NewPolicies),
-    io:format("ottengo queste policies pre-elaborate:~p,~n", [ResolvedNewPolicies]),
+    %% io:format("ottengo queste policies pre-elaborate:~p,~n", [ResolvedNewPolicies]),
     %% Filtra le ExistingPolicies
     FilteredExistingPolicies = lists:filter(
         fun({Proc, _}) ->
             %% Risolvi Proc in ExistingPolicies
             case resolve_to_global_or_pid(Proc) of
                 {ok, ResolvedProc} ->
-                    io:format("sto controllando se  Proc (:~p) è parte della mappa ,~n", [Proc]),
+                    %%io:format("sto controllando se  Proc (:~p) è parte della mappa ,~n", [Proc]),
                     %% Mantieni solo se ResolvedProc non è presente in ResolvedNewPolicies
                     not maps:is_key(ResolvedProc, ResolvedNewPolicies);
                 _ ->
@@ -749,7 +749,7 @@ update_access_policies(SpreadsheetName, NewPolicies, ExistingPolicies) ->
         end,
         ExistingPolicies
     ),
-    io:format("tra le policies esistenti, non sono da  aggiornare:~p~n", [FilteredExistingPolicies]),
+    %%io:format("tra le policies esistenti, non sono da  aggiornare:~p~n", [FilteredExistingPolicies]),
     %% Combina le politiche filtrate con NewPolicies
     UpdatedPolicies = FilteredExistingPolicies ++ NewPolicies,
     io:format("ottengo queste policies aggiornate:~p,~n", [UpdatedPolicies]),
@@ -761,7 +761,7 @@ update_access_policies(SpreadsheetName, NewPolicies, ExistingPolicies) ->
         lists:foreach(
             fun({Proc, Access}) ->
                 Record = #access_policies{name = SpreadsheetName, proc = Proc, access = Access},
-                io:format("Inserting Record: ~p~n", [Record]),
+                %%io:format("Inserting Record: ~p~n", [Record]),
                 mnesia:write(Record)
             end,
             UpdatedPolicies
@@ -800,7 +800,7 @@ check_access(CallerPid, RequiredAccessList, SpreadsheetName) ->
             io:format("nessun nome globale trovato per il chiamante ~p~n", [CallerPid]),
             {error, access_denied};
         GlobalName ->
-            io:format("controlla se ~p ha il requisito ~n di accesso", [GlobalName]),
+            %% io:format("controlla se ~p ha il requisito ~n di accesso~n", [GlobalName]),
             case
                 mnesia:transaction(fun() ->
                     %% Pattern per mnesia:match_object/1
