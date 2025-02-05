@@ -1,11 +1,143 @@
-# MESSAGGI
+# Documentazione del Modulo `demo_menu.erl`
 
-## 1. Setup del cluster
+## Introduzione
 
-* avvia il cluster di Mnesia e il nodo Monitor_service
-**setup_nodes.bat**
+Il modulo `demo_menu.erl` fornisce un'interfaccia a menu per eseguire la configurazione del cluster, distribuire i moduli, avviare l'applicazione e accedere a un menu di test delle API dello spreadsheet distribuito.
 
-Compila i moduli del progetto, ricrea le cartelle di destinazione di Mnesia per ogni nodo, avvia ogni nodo come parte del cluster Mnesia+APPLICATION OTP eccetto Monitor_service
+Questa documentazione guida  attraverso le funzionalità principali del modulo, mostrando il suo listato in output e illustrando il comportamento delle diverse opzioni disponibili.
+
+Preliminarmente occorre impostare l`ambiente di distribuzione della Applicazione.
+Basandoci su un S.O. windows 10 è stato predisposto un comando **setup_nodes.bat** che avvia il cluster  Mnesia e il nodo Monitor_service,in dettaglio esso compila i moduli del progetto, ricrea le cartelle di destinazione di Mnesia per ogni nodo, avvia ogni nodo come parte del cluster Mnesia+APPLICATION OTP (eccetto Monitor_service)
+
+---
+
+## Avvio del Menu Principale
+
+Per avviare il menu principale, eseguire:
+
+```erlang 
+demo_menu:start().
+```
+
+L'output sarà simile al seguente:
+
+```
+===========  Setup ====================
+1 -> Setup and Start Mnesia(Run Once)
+E -> Exit to Shell
+======================================
+```
+
+Se è la prima esecuzione del menu, verrà chiesto se si desidera eseguire il **Setup di Mnesia**.
+
+```
+Do you want to run Setup & Start Mnesia? (y/n): 
+```
+
+Se si sceglie `y`, il setup iniziale dello schema di Mnesia verrà eseguito e il sistema continuerà  con altre opzioni per la distribuzione dei moduli e l'avvio dell'applicazione.
+
+```
+Mnesia is running on nodes: ['Alice@DESKTOPQ2A2FL7', 'Bob@DESKTOPQ2A2FL7', 'Charlie@DESKTOPQ2A2FL7']
+```
+
+Questa operazione imposta lo schema Mnesia e avvia il database distribuito.
+
+### Distribuzione e Compilazione Moduli
+Dopo il setup di Mnesia, il menu continua con:
+
+```
+========  Setup ==========================
+D -> (Re-Compile and Load Modules
+S -> Start Distributed Application OTP
+E -> Exit to Shell
+============================================
+```
+
+- `D` **Compila e distribuisce i moduli ai nodi del cluster**
+- `S` **Avvia l'applicazione distribuita e passa al menu API Test**
+
+### 3. Avvio dell'Applicazione e Observer
+```
+Starting Application ...
+```
+
+Questa opzione avvia l'applicazione `my_app` sui nodi e avvia `observer:start()` per il monitoraggio.
+
+Dopo questa fase, viene avviato automaticamente il **menu API Test**.
+
+---
+
+## API Test Menu
+```
+========= API Test Submenu =========
+new -> Create new Spreadsheet test_sheet
+set -> Set values in Spreadsheet test_sheet
+get -> Get value from Spreadsheet test_sheet
+info -> Retrieve Spreadsheet info
+to -> Export Spreadsheet To CSV
+from -> Import Spreadsheet From CSV
+share -> Share Spreadsheet
+E -> Exit API Test Menu
+====================================
+```
+
+### Creazione di un Nuovo Spreadsheet
+Selezionare `new` per creare un nuovo spreadsheet:
+```
+Enter number of rows (N) (default: 3): 3
+Enter number of columns (M) (default: 4): 4
+Enter number of tabs (K) (default: 2): 2
+Creating spreadsheet 'test_sheet' with dimensions (3, 4, 2)...
+Spreadsheet 'test_sheet' created successfully.
+```
+
+### Inserimento di Dati
+Selezionare `set` per inserire diversi tipi di dati:
+```
+Setting some sample values in 'test_sheet' spreadsheet
+Executing batch data insertion...
+Batch data insertion completed.
+```
+
+L'utente può anche inserire valori manualmente.
+
+### Recupero di Dati
+Selezionare `get` per recuperare i dati:
+```
+Retrieving all sample values set in 'test_sheet'
+Do you want to read a specific value? (y/n): 
+```
+
+L'utente può scegliere di recuperare un valore specifico inserendo tab, riga e colonna.
+
+### Informazioni sullo Spreadsheet
+Selezionare `info` per ottenere dettagli su `test_sheet`:
+```
+Spreadsheet info: #{name => test_sheet, owner => ..., total_tabs => 2, ...}
+```
+
+### Esportazione e Importazione CSV
+- `to` esporta lo spreadsheet in `demo_sheet.csv`
+- `from` importa i dati da `demo_sheet.csv`
+
+### Condivisione dello Spreadsheet
+Selezionare `share` per configurare i permessi di accesso:
+```
+Available nodes: ['nodeAlice@DESKTOPQ2A2FL7', 'nodeBob@DESKTOPQ2A2FL7', 'nodeCharlie@DESKTOPQ2A2FL7']
+Enter node name from the list above (or empty to finish): nodeAlice@DESKTOPQ2A2FL7
+Enter access policy (read/write): write
+Applying access policies: [{'nodeAlice@DESKTOPQ2A2FL7', write}]
+```
+---
+
+
+
+
+---
+## APPENDICE MESSAGGI DA SHELL
+
+## 1. Avvio Monitor_service
+
 
 ```console
 erl -sname Monitor_service -setcookie mycookie -pa C:\Users\Campus.uniurb.it\Erlang -eval "cluster_setup:start_cluster()"
@@ -15,12 +147,9 @@ Utilità da shell
 
 *global:registered_names().*
 *observer:start().*
-*global:registered_names().*
 *code:which(node_monitor).* 
 
-## AVVIO DEMO
 
-* Avvia un menù demo interattivo dalla shell di Alice@DESKTOPQ2A2FL7 con **demo_menu:start().**
 
 ## 2.1 SETUP INIZIALE Mnesia dal nodo Alice@DESKTOPQ2A2FL7
 
